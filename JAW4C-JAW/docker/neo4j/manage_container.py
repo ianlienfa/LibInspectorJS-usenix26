@@ -150,16 +150,16 @@ def import_data_inside_container(container_name, database_name, relative_import_
 	
 			# see: https://neo4j.com/docs/operations-manual/current/tools/neo4j-admin-import/#import-tool-option-skip-duplicate-nodes
 			if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
-				neo4j_import_cmd = "neo4j-admin import --database=%s --nodes=%s --relationships=%s,%s --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
+				neo4j_import_cmd = "neo4j-admin import --database=%s --nodes='%s' --relationships='%s','%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
 			else:
-				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes=%s --relationships=%s,%s --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
+				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s','%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
 
 		else:
 			# see: https://neo4j.com/docs/operations-manual/current/tools/neo4j-admin-import/#import-tool-option-skip-duplicate-nodes
 			if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
-				neo4j_import_cmd = "neo4j-admin import --database=%s --nodes=%s --relationships=%s --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
+				neo4j_import_cmd = "neo4j-admin import --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
 			else:
-				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes=%s --relationships=%s --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
+				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
 
 
 		# directly run the command inside the neo4j container with docker exec

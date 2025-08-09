@@ -56,7 +56,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 	cs_csrf_static_analysis_command = cs_csrf_static_analysis_command.replace("DRIVER_ENTRY", cs_csrf_static_analysis_driver_program)
 
 	# read from directories, prep
-	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)
+	website_folder_name = utilityModule.get_name_from_url(website_url)
 	website_folder = os.path.join(constantsModule.DATA_DIR, website_folder_name)
 
 	webpages_json_file = os.path.join(website_folder, 'webpages.json')

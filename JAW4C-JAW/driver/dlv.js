@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const lift = require('./utilities/lift');
 const crawl = require('./utilities/crawl');
+const crawler = require('../crawler/crawler');
 const fs = require('fs');
 const logger = require('./utilities/logger');
 const LOGGER = logger.info
@@ -10,10 +11,6 @@ const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOri
 const { Command } = require('commander');
 const { exit } = require('process');
 
-// JAW url format
-function getNameFromURL(url){
-	return url.replace(/\:/g, '-').replace(/\//g, '');
-}
 
 // helper functions
 const is_vuln_lib_osv = async(libname, version) => {
@@ -56,8 +53,8 @@ function createStartCrawlUrl(url) {
     target: url,
     type: condition
   });
-
-  return `http://240.240.240.240/?${query.toString()}`;
+  const q = encodeURIComponent(query.toString())
+  return `http://240.240.240.240/%3F${q}`;
 }
 
 const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, dataDir = "") => {
@@ -332,10 +329,10 @@ if (require.main === module) {
     if(url){
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
-      const folderName = getNameFromURL(url);
+      const folderName = crawler.getNameFromURL(url);
       dirPath = path.join(dataStorageDirectory, folderName);
       if(!fs.existsSync(dirPath)){
-        logger.error("no directory found at", folderPath)
+        logger.error("no directory found at", dirPath)
         process.exit(1)
       }
     }
@@ -345,8 +342,9 @@ if (require.main === module) {
       const urls = fs.readFileSync(path.join(dirPath, "urls.out"), 'utf8')
       let res = {}
       urlList = urls.split('\n').filter(x => x !== '')
-      LOGGER('urlList', urlList)
+      LOGGER(`urlList: ${urlList}`)
       for(const url of urlList){
+        LOGGER(`url: ${url}`)
         res[url] = {}
         res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, crawlJs=false, do_lift=false, dataDir=dirPath);
         if(res[url]['PTV']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV']['detection']))

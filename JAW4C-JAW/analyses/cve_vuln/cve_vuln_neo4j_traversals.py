@@ -55,7 +55,14 @@ def get_name_from_url(url):
 	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 
 	"""
-	return url.replace(':', '-').replace('/', '')
+	return (
+        url.replace(":", "-")
+           .replace("/", "")
+           .replace("&", "%26")
+           .replace("=", "%3D")
+           .replace("?", "%3F")
+    )
+
 
 
 
