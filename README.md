@@ -6,7 +6,7 @@
     ```
 
 # Web archive setup
-- generating the right url to interact with the archive: use the `create_start_crawl_url` function in README.md
+- generating the right url to interact with the archive- use the `create_start_crawl_url` function in README.md
     ```
     docker build -t mitmproxy . && docker run -it --rm -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316 --entrypoint=bash -v "$(pwd)/archive/archive-70":/proxy/archive-70  mitmproxy
     ```
