@@ -97,3 +97,6 @@ hpg_construction/outputs/
 # driver
 driver/site-js/*
 driver/logs/*
+
+# venv
+cve_jaw
