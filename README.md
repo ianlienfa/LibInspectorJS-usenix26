@@ -30,7 +30,32 @@
 
 # web archive setup
 - generating the right url to interact with the archive: use the `create_start_crawl_url` function in README.md
-- 
+    ```
+    docker build -t mitmproxy . && docker run -it --rm -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316 --entrypoint=bash -v "$(pwd)/archive/archive-70":/proxy/archive-70  mitmproxy
+    ```
+    Then in the container:
+    ```
+    mkdir proxy_logs
+    echo "Launching proxy instance 8002"
+    mitmdump \
+    --listen-host=0.0.0.0 \
+    --listen-port=8002 \
+    --set confdir=./conf \
+    --set flow-detail=0 \
+    --set anticache=true \
+    --set anticomp=true \
+    -s "./scripts/proxy.py" \
+    --set useCache=true \
+    --set onlyUseCache=false \
+    --set useBabel=true \
+    --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
+    --set warcPath="/proxy/archive-70" \
+    --set replayNearest=true \
+    --set replay=true \
+    --set archive=false \
+    --set append=false \
+    > "proxy_logs/out" 2> "proxy_logs/err"
+    ```
 
 # vuln-db setup
 ```
@@ -47,6 +72,17 @@ database=vulndb
 username=vulndb
 password=vulndb_pwd
 port=543
+```
+
+# Running pipeline
+This should be executed in the JAW4C-JAW directory
+
+```
+python3 -m run_pipeline --conf=config.yaml
+```
+For simple testing
+```
+python3 -m analyses.example.example_analysis --input=<path to the testing script> -S ""
 ```
 
 # Commonly seen problems
