@@ -1,19 +1,10 @@
 # Setup this directory
 
-1. Download all the required repos
-
-    - CVE_JAW: https://github.com/ianlienfa/CVE-JAW
-    - Library_Detector_GTV: https://github.com/ianlienfa/Library-Detector-GTV
-    - Bundle-PTV: https://github.com/ianlienfa/Bundle-PTV
-    - PTV(Original version): https://github.com/aaronxyliu/PTV
-    - Web archive: `git clone -b latest git@cement.andrew.cmu.edu:DOM-XSS/jalangi2.git`
-
-
-2. Setup them respectively
+1. Setup different modules respectively
     - CVE_JAW requires running ./install.sh, setting up python environment (venv recommended) and run `pip install -r requiremenet.txt`
     - Webarchive requires building its own docker image
 
-3. Start testing (CVE_JAW)
+2. Start testing (CVE_JAW)
     ```
     python3 -m analyses.example.example_analysis --input=/home/ian/BundlerResearch/CVE-JAW/data/test_program/test.js -S ""
     ```

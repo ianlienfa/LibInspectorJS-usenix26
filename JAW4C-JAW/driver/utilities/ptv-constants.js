@@ -1,9 +1,9 @@
-const PTdetectorExtensionPath = '~/cmu/Cylab-JSBundle/PTdetector';
-const PTdetectorExtensionId = 'mgmamlecpkakbphhnfciemcofnmdaakg';
-const PTVExtensionPath = '~/cmu/Cylab-JSBundle/Bundle-PTV';
-const PTVOriginalExtensionPath = '~/cmu/Cylab-JSBundle/PTV';
+// const PTdetectorExtensionPath = '~/cmu/Cylab-JSBundle/PTdetector';
+// const PTdetectorExtensionId = 'mgmamlecpkakbphhnfciemcofnmdaakg';
+const PTVExtensionPath = '/home/ian/JAW4C/JAW4C-PTV';
+const PTVOriginalExtensionPath = '/home/ian/JAW4C/JAW4C-PTVOriginal';
 const ProxyServerPath = '127.0.0.1:8002';
-const JAWPath = "/Users/ian/cmu/Cylab-JSBundle/JAW"
+const JAWPath = "/home/ian/JAW4C/JAW4C-JAW"
 
 const PTVPuppeteerLaunchConfig = {
   headless: true, // Extensions won't work in headless mode
@@ -30,8 +30,8 @@ const PTVOriginalLaunchConfig = {
 }
 
 module.exports = {
-    PTdetectorExtensionPath, 
-    PTdetectorExtensionId, 
+    // PTdetectorExtensionPath, 
+    // PTdetectorExtensionId, 
     PTVExtensionPath,
     PTVOriginalExtensionPath,
     ProxyServerPath,

@@ -1557,11 +1557,11 @@ def run_traversals_simple(tx, vuln_info):
 
 
 		# path to store the general template file for WIN.LOC dependencies of all URLs			
-		general_template_output_path = utilityModule.get_directory_without_last_part("/home/ian/BundlerResearch/CVE-JAW/data/test_program".rstrip('/'))
+		general_template_output_path = utilityModule.get_directory_without_last_part("/home/ian/BundlerResearch/JAW4C-JAW/data/test_program".rstrip('/'))
 		general_template_output_pathname = os.path.join(general_template_output_path, "sinks.flows.out")
 
 		# path to store all templates of the current URL
-		template_output_pathname = os.path.join("/home/ian/BundlerResearch/CVE-JAW/data/test_program", "sink.flows.out")
+		template_output_pathname = os.path.join("/home/ian/BundlerResearch/JAW4C-JAW/data/test_program", "sink.flows.out")
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "w+") as fd:
 				timestamp = _get_current_timestamp()

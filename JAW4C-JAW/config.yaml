@@ -6,9 +6,9 @@ testbed:
   # sitelist: /input/tranco_Z2QWG_unique.csv
   archive: 
     enable: true
-    mappinglist: /home/ian/BundlerResearch/jalangi2/archive/archive-70/name_mapping.json
-  from_row: 5
-  to_row: 5 # row number or 'end'
+    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
+  from_row: 1
+  to_row: 1 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -20,13 +20,13 @@ crawler:
   # amount of memory for the crawler
   memory: 8192
   # overwrite already existing crawled data or not
-  overwrite: false
+  overwrite: true
   # check if domain is up with a python request before spawning a browser instance
   domain_health_check: false
   # puppeteer additional args
   puppeteer:    
-    disable-extensions-except: /home/ian/BundlerResearch/Bundle-PTV
-    load-extension: /home/ian/BundlerResearch/Bundle-PTV
+    disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
+    load-extension: /home/ian/JAW4C/JAW4C-PTV
     proxy-server: 127.0.0.1:8002
     ignore-certificate-errors: true
     disk-cache-dir: /dev/null

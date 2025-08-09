@@ -6,6 +6,21 @@ sudo apt update
 # chromimum
 sudo apt install -y chromium-browser
 
+# Set environment variables for Puppeteer
+ARCH=$(uname -m)
+if [[ "$ARCH" == arm* ]] || [[ "$ARCH" == aarch64 ]]; then
+    export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    echo "Puppeteer environment set for ARM ($ARCH)"
+fi
+
+if [ ! -d "./cve_jaw" ]; then
+    echo "Virtual environment not found. Creating one in $VENV_DIR..."
+    python3 -m venv cve_jaw || { echo "Failed to create venv"; exit 1; }
+fi
+
+source "$(realpath ./cve_jaw/bin/activate)"
+
 # NPM dependencies
 (cd crawler && npm install)
 # linux: sudo npm install puppeteer --unsafe-perm=true --allow-root
@@ -15,6 +30,7 @@ sudo apt install -y chromium-browser
 (cd analyses/cs_csrf && npm install)
 (cd analyses/request_hijacking && npm install)
 (cd analyses/open_redirect && npm install)
+(cd analyses/cve_vuln && npm install)
 
 (cd engine && npm install)
 (cd engine/lib/jaw/dom-points-to && npm install)
@@ -24,6 +40,8 @@ sudo apt install -y chromium-browser
 
 (cd verifier && npm install)
 (cd verifier/service && npm install)
+
+(cd driver && npm install)
 
 # python package dependencies
 sudo apt-get install libgeos-dev
