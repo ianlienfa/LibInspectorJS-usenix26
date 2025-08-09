@@ -144,7 +144,28 @@ def getDirectoryNameFromURL(url):
 	@param url: eTLD+1 domain name
 	@return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 	"""
-	return url.replace(':', '-').replace('/', '')
+	return (
+        url.replace(":", "-")
+           .replace("/", "")
+           .replace("&", "%26")
+           .replace("=", "%3D")
+           .replace("?", "%3F")
+    )
+
+def get_name_from_url(url):
+	"""
+	The cve version for having archive urls into neo4j
+	@param url: eTLD+1 domain name
+	@return converts the url to a string name suitable for a directory by removing the colon and slash symbols
+	"""
+	return (
+        url.replace(":", "-")
+           .replace("/", "")
+           .replace("&", "%26")
+           .replace("=", "%3D")
+           .replace("?", "%3F")
+    )
+
 
 
 		

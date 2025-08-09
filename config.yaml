@@ -7,8 +7,8 @@ testbed:
   archive: 
     enable: true
     mappinglist: /home/ian/BundlerResearch/jalangi2/archive/archive-70/name_mapping.json
-  from_row: 5
-  to_row: 5 # row number or 'end'
+  from_row: 10
+  to_row: 20 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -20,7 +20,7 @@ crawler:
   # amount of memory for the crawler
   memory: 8192
   # overwrite already existing crawled data or not
-  overwrite: false
+  overwrite: true
   # check if domain is up with a python request before spawning a browser instance
   domain_health_check: false
   # puppeteer additional args
@@ -42,16 +42,23 @@ crawler:
   lib_detection:
     enable: true
     lift: true
-    detection_timeout: 30 # 30s
+    detection_timeout: 60 # 60
     post_cleanup: true  # cleanup lifted file or not    
 
+vuln_db:
+  connect: true 
+  host: localhost
+  port: 5431
+  dbname: vulndb
+  user: vulndb
+  password: vulndb_pwd
 
 # 3. static analysis configuration
 staticpass:
   # time budget for static analysis of each site (in seconds)
   sitetimeout: 10800 # 3 hrs
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
-  pagetimeout: 600
+  pagetimeout: 60
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process

@@ -19,3 +19,4 @@ pandas
 pyvirtualdisplay
 tldextract
 tld
+psycopg2-binary

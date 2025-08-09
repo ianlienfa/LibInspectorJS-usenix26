@@ -111,8 +111,13 @@ function isValid(link){
  * @param url: eTLD+1 domain name
  * @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 **/
-function getNameFromURL(url){
-	return url.replace(/\:/g, '-').replace(/\//g, '');
+function getNameFromURL(url) {
+  return url
+    .replace(/:/g, '-')
+    .replace(/\//g, '')
+    .replace(/&/g, '%26')
+    .replace(/=/g, '%3D')
+    .replace(/\?/g, '%3F');
 }
 
 
@@ -135,6 +140,7 @@ function hashURL(url){
 function getOrCreateDataDirectoryForWebsite(url){
 	const folderName = getNameFromURL(url);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
+	console.log("folderPath", folderPath)
 	if(!fs.existsSync(folderPath)){
 		fs.mkdirSync(folderPath);
 	}
@@ -153,6 +159,17 @@ function directoryExists(url){
 		return false;
 	}
 
+}
+
+
+function cleanDirectory(url){
+
+	const folderName = getNameFromURL(url);
+	const folderPath = pathModule.join(dataStorageDirectory, folderName);
+	if(fs.existsSync(folderPath)){
+		// Recursively remove everything inside folderPath
+        fs.rmSync(folderPath, { recursive: true, force: true });
+	}
 }
 
 /** 
@@ -476,7 +493,7 @@ async function launch_puppeteer(headless_mode, additional_args=undefined){
 		headless: headless_mode,
 		// defaultViewport: null,
 		args: args,
-		'ignoreHTTPSErrors': false
+		'ignoreHTTPSErrors': true
 	});
 	return browser;	
 }
@@ -484,6 +501,8 @@ async function launch_puppeteer(headless_mode, additional_args=undefined){
 /*
 * entry point of crawler
 */
+if (require.main === module) {
+
 (async function(){
 
     const processArgv = argv(process.argv.slice(2));
@@ -504,6 +523,9 @@ async function launch_puppeteer(headless_mode, additional_args=undefined){
 	if(!overwrite_results && directoryExists(url)){
 		DEBUG && console.log('site already crawled: '+ url);
 		return 1;
+	}
+	else{
+		cleanDirectory(url)
 	}
 
 	/** 
@@ -559,3 +581,6 @@ async function launch_puppeteer(headless_mode, additional_args=undefined){
 
 
 })();
+}
+
+module.exports = {getNameFromURL}

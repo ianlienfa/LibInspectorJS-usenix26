@@ -66,7 +66,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 	if specific_webpage is not None:
 		webpage_folder = os.path.join(constantsModule.DATA_DIR, specific_webpage)
 		if os.path.exists(webpage_folder):
-			node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER', webpage_folder)
+			node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER', "'" + webpage_folder + "'")
 			IOModule.run_os_command(node_command, cwd=cve_vuln_analyses_command_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
 
 	elif os.path.exists(webpages_json_file):
@@ -79,7 +79,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 			webpage_folder = os.path.join(website_folder, webpage)
 			if os.path.exists(webpage_folder):
 				
-				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER', webpage_folder)
+				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER',  "'" + webpage_folder + "'")
 				IOModule.run_os_command(node_command, cwd=cve_vuln_analyses_command_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
 
 
@@ -103,7 +103,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 			webpage_folder_name = utilityModule.sha256(url)
 			webpage_folder = os.path.join(website_folder, webpage_folder_name)
 			if os.path.exists(webpage_folder):
-				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER', webpage_folder)
+				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER',  "'" + webpage_folder + "'")
 				IOModule.run_os_command(node_command, cwd=cve_vuln_analyses_command_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
 
 	else:

@@ -53,6 +53,10 @@ import analyses.open_redirect.static_analysis_py_api as or_neo4j_analysis_api
 import analyses.cve_vuln.cve_vuln_neo4j_traversals as CVETraversalsModule
 import analyses.cve_vuln.static_analysis_api as cve_sast_model_construction_api
 
+import driver.detector_reader as DetectorReader
+
+import vuln_db.db as VulnDBController
+
 
 def is_website_up(uri):
 	try:
@@ -178,8 +182,7 @@ def main():
 		crawler_node_memory,
 		parse_additional_args_to_posix_style(config["crawler"]["puppeteer"])
 	)
-	
-	
+		
 	browser_name = config["crawler"]["browser"]["name"]
 	if browser_name == 'chrome':
 		crawler_js_program = 'crawler.js'
@@ -201,6 +204,15 @@ def main():
 	detector_driver_program = 'dlv.js'
 	detection_timeout = config["crawler"]["lib_detection"]["detection_timeout"]
 
+	# vuln_db config
+	if(config["vuln_db"]["connect"]):
+		vuln_db = VulnDBController.PostgresDB(
+			host=config["vuln_db"]["host"],
+			port=config["vuln_db"]["port"],
+			dbname=config["vuln_db"]["dbname"],
+			user=config["vuln_db"]["user"],
+			password=config["vuln_db"]["password"]
+			)
 
 	# static analysis config	
 	static_analysis_timeout = int(config["staticpass"]["sitetimeout"])
@@ -238,43 +250,43 @@ def main():
 		constantsModule.NEO4J_USE_DOCKER = config["staticpass"]["neo4j_use_docker"] 
 
 
-	## dom clobbering
-	# domc_analyses_command_cwd = os.path.join(BASE_DIR, "analyses/domclobbering")
-	# domc_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --seedurl=SEED_URL --iterativeoutput=%s"%(static_analysis_memory, iterative_output)
-	# domc_static_analysis_driver_program = os.path.join(domc_analyses_command_cwd, "static_analysis.js")
-	# domc_static_analysis_command = domc_static_analysis_command.replace("DRIVER_ENTRY", domc_static_analysis_driver_program)
+	# dom clobbering
+	domc_analyses_command_cwd = os.path.join(BASE_DIR, "analyses/domclobbering")
+	domc_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --seedurl=SEED_URL --iterativeoutput=%s"%(static_analysis_memory, iterative_output)
+	domc_static_analysis_driver_program = os.path.join(domc_analyses_command_cwd, "static_analysis.js")
+	domc_static_analysis_command = domc_static_analysis_command.replace("DRIVER_ENTRY", domc_static_analysis_driver_program)
 	
-	## client-side csrf
-	# cs_csrf_analyses_command_cwd = os.path.join(BASE_DIR, "analyses/cs_csrf")
-	# cs_csrf_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --seedurl=SEED_URL --iterativeoutput=%s"%(static_analysis_memory, iterative_output)
-	# cs_csrf_static_analysis_driver_program = os.path.join(cs_csrf_analyses_command_cwd, "static_analysis.js")
-	# cs_csrf_static_analysis_command = cs_csrf_static_analysis_command.replace("DRIVER_ENTRY", cs_csrf_static_analysis_driver_program)
-	
-
-	## dom clobbering dynamic verifier	
-	# force_execution_timeout = int(config["dynamicpass"]["sitetimeout"])
-	# node_force_execution_command = "node --max-old-space-size=4096 DRIVER_ENTRY --website=SITE_URL --browser={0} --use_browserstack={1}  --browserstack_username={2}  --browserstack_password={3} --browserstack_access_key={4}".format(
-	# 	config["dynamicpass"]["browser"]["name"],
-	# 	config["dynamicpass"]["browser"]["use_browserstack"],
-	# 	config["dynamicpass"]["browser"]["browserstack_username"],
-	# 	config["dynamicpass"]["browser"]["browserstack_password"],
-	# 	config["dynamicpass"]["browser"]["browserstack_access_key"]
-	# )
-	# node_force_execution_driver_program = os.path.join(force_execution_command_cwd, 'force_execution.js')
-	# node_force_execution = node_force_execution_command.replace("DRIVER_ENTRY", node_force_execution_driver_program)
+	# client-side csrf
+	cs_csrf_analyses_command_cwd = os.path.join(BASE_DIR, "analyses/cs_csrf")
+	cs_csrf_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --seedurl=SEED_URL --iterativeoutput=%s"%(static_analysis_memory, iterative_output)
+	cs_csrf_static_analysis_driver_program = os.path.join(cs_csrf_analyses_command_cwd, "static_analysis.js")
+	cs_csrf_static_analysis_command = cs_csrf_static_analysis_command.replace("DRIVER_ENTRY", cs_csrf_static_analysis_driver_program)
 	
 
-	# ## request hijacking dynamic verifier	
-	# verification_pass_timeout = int(config["verificationpass"]["sitetimeout"])
-	# ## TODO: add TMPDIR=/dev/shm to the beginning of the command below to reduce io
-	# node_dynamic_verfier_command = "node --max-old-space-size=4096 DRIVER_ENTRY --datadir={0} --website=SITE_URL --webpage=PAGE_URL_HASH --webpagedir=PAGE_URL_DIR --type=DYNAMIC_OR_STATIC --browser={1} --service={2}".format(
-	# 	constantsModule.DATA_DIR,
-	# 	config["verificationpass"]["browser"]["name"],
-	# 	config["verificationpass"]["endpoint"]
+	# dom clobbering dynamic verifier	
+	force_execution_timeout = int(config["dynamicpass"]["sitetimeout"])
+	node_force_execution_command = "node --max-old-space-size=4096 DRIVER_ENTRY --website=SITE_URL --browser={0} --use_browserstack={1}  --browserstack_username={2}  --browserstack_password={3} --browserstack_access_key={4}".format(
+		config["dynamicpass"]["browser"]["name"],
+		config["dynamicpass"]["browser"]["use_browserstack"],
+		config["dynamicpass"]["browser"]["browserstack_username"],
+		config["dynamicpass"]["browser"]["browserstack_password"],
+		config["dynamicpass"]["browser"]["browserstack_access_key"]
+	)
+	node_force_execution_driver_program = os.path.join(force_execution_command_cwd, 'force_execution.js')
+	node_force_execution = node_force_execution_command.replace("DRIVER_ENTRY", node_force_execution_driver_program)
+	
 
-	# )
-	# node_dynamic_verifier_driver_program = os.path.join(dynamic_verifier_command_cwd, "verify.js")
-	# node_dynamic_verifier = node_dynamic_verfier_command.replace("DRIVER_ENTRY", node_dynamic_verifier_driver_program)
+	## request hijacking dynamic verifier	
+	verification_pass_timeout = int(config["verificationpass"]["sitetimeout"])
+	## TODO: add TMPDIR=/dev/shm to the beginning of the command below to reduce io
+	node_dynamic_verfier_command = "node --max-old-space-size=4096 DRIVER_ENTRY --datadir={0} --website=SITE_URL --webpage=PAGE_URL_HASH --webpagedir=PAGE_URL_DIR --type=DYNAMIC_OR_STATIC --browser={1} --service={2}".format(
+		constantsModule.DATA_DIR,
+		config["verificationpass"]["browser"]["name"],
+		config["verificationpass"]["endpoint"]
+
+	)
+	node_dynamic_verifier_driver_program = os.path.join(dynamic_verifier_command_cwd, "verify.js")
+	node_dynamic_verifier = node_dynamic_verfier_command.replace("DRIVER_ENTRY", node_dynamic_verifier_driver_program)
 
 
 	# single site crawl/analysis
@@ -456,6 +468,53 @@ def main():
 					IOModule.run_os_command(lib_detection_command, cwd=lib_detection_cwd, timeout= detection_timeout)
 					LOGGER.info("successfully detected libraries on %s."%(website_url)) 
 
+					# cve_vuln
+					if config['cve_vuln']['enabled']:
+						def get_name_from_url(url): return url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
+						# static analysis
+						if config['cve_vuln']["passes"]["static"]:
+							LOGGER.info("static analysis for site %s."%(website_url))
+							cve_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+							LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
+						# static analysis over neo4j
+						if config['cve_vuln']["passes"]["static_neo4j"]:
+							LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+							try:
+								lib_det_res = DetectorReader.read_result_with_url(website_url)
+							except Exception as e:
+								LOGGER.error(e)
+								continue
+							ModLibMappingDoc = {}
+							for affiliatedurl, detectionRes in lib_det_res.items():		
+								detection_list = lib_det_res.get(affiliatedurl, {}).get('PTV', {}).get('detection', [])
+								first_detection = detection_list[0] if detection_list else None
+								if first_detection:
+									pass
+								else:
+									continue
+								# LOGGER.info(affiliatedurl, detectionRes)							
+								LOGGER.info(f"first_detection: {first_detection}")	
+								detectionLib = list(set([i['libname'] for i in first_detection]))
+								ModLibMapping = {}
+								for i in lib_det_res[affiliatedurl]['PTV']['detection'][0]:
+									ModLibMapping[i['libname']] = {'location': i['location']}
+								LOGGER.info(f"detectionLib: {detectionLib}")
+								LOGGER.info(f"ModLibMapping: {ModLibMapping}")
+								for lib in ModLibMapping.keys():
+									vuln = vuln_db.package_vuln_search(lib)
+									ModLibMapping[lib]['vuln'] = vuln
+									if vuln != None:
+										LOGGER.info(f"vuln found! {vuln}")
+								LOGGER.info(f"ModLibMapping after: {json.dumps(ModLibMapping)}")
+								ModLibMappingDoc[affiliatedurl] = ModLibMapping								
+								# vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
+								# print('modules:',lib_det_res.get(website_url, {}).get('PTV', {}).get('detection'))
+								# CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+								# LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+							with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'modlibmapping.json'), 'w') as f:
+								json.dump(ModLibMappingDoc, f)
+
 		else: # search via csv
 			testbed_filename = BASE_DIR.rstrip('/') + config["testbed"]["sitelist"].strip().strip('\n').strip()
 
@@ -584,5 +643,9 @@ def main():
 						LOGGER.info("successfully tested sites, terminating!") 
 						break
 
+	# close db connection
+	if vuln_db:
+		vuln_db.close()
+		LOGGER.info("db connection closed")
 if __name__ == "__main__":
 	main()
