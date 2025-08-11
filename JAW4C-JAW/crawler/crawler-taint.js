@@ -814,7 +814,9 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 async function launch_firefox(headless_mode) {
 
 	var ff;
-	const ffopts = {}; // { "dom.push.serverURL": "wss://push.services.mozilla.com/" };
+	const ffopts = {
+		'datareporting.policy.firstRunURL': '' // fixing the automatically poped-up privacy tab
+	}; // { "dom.push.serverURL": "wss://push.services.mozilla.com/" };
 
 	if(should_use_foxhound){
 		if(foxhound_executable_path === ''){
@@ -828,7 +830,7 @@ async function launch_firefox(headless_mode) {
 				// executablePath: "/mnt/workspace/playwright/project-foxhound/obj-build-playwright/dist/bin/firefox",
 				executablePath: foxhound_executable_path,
 				headless: headless_mode,
-		firefoxUserPrefs: ffopts
+				firefoxUserPrefs: ffopts
 			});
 
 		}
@@ -876,7 +878,7 @@ async function launch_browsers(headless_mode){
 
 	
 	if(config.foxhoundpath){
-		foxhound_executable_path = config.foxhoundpath;
+		foxhound_executable_path = config.foxhoundpath;		
 	}else{
 		foxhound_executable_path = pathModule.join(BASE_DIR, 'crawler/foxhound/firefox/firefox');
 	}

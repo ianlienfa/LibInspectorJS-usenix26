@@ -187,7 +187,8 @@ def main():
 	if browser_name == 'chrome':
 		crawler_js_program = 'crawler.js'
 	else:
-		crawler_js_program = 'crawler-taint.js'	
+		crawler_js_program = 'crawler-taint.js'
+		crawling_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
 
 	node_crawler_driver_program = os.path.join(crawler_command_cwd, crawler_js_program)
 	crawling_command = crawling_command.replace("DRIVER_ENTRY", node_crawler_driver_program)
