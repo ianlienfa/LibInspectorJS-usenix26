@@ -11,6 +11,7 @@
         return;
     }
     window.DetectorHasRun = true;
+    errorData = {}
 
     class Version {
         constructor(vlist, vstr = '') { 
@@ -28,6 +29,7 @@
                     this.version_string = vlist.join(', ')
                 else
                     this.version_string = String(vstr)
+
             }   
         }
 
@@ -653,7 +655,7 @@
             for (let lib of this.libs) {
                 let _libname = this.libInfoList[lib.index]['libname']
                 let _version = lib.version.version_list
-
+                
                 // Remove repeated entries
                 let has_the_same_entry = false
                 for (let entry of json_output) {
@@ -675,9 +677,23 @@
                     }
                 }
                 if (!has_the_same_entry) {
+                    // Check if detected version is in misdetections
+                    // console.log(`in misdetection, errorData: ${JSON.stringify(errorData)}`)                    
+                    let accurate = undefined
+                    let version_str_set = lib.version.version_string.split(',')
+                    if (errorData && errorData[_libname] && errorData[_libname].misdetections) {
+                        // Check if any version in version_str_set array intersects with misdetections
+                        const hasIntersection = version_str_set.some(version => errorData[_libname].misdetections.includes(version))
+                        // console.log(`${_libname}: checking intersection between ${JSON.stringify(version_str_set)} and misdetections ${JSON.stringify(errorData[_libname].misdetections)}: ${hasIntersection}`)                        
+                        accurate = !hasIntersection
+                    }
+                    
                     json_output.push({
                         libname: _libname,
-                        version: _version,
+                        version: lib.version.version_string,
+                        url: this.libInfoList[lib.index]['url'],
+                        location: lib.detectLocationRecord ? lib.detectLocationRecord.str() : '',
+                        accurate: accurate
                     })
                 }     
             }
@@ -699,6 +715,8 @@
             const blacklist = await response1.json()
             const response2 = await this.fetch(`${baseurl}/libraries.json`)
             const libInfoList = await response2.json()
+            const response3 = await this.fetch(`${baseurl}/error.json`)
+            errorData = await response3.json()
             // console.log(blacklist)
 
             // Used to calculate spending time
@@ -722,7 +740,7 @@
             console.log('=== Detection Result ===')
             console.log(L.convertToJson2())
 
-            this.window.postMessage({type: 'response', detected_libs: L.convertToJson()}, "*")
+            this.window.postMessage({type: 'response', detected_libs: L.convertToJson2()}, "*")
 
             // Only used for Selenium automation
             var detectTimeMeta = document.getElementById('lib-detect-time')
@@ -741,7 +759,8 @@
                     }
                 }
             }
-            
+            console.log("result_str", result_str)
+
             detectResultMeta.setAttribute("content", result_str);
         }
     });
