@@ -37,7 +37,8 @@ chrome.runtime.onMessage.addListener(
               // If the library entry already added
               document.getElementById(`${accordian_id}_body`).innerHTML += `<hr/>
               <strong>Version: </strong> ${lib_info['version']}  </br>
-              <strong>Location: </strong> ${lib_info['location']}`
+              <strong>Location: </strong> ${lib_info['location']} </br>
+              <strong>Accurate: </strong> ${lib_info['accurate']}`
             }
             else {
               libname_record.add(libname)
@@ -52,7 +53,8 @@ chrome.runtime.onMessage.addListener(
                     <div id="${accordian_id}_body" class="accordion-body">
                       <strong>Link: </strong> ${lib_info['url']} <hr/>
                       <strong>Version: </strong> ${lib_info['version']}  </br>
-                      <strong>Location: </strong> ${lib_info['location']}
+                      <strong>Location: </strong> ${lib_info['location']} </br>
+                      <strong>Accurate: </strong> ${lib_info['accurate']}
                     </div>
                   </div>
                 </div>`
