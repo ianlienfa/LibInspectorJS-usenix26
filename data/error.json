@@ -1,0 +1,4814 @@
+{
+  "3Dmol": {
+    "lastUpdated": "2025-08-10T11:01:29.778Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "1.5.0 ~ 1.5.4"
+    ]
+  },
+  "6px": {
+    "lastUpdated": "2025-08-10T11:02:01.071Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "6to5": {
+    "lastUpdated": "2025-08-10T11:03:56.694Z",
+    "misdetectionCount": 7,
+    "misdetections": [
+      "1.11.0 ~ 1.11.9",
+      "1.13.10",
+      "1.14.5 ~ 1.14.9",
+      "1.15.0",
+      "2.3.1, 2.3.2",
+      "unknown",
+      "2.6.3, 2.7.0"
+    ]
+  },
+  "AlertifyJS": {
+    "lastUpdated": "2025-08-10T11:04:19.541Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "AniJS": {
+    "lastUpdated": "2025-08-10T11:04:29.223Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "Base64URL-ArrayBuffer": {
+    "lastUpdated": "2025-08-10T11:04:34.341Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "Blotter": {
+    "lastUpdated": "2025-08-10T11:04:39.302Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "Bridge.NET": {
+    "lastUpdated": "2025-08-10T11:05:11.276Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.5.0, 1.6.0",
+      "unknown"
+    ]
+  },
+  "BrowserFS": {
+    "lastUpdated": "2025-08-10T11:05:31.369Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.6.0, 0.6.1"
+    ]
+  },
+  "Captionator": {
+    "lastUpdated": "2025-08-10T11:05:36.716Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "Colors.js": {
+    "lastUpdated": "2025-08-10T11:05:42.420Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ContentTools": {
+    "lastUpdated": "2025-08-10T11:06:11.331Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.1"
+    ]
+  },
+  "Cookies.js": {
+    "lastUpdated": "2025-08-10T11:06:18.429Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 2.0.0"
+    ]
+  },
+  "Cuckoo": {
+    "lastUpdated": "2025-08-10T11:06:27.618Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.0.0 ~ Dev"
+    ]
+  },
+  "DragDrop": {
+    "lastUpdated": "2025-08-10T11:06:32.539Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "EaselJS": {
+    "lastUpdated": "2025-08-10T11:06:38.528Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "Embetty": {
+    "lastUpdated": "2025-08-10T11:06:55.481Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "4.0.0-beta",
+      "4.0.1"
+    ]
+  },
+  "F2": {
+    "lastUpdated": "2025-08-10T11:07:03.836Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.0.0"
+    ]
+  },
+  "Faker": {
+    "lastUpdated": "2025-08-10T11:07:31.328Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "FlexSearch": {
+    "lastUpdated": "2025-08-10T11:07:40.926Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "FlipDiv": {
+    "lastUpdated": "2025-08-10T11:07:46.070Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "Halfmoon": {
+    "lastUpdated": "2025-08-10T11:07:53.582Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.0.0 ~ 2.0.2"
+    ]
+  },
+  "Hyphenator": {
+    "lastUpdated": "2025-08-10T11:08:10.725Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ICanHaz.js": {
+    "lastUpdated": "2025-08-10T11:08:16.401Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "Mock.js": {
+    "lastUpdated": "2025-08-10T11:08:27.007Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "NicEdit": {
+    "lastUpdated": "2025-08-10T11:08:32.174Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "PapaParse": {
+    "lastUpdated": "2025-08-10T11:09:02.618Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "5.0.0 ~ 5.4.1"
+    ]
+  },
+  "PhysicsJS": {
+    "lastUpdated": "2025-08-10T11:09:08.589Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "PullToRefresh": {
+    "lastUpdated": "2025-08-10T11:09:13.490Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "RGraph": {
+    "lastUpdated": "2025-08-10T11:09:30.430Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "RecordRTC": {
+    "lastUpdated": "2025-08-10T11:10:14.334Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "5.0.8 ~ 5.3.2"
+    ]
+  },
+  "Shuffle": {
+    "lastUpdated": "2025-08-10T11:10:40.172Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "SoundJS": {
+    "lastUpdated": "2025-08-10T11:10:49.767Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.3.0"
+    ]
+  },
+  "SpeechKITT": {
+    "lastUpdated": "2025-08-10T11:10:55.316Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "TimeMe.js": {
+    "lastUpdated": "2025-08-10T11:11:01.154Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "UAParser.js": {
+    "lastUpdated": "2025-08-10T11:11:35.778Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "URI.js": {
+    "lastUpdated": "2025-08-10T11:12:19.618Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.2.0"
+    ]
+  },
+  "Uniform.js": {
+    "lastUpdated": "2025-08-10T11:12:28.869Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "Voyeur": {
+    "lastUpdated": "2025-08-10T11:12:34.375Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "Vue2Leaflet": {
+    "lastUpdated": "2025-08-10T11:13:18.160Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.3.2 ~ 2.7.0"
+    ]
+  },
+  "abcjs": {
+    "lastUpdated": "2025-08-10T11:13:49.488Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.1, 1.2, 1.3",
+      "6.4.3"
+    ]
+  },
+  "accounting.js": {
+    "lastUpdated": "2025-08-10T11:13:57.724Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "adobe-sign-sdk": {
+    "lastUpdated": "2025-08-10T11:14:02.641Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "aframe": {
+    "lastUpdated": "2025-08-10T11:14:21.800Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.3.0 ~ 1.6.0"
+    ]
+  },
+  "ag-grid-enterprise": {
+    "lastUpdated": "2025-08-10T11:14:27.144Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "airbrake-browser": {
+    "lastUpdated": "2025-08-10T11:14:45.000Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.1.0 ~ 2.1.9"
+    ]
+  },
+  "ajaxrequest.js": {
+    "lastUpdated": "2025-08-10T11:14:52.468Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "alasql": {
+    "lastUpdated": "2025-08-10T11:16:19.242Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "alertify.js": {
+    "lastUpdated": "2025-08-10T11:16:29.330Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ali-oss": {
+    "lastUpdated": "2025-08-10T11:16:59.079Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "6.15.1 ~ 6.15.2-parallel.3",
+      "6.4.0 ~ 6.4.0-beta-1",
+      "6.22.0"
+    ]
+  },
+  "alloy-ui": {
+    "lastUpdated": "2025-08-10T11:17:04.002Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "alloyeditor": {
+    "lastUpdated": "2025-08-10T11:17:27.736Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "amazeui": {
+    "lastUpdated": "2025-08-10T11:17:46.140Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "0.3.6, 0.4.0"
+    ]
+  },
+  "amcharts": {
+    "lastUpdated": "2025-08-10T11:18:44.471Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "ami.js": {
+    "lastUpdated": "2025-08-10T11:19:16.961Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "ammaps": {
+    "lastUpdated": "2025-08-10T11:20:21.463Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "amplitudejs": {
+    "lastUpdated": "2025-08-10T11:20:41.121Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.2.0 ~ 3.2.3-0"
+    ]
+  },
+  "amstockchart": {
+    "lastUpdated": "2025-08-10T11:20:46.443Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "analytics.js": {
+    "lastUpdated": "2025-08-11T09:52:29.485Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "2.0.1",
+      "2.8.10",
+      "2.8.23"
+    ]
+  },
+  "anchor.js": {
+    "lastUpdated": "2025-08-11T09:52:35.525Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "angular.js": {
+    "lastUpdated": "2025-08-11T09:55:08.151Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.0.0-alpha.21, 2.0.0-alpha.29"
+    ]
+  },
+  "angularjs-ie8-build": {
+    "lastUpdated": "2025-08-11T09:55:16.078Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.4.7"
+    ]
+  },
+  "animejs": {
+    "lastUpdated": "2025-08-11T09:55:24.631Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ant-design-blazor": {
+    "lastUpdated": "2025-08-11T09:56:43.976Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ant-design-pro": {
+    "lastUpdated": "2025-08-11T09:57:17.351Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ant-design-vue": {
+    "lastUpdated": "2025-08-11T09:58:51.533Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "anyjs": {
+    "lastUpdated": "2025-08-11T09:58:57.467Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.0.2"
+    ]
+  },
+  "api-check": {
+    "lastUpdated": "2025-08-11T09:59:23.487Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "6.0.10 ~ 6.0.9",
+      "unknown"
+    ]
+  },
+  "artitalk": {
+    "lastUpdated": "2025-08-11T09:59:30.935Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.3.0 ~ 3.3.4"
+    ]
+  },
+  "artplayer": {
+    "lastUpdated": "2025-08-11T09:59:49.308Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "asciidoctor.js": {
+    "lastUpdated": "2025-08-11T10:00:07.388Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.5.5, 1.5.6-preview.3 ~ 1.5.6-preview.5"
+    ]
+  },
+  "asciinema-player": {
+    "lastUpdated": "2025-08-11T10:00:35.219Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "3.0.0 ~ 3.9.0-rc.2",
+      "2.2.0",
+      "2.3.1"
+    ]
+  },
+  "asmCrypto": {
+    "lastUpdated": "2025-08-11T10:00:53.587Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.16.0 ~ 0.16.4"
+    ]
+  },
+  "aspnet-signalr": {
+    "lastUpdated": "2025-08-11T10:01:00.253Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "atmosphere": {
+    "lastUpdated": "2025-08-11T10:01:30.179Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "2.0.10 ~ 2.1.4",
+      "2.2.4 ~ 2.2.6"
+    ]
+  },
+  "audiojs": {
+    "lastUpdated": "2025-08-11T10:01:35.198Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "aurelia-script": {
+    "lastUpdated": "2025-08-11T10:01:42.076Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "aurora.js": {
+    "lastUpdated": "2025-08-11T10:01:46.790Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "auth0-js": {
+    "lastUpdated": "2025-08-11T10:02:14.333Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "autobahn": {
+    "lastUpdated": "2025-08-11T10:02:21.537Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "avalon.js": {
+    "lastUpdated": "2025-08-11T10:02:51.537Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "avgrund": {
+    "lastUpdated": "2025-08-11T10:02:56.323Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "awesome-qr": {
+    "lastUpdated": "2025-08-11T10:03:03.760Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "awesomplete": {
+    "lastUpdated": "2025-08-11T10:03:11.184Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "axios": {
+    "lastUpdated": "2025-08-11T10:04:39.615Z",
+    "misdetectionCount": 4,
+    "misdetections": [
+      "0.20.0 ~ 0.21.0",
+      "0.19.0 ~ 0.19.2",
+      "0.12.0 ~ 0.13.1",
+      "0.4.2"
+    ]
+  },
+  "babel-core": {
+    "lastUpdated": "2025-08-11T10:06:25.912Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "babel-standalone": {
+    "lastUpdated": "2025-08-11T10:07:52.383Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "background-check": {
+    "lastUpdated": "2025-08-11T10:07:58.571Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "barba.js": {
+    "lastUpdated": "2025-08-11T10:08:06.034Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "barman": {
+    "lastUpdated": "2025-08-11T10:08:12.714Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.1.1"
+    ]
+  },
+  "base32": {
+    "lastUpdated": "2025-08-11T10:08:18.621Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.5 ~ 0.0.7"
+    ]
+  },
+  "basicModal": {
+    "lastUpdated": "2025-08-11T10:08:45.459Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "basis.js": {
+    "lastUpdated": "2025-08-11T10:09:00.801Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "batman.js": {
+    "lastUpdated": "2025-08-11T10:09:05.713Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bchaddrjs": {
+    "lastUpdated": "2025-08-11T10:09:13.930Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bean": {
+    "lastUpdated": "2025-08-11T10:09:46.370Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.0.1, 1.0.2, 1.0.3"
+    ]
+  },
+  "behaviortree": {
+    "lastUpdated": "2025-08-11T10:09:54.813Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "2.0.0 ~ 2.1.0",
+      "1.0.2 ~ 1.0.4"
+    ]
+  },
+  "better-scroll": {
+    "lastUpdated": "2025-08-11T10:10:13.999Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "between.js": {
+    "lastUpdated": "2025-08-11T10:10:19.624Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.1.0 ~ 0.1.2-fix.2"
+    ]
+  },
+  "bigdecimal": {
+    "lastUpdated": "2025-08-11T10:10:24.531Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bignumber.js": {
+    "lastUpdated": "2025-08-11T10:10:55.211Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bitcoinjs-lib": {
+    "lastUpdated": "2025-08-11T10:11:00.598Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "bla": {
+    "lastUpdated": "2025-08-11T10:11:35.938Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "blanket.js": {
+    "lastUpdated": "2025-08-11T10:11:40.758Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "blendui": {
+    "lastUpdated": "2025-08-11T10:11:45.794Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.4"
+    ]
+  },
+  "blissfuljs": {
+    "lastUpdated": "2025-08-11T10:12:17.632Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "blob-util": {
+    "lastUpdated": "2025-08-11T10:12:24.236Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "blockly": {
+    "lastUpdated": "2025-08-11T10:13:36.685Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0"
+    ]
+  },
+  "blueimp-JavaScript-Templates": {
+    "lastUpdated": "2025-08-11T10:13:56.874Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.2.0 ~ 3.9.0"
+    ]
+  },
+  "blueimp-load-image": {
+    "lastUpdated": "2025-08-11T10:14:50.547Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bodymovin": {
+    "lastUpdated": "2025-08-11T10:16:36.637Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bokeh": {
+    "lastUpdated": "2025-08-11T10:18:37.563Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.12.0",
+      "3.6.2, 3.7.0-dev.4, 3.7.0-dev.5"
+    ]
+  },
+  "bonsai": {
+    "lastUpdated": "2025-08-11T10:18:47.845Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "boosted": {
+    "lastUpdated": "2025-08-11T10:19:09.610Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "5.0.0"
+    ]
+  },
+  "bootbox.js": {
+    "lastUpdated": "2025-08-11T10:19:30.365Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "4.2.0, 4.3.0",
+      "5.4.0, 5.4.1"
+    ]
+  },
+  "bootstrap-datetimepicker": {
+    "lastUpdated": "2025-08-11T10:20:08.849Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "6.10.0 ~ 6.10.2, 6.7.16, 6.7.19, 6.9.10 ~ 6.9.9"
+    ]
+  },
+  "bootstrap-v4-rtl": {
+    "lastUpdated": "2025-08-11T10:20:18.166Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "4.3.1-0 ~ 4.3.1-6"
+    ]
+  },
+  "bootstrap3-dialog": {
+    "lastUpdated": "2025-08-11T10:20:34.402Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bootswatch": {
+    "lastUpdated": "2025-08-11T10:21:14.599Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "brain.js": {
+    "lastUpdated": "2025-08-11T10:21:58.718Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "breezejs": {
+    "lastUpdated": "2025-08-11T10:22:38.157Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "britecharts": {
+    "lastUpdated": "2025-08-11T10:23:29.890Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.3.0 ~ 1.5.2, 3.0.0-alpha-2.3 ~ 3.0.0-alpha-4",
+      "2.0.0 ~ 2.1.1, 2.2.0 ~ 2.4.1, 2.4.2 ~ 2.4.9"
+    ]
+  },
+  "browser-image-compression": {
+    "lastUpdated": "2025-08-11T10:23:38.791Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "brython": {
+    "lastUpdated": "2025-08-11T10:24:09.079Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "3.12.1",
+      "unknown"
+    ]
+  },
+  "bsjs": {
+    "lastUpdated": "2025-08-11T10:24:13.805Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "buckets": {
+    "lastUpdated": "2025-08-11T10:24:21.616Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "bucky": {
+    "lastUpdated": "2025-08-11T10:24:28.008Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "buefy": {
+    "lastUpdated": "2025-08-11T10:24:48.793Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "busuanzi": {
+    "lastUpdated": "2025-08-11T10:24:53.761Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "buzz": {
+    "lastUpdated": "2025-08-11T10:25:02.402Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cannon.js": {
+    "lastUpdated": "2025-08-11T10:25:08.252Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "carbon-charts": {
+    "lastUpdated": "2025-08-11T10:25:47.037Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "card": {
+    "lastUpdated": "2025-08-11T10:26:08.724Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "carto.js": {
+    "lastUpdated": "2025-08-11T10:26:15.972Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cash": {
+    "lastUpdated": "2025-08-11T10:26:46.420Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "casualjs": {
+    "lastUpdated": "2025-08-11T10:26:51.235Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "catiline": {
+    "lastUpdated": "2025-08-11T10:27:01.219Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "caver-js": {
+    "lastUpdated": "2025-08-11T10:28:04.784Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.10.2 ~ 1.12.2-rc.1, 1.6.6 ~ 1.9.0-rc.7"
+    ]
+  },
+  "cesium": {
+    "lastUpdated": "2025-08-11T10:28:48.340Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.69.0"
+    ]
+  },
+  "chai": {
+    "lastUpdated": "2025-08-11T10:29:43.186Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "5.0.2"
+    ]
+  },
+  "chainvas": {
+    "lastUpdated": "2025-08-11T10:29:47.973Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "chartist": {
+    "lastUpdated": "2025-08-11T10:30:19.055Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "chartkick": {
+    "lastUpdated": "2025-08-11T10:30:46.121Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "chatgpt.js": {
+    "lastUpdated": "2025-08-11T10:31:03.067Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.6.10, 2.6.9"
+    ]
+  },
+  "cheet.js": {
+    "lastUpdated": "2025-08-11T10:31:08.187Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "chimee": {
+    "lastUpdated": "2025-08-11T10:31:46.671Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "chocolat": {
+    "lastUpdated": "2025-08-11T10:32:06.690Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "chroma-js": {
+    "lastUpdated": "2025-08-11T10:32:46.701Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "chromatism": {
+    "lastUpdated": "2025-08-11T10:33:03.184Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "chrome-frame": {
+    "lastUpdated": "2025-08-11T10:33:08.081Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "citation-js": {
+    "lastUpdated": "2025-08-11T10:33:35.402Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ckeditor": {
+    "lastUpdated": "2025-08-11T10:34:13.449Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "clarinet": {
+    "lastUpdated": "2025-08-11T10:34:31.054Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "classie": {
+    "lastUpdated": "2025-08-11T10:34:37.124Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "clientside-haml-js": {
+    "lastUpdated": "2025-08-11T10:34:42.075Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "clmtrackr": {
+    "lastUpdated": "2025-08-11T10:34:48.034Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.1.0, 1.1.1"
+    ]
+  },
+  "clone": {
+    "lastUpdated": "2025-08-11T10:35:05.591Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cloudinary-video-player": {
+    "lastUpdated": "2025-08-11T10:36:37.306Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "codeflask": {
+    "lastUpdated": "2025-08-11T10:36:44.601Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "codemirror": {
+    "lastUpdated": "2025-08-11T10:38:18.677Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "coffee-script": {
+    "lastUpdated": "2025-08-11T10:38:38.663Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "color-scheme": {
+    "lastUpdated": "2025-08-11T10:38:44.949Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "color-thief": {
+    "lastUpdated": "2025-08-11T10:38:52.328Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "colors": {
+    "lastUpdated": "2025-08-11T10:39:00.093Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "componentjs": {
+    "lastUpdated": "2025-08-11T10:39:10.157Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "concretejs": {
+    "lastUpdated": "2025-08-11T10:39:15.812Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "condition": {
+    "lastUpdated": "2025-08-11T10:39:21.645Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "console.js": {
+    "lastUpdated": "2025-08-11T10:39:26.712Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "convnetjs": {
+    "lastUpdated": "2025-08-11T10:39:32.339Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cookie.js": {
+    "lastUpdated": "2025-08-11T10:39:39.968Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cookieconsent": {
+    "lastUpdated": "2025-08-11T10:39:46.045Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "countable": {
+    "lastUpdated": "2025-08-11T10:39:54.917Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "countdown": {
+    "lastUpdated": "2025-08-11T10:40:11.214Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "counterup2": {
+    "lastUpdated": "2025-08-11T10:40:18.061Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "crafty": {
+    "lastUpdated": "2025-08-11T10:40:28.847Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.6.3 ~ 0.7.0-beta-2"
+    ]
+  },
+  "crc-32": {
+    "lastUpdated": "2025-08-11T10:40:37.655Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "crossfilter": {
+    "lastUpdated": "2025-08-11T10:40:48.540Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "crossfilter2": {
+    "lastUpdated": "2025-08-11T10:41:04.890Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cryptico": {
+    "lastUpdated": "2025-08-11T10:41:09.887Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cssuseragent": {
+    "lastUpdated": "2025-08-11T10:41:15.181Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cufon": {
+    "lastUpdated": "2025-08-11T10:41:19.900Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "cutjs": {
+    "lastUpdated": "2025-08-11T10:41:30.203Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.4.0 ~ 0.4.1, 0.4.2",
+      "0.5.0, 0.5.1"
+    ]
+  },
+  "cyclejs-core": {
+    "lastUpdated": "2025-08-11T10:42:18.431Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "0.20.1"
+    ]
+  },
+  "cyclejs-dom": {
+    "lastUpdated": "2025-08-11T10:43:07.396Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "10.0.0 ~ 10.1.0"
+    ]
+  },
+  "d3-annotation": {
+    "lastUpdated": "2025-08-11T10:43:25.832Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-array": {
+    "lastUpdated": "2025-08-11T10:44:03.711Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-axis": {
+    "lastUpdated": "2025-08-11T10:44:21.145Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-color": {
+    "lastUpdated": "2025-08-11T10:44:47.662Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.4"
+    ]
+  },
+  "d3-composite-projections": {
+    "lastUpdated": "2025-08-11T10:45:02.494Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-format": {
+    "lastUpdated": "2025-08-11T10:45:23.639Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-geo-projection": {
+    "lastUpdated": "2025-08-11T10:45:49.459Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-geo": {
+    "lastUpdated": "2025-08-11T10:46:18.340Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-hierarchy": {
+    "lastUpdated": "2025-08-11T10:46:38.003Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-interpolate": {
+    "lastUpdated": "2025-08-11T10:46:59.103Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-random": {
+    "lastUpdated": "2025-08-11T10:47:15.423Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-request": {
+    "lastUpdated": "2025-08-11T10:47:31.828Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-scale": {
+    "lastUpdated": "2025-08-11T10:48:07.454Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-selection": {
+    "lastUpdated": "2025-08-11T10:48:35.003Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3-time": {
+    "lastUpdated": "2025-08-11T10:48:55.157Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3": {
+    "lastUpdated": "2025-08-11T10:51:48.085Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "d3fc": {
+    "lastUpdated": "2025-08-11T10:53:25.582Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "12.0.0 ~ 15.2.9"
+    ]
+  },
+  "darkreader": {
+    "lastUpdated": "2025-08-11T10:53:51.845Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "dashjs": {
+    "lastUpdated": "2025-08-11T10:54:29.992Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "2.0.0 ~ 2.1.1",
+      "unknown"
+    ]
+  },
+  "dat-gui": {
+    "lastUpdated": "2025-08-11T10:54:45.259Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "data.js": {
+    "lastUpdated": "2025-08-11T10:54:53.009Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "datalib": {
+    "lastUpdated": "2025-08-11T10:55:30.290Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "date-fns": {
+    "lastUpdated": "2025-08-11T10:56:39.756Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "davis.js": {
+    "lastUpdated": "2025-08-11T10:56:44.837Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "dc": {
+    "lastUpdated": "2025-08-11T10:57:45.577Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.0.0-alpha"
+    ]
+  },
+  "dd_belatedpng": {
+    "lastUpdated": "2025-08-11T10:57:50.412Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "decimal.js": {
+    "lastUpdated": "2025-08-11T10:58:19.716Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "deep-diff": {
+    "lastUpdated": "2025-08-11T10:58:28.437Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.0.2"
+    ]
+  },
+  "deeplearn": {
+    "lastUpdated": "2025-08-11T10:58:36.591Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "defiant.js": {
+    "lastUpdated": "2025-08-11T10:58:52.281Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.4.0",
+      "unknown"
+    ]
+  },
+  "detectizr": {
+    "lastUpdated": "2025-08-11T10:58:57.885Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.4.5, 1.5.0"
+    ]
+  },
+  "devextreme-showdown": {
+    "lastUpdated": "2025-08-11T10:59:02.823Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "device.js": {
+    "lastUpdated": "2025-08-11T10:59:13.457Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.2.4 ~ 0.2.7"
+    ]
+  },
+  "devtools-detector": {
+    "lastUpdated": "2025-08-11T10:59:23.910Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "dexie": {
+    "lastUpdated": "2025-08-11T11:01:00.682Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "4.0.1-alpha.21+test1"
+    ]
+  },
+  "dialog-polyfill": {
+    "lastUpdated": "2025-08-11T11:01:11.420Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "diff_match_patch": {
+    "lastUpdated": "2025-08-11T11:01:16.222Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "dinero.js": {
+    "lastUpdated": "2025-08-11T11:01:42.958Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "discuss": {
+    "lastUpdated": "2025-08-11T11:02:11.302Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.2.10 ~ 0.2.9"
+    ]
+  },
+  "django.js": {
+    "lastUpdated": "2025-08-11T11:02:16.091Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "dna.js": {
+    "lastUpdated": "2025-08-11T11:03:30.263Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.2.1",
+      "0.1.6"
+    ]
+  },
+  "documentup": {
+    "lastUpdated": "2025-08-11T11:03:35.302Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "docute": {
+    "lastUpdated": "2025-08-11T11:03:42.665Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "dom-to-image-more": {
+    "lastUpdated": "2025-08-11T11:04:01.591Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.1.0 ~ 3.5.0-beta.0"
+    ]
+  },
+  "domplotter": {
+    "lastUpdated": "2025-08-11T11:04:06.362Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "dompurify": {
+    "lastUpdated": "2025-08-11T11:05:05.606Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "draggable": {
+    "lastUpdated": "2025-08-11T11:05:21.827Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.0-snapshot-release-20230925200927 ~ 0.0.0-snapshot-release-20230928012257, 1.1.0 ~ 1.1.3"
+    ]
+  },
+  "dragonbones": {
+    "lastUpdated": "2025-08-11T11:05:26.653Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "driver-dom": {
+    "lastUpdated": "2025-08-11T11:05:34.250Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "dsbridge": {
+    "lastUpdated": "2025-08-11T11:06:06.427Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.1.0 ~ 3.1.4"
+    ]
+  },
+  "dustjs-linkedin": {
+    "lastUpdated": "2025-08-11T11:06:37.605Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "dygraph": {
+    "lastUpdated": "2025-08-11T11:06:45.868Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "dynamics.js": {
+    "lastUpdated": "2025-08-11T11:06:54.274Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "eModal": {
+    "lastUpdated": "2025-08-11T11:07:01.121Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "easyinvoice": {
+    "lastUpdated": "2025-08-11T11:08:34.458Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.0.56 ~ 1.0.65",
+      "unknown"
+    ]
+  },
+  "egjs-axes": {
+    "lastUpdated": "2025-08-11T11:09:13.903Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "elasticlunr": {
+    "lastUpdated": "2025-08-11T11:09:51.524Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "element-ui": {
+    "lastUpdated": "2025-08-11T11:11:21.174Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "elliptic": {
+    "lastUpdated": "2025-08-11T11:11:30.266Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "elm-runtime": {
+    "lastUpdated": "2025-08-11T11:11:35.062Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "embed-box": {
+    "lastUpdated": "2025-08-11T11:11:53.364Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "embed-js": {
+    "lastUpdated": "2025-08-11T11:12:22.622Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "5.0.0, 5.0.0-beta.1 ~ 5.0.4",
+      "4.0.0 ~ 4.1.4"
+    ]
+  },
+  "emblem": {
+    "lastUpdated": "2025-08-11T11:12:53.060Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.10.0 ~ 0.12.1, 0.5.0 ~ 0.9.3"
+    ]
+  },
+  "emoji-toolkit": {
+    "lastUpdated": "2025-08-11T11:13:02.099Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "4.5.2"
+    ]
+  },
+  "emojione": {
+    "lastUpdated": "2025-08-11T11:13:30.318Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.2.4",
+      "1.2.0 ~ 1.2.2"
+    ]
+  },
+  "encoding-japanese": {
+    "lastUpdated": "2025-08-11T11:13:46.026Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "engine.io-client": {
+    "lastUpdated": "2025-08-11T11:15:06.757Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "4.1.3 ~ 6.6.3"
+    ]
+  },
+  "epub.js": {
+    "lastUpdated": "2025-08-11T11:15:12.417Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "eruda": {
+    "lastUpdated": "2025-08-11T11:16:54.962Z",
+    "misdetectionCount": 4,
+    "misdetections": [
+      "unknown",
+      "0.6.2, 0.6.3",
+      "1.0.5",
+      "0.0.6"
+    ]
+  },
+  "es6-tween": {
+    "lastUpdated": "2025-08-11T11:18:05.571Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "ethers": {
+    "lastUpdated": "2025-08-11T11:19:05.803Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "4.0.49"
+    ]
+  },
+  "europa": {
+    "lastUpdated": "2025-08-11T11:19:11.138Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "eve.js": {
+    "lastUpdated": "2025-08-11T11:19:16.685Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "eventable": {
+    "lastUpdated": "2025-08-11T11:19:22.737Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.5"
+    ]
+  },
+  "excel-builder": {
+    "lastUpdated": "2025-08-11T11:19:28.654Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "excel-formula": {
+    "lastUpdated": "2025-08-11T11:19:38.413Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "exceljs": {
+    "lastUpdated": "2025-08-11T11:20:32.785Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.2.44 ~ 0.3.1",
+      "0.5.0 ~ 1.9.1, 4.4.0, 4.4.1-prerelease.0"
+    ]
+  },
+  "exif-js": {
+    "lastUpdated": "2025-08-11T11:20:39.500Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ext-core": {
+    "lastUpdated": "2025-08-11T11:20:44.318Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fabric.js": {
+    "lastUpdated": "2025-08-11T11:22:24.088Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "6.0.0-beta1 ~ 6.0.0-beta9, 6.0.0-rc1 ~ 642, 652",
+      "unknown"
+    ]
+  },
+  "fallback": {
+    "lastUpdated": "2025-08-11T11:22:33.161Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fancyapps-ui": {
+    "lastUpdated": "2025-08-11T11:23:01.977Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fast-xml-parser": {
+    "lastUpdated": "2025-08-11T11:24:00.626Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "faviconx": {
+    "lastUpdated": "2025-08-11T11:24:05.632Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "feather-icons": {
+    "lastUpdated": "2025-08-11T11:24:33.398Z",
+    "misdetectionCount": 4,
+    "misdetections": [
+      "4.10.0",
+      "unknown",
+      "4.19.0",
+      "4.2.0"
+    ]
+  },
+  "feature.js": {
+    "lastUpdated": "2025-08-11T11:24:39.300Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "feedback.js": {
+    "lastUpdated": "2025-08-11T11:24:44.098Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fermata": {
+    "lastUpdated": "2025-08-11T11:25:11.053Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.6.0 ~ 0.6.2-1"
+    ]
+  },
+  "fiber": {
+    "lastUpdated": "2025-08-11T11:25:15.800Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "field-kit": {
+    "lastUpdated": "2025-08-11T11:25:21.100Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "file-uploader": {
+    "lastUpdated": "2025-08-11T11:26:15.839Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.2.0"
+    ]
+  },
+  "filepond": {
+    "lastUpdated": "2025-08-11T11:26:53.686Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "filterizr": {
+    "lastUpdated": "2025-08-11T11:27:09.681Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fingerprintjs2": {
+    "lastUpdated": "2025-08-11T11:28:01.751Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "firmin": {
+    "lastUpdated": "2025-08-11T11:28:07.865Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "flexibility": {
+    "lastUpdated": "2025-08-11T11:28:16.354Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.2 ~ 1.0.6"
+    ]
+  },
+  "flexie": {
+    "lastUpdated": "2025-08-11T11:28:22.304Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "flickity": {
+    "lastUpdated": "2025-08-11T11:29:04.299Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "flight": {
+    "lastUpdated": "2025-08-11T11:29:11.254Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.10 ~ 1.1.0"
+    ]
+  },
+  "flow.js": {
+    "lastUpdated": "2025-08-11T11:29:21.346Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "flowplayer": {
+    "lastUpdated": "2025-08-11T11:29:32.816Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "flubber": {
+    "lastUpdated": "2025-08-11T11:29:41.614Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "flv.js": {
+    "lastUpdated": "2025-08-11T11:29:55.581Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "folktale": {
+    "lastUpdated": "2025-08-11T11:30:04.411Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "font-awesome": {
+    "lastUpdated": "2025-08-11T11:31:02.686Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 4.7.0"
+    ]
+  },
+  "force-js": {
+    "lastUpdated": "2025-08-11T11:31:08.045Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "formstone": {
+    "lastUpdated": "2025-08-11T11:32:29.557Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "foundation": {
+    "lastUpdated": "2025-08-11T11:33:29.126Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fpo": {
+    "lastUpdated": "2025-08-11T11:33:37.930Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "6.1.0 ~ 6.1.8"
+    ]
+  },
+  "frappe-charts": {
+    "lastUpdated": "2025-08-11T11:34:07.760Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "frontpress": {
+    "lastUpdated": "2025-08-11T11:34:20.625Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ftscroller": {
+    "lastUpdated": "2025-08-11T11:34:29.518Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fullPage.js": {
+    "lastUpdated": "2025-08-11T11:35:29.607Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "fullcalendar": {
+    "lastUpdated": "2025-08-11T11:36:50.576Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "fuzzysort": {
+    "lastUpdated": "2025-08-11T11:37:06.362Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "g9": {
+    "lastUpdated": "2025-08-11T11:37:15.974Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "gas": {
+    "lastUpdated": "2025-08-11T11:37:21.933Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "generate-pw": {
+    "lastUpdated": "2025-08-11T11:37:31.074Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "gibberish-aes": {
+    "lastUpdated": "2025-08-11T11:37:36.052Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "gifshot": {
+    "lastUpdated": "2025-08-11T11:37:42.506Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "gitalk": {
+    "lastUpdated": "2025-08-11T11:38:09.867Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.5.1 ~ 1.7.0"
+    ]
+  },
+  "github-api": {
+    "lastUpdated": "2025-08-11T11:38:19.654Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "gl-matrix": {
+    "lastUpdated": "2025-08-11T11:38:37.882Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "3.4.2",
+      "3.0.0 ~ 3.3.0, 3.4.3 ~ 4.0.0-beta.2",
+      "unknown"
+    ]
+  },
+  "glamor": {
+    "lastUpdated": "2025-08-11T11:39:37.196Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "google-closure-library": {
+    "lastUpdated": "2025-08-11T11:39:46.039Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "google-libphonenumber": {
+    "lastUpdated": "2025-08-11T11:40:08.915Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "google-palette": {
+    "lastUpdated": "2025-08-11T11:40:14.249Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "gorillascript": {
+    "lastUpdated": "2025-08-11T11:41:42.391Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "graphicsjs": {
+    "lastUpdated": "2025-08-11T11:42:00.387Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "graphology": {
+    "lastUpdated": "2025-08-11T11:42:10.676Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.19.3 ~ 0.26.0-rc1"
+    ]
+  },
+  "gremlins.js": {
+    "lastUpdated": "2025-08-11T11:42:15.611Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "gyrejs": {
+    "lastUpdated": "2025-08-11T11:42:33.606Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hamsterjs": {
+    "lastUpdated": "2025-08-11T11:42:39.235Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "handlebars.js": {
+    "lastUpdated": "2025-08-11T11:43:20.158Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "1.0.10"
+    ]
+  },
+  "handsontable": {
+    "lastUpdated": "2025-08-11T12:02:29.258Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "hasplayer.js": {
+    "lastUpdated": "2025-08-11T12:02:36.899Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.13.0, 1.13.1",
+      "unknown"
+    ]
+  },
+  "heic2any": {
+    "lastUpdated": "2025-08-11T12:02:42.342Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "helium-css": {
+    "lastUpdated": "2025-08-11T12:02:47.268Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hellojs": {
+    "lastUpdated": "2025-08-11T12:03:51.094Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.14.0 ~ 1.15.1"
+    ]
+  },
+  "highcharts": {
+    "lastUpdated": "2025-08-11T12:05:00.570Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "10.3.0 ~ 12.0.1"
+    ]
+  },
+  "highland": {
+    "lastUpdated": "2025-08-11T12:05:44.037Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "highlight.js": {
+    "lastUpdated": "2025-08-11T12:06:38.235Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "9.15.1 ~ 9.15.9"
+    ]
+  },
+  "highmaps": {
+    "lastUpdated": "2025-08-11T12:07:06.002Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "highstock": {
+    "lastUpdated": "2025-08-11T12:07:41.718Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hinclude": {
+    "lastUpdated": "2025-08-11T12:07:46.889Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hiw-api": {
+    "lastUpdated": "2025-08-11T12:07:53.710Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "5.0.4 ~ 5.0.5-beta.0"
+    ]
+  },
+  "hogan.js": {
+    "lastUpdated": "2025-08-11T12:07:59.136Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "2.0.0",
+      "unknown"
+    ]
+  },
+  "hola-video.js": {
+    "lastUpdated": "2025-08-11T12:08:09.209Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hopscotch": {
+    "lastUpdated": "2025-08-11T12:08:17.354Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hprose-html5": {
+    "lastUpdated": "2025-08-11T12:08:46.960Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "htm": {
+    "lastUpdated": "2025-08-11T12:08:54.888Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "html-gl": {
+    "lastUpdated": "2025-08-11T12:09:00.381Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "html-inspector": {
+    "lastUpdated": "2025-08-11T12:09:08.516Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "html-to-image": {
+    "lastUpdated": "2025-08-11T12:09:28.290Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.10.10, 1.11.0 ~ 1.11.9"
+    ]
+  },
+  "html.js": {
+    "lastUpdated": "2025-08-11T12:09:36.379Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "html5media": {
+    "lastUpdated": "2025-08-11T12:09:42.721Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.2.0, 1.2.1"
+    ]
+  },
+  "html5shiv": {
+    "lastUpdated": "2025-08-11T12:09:50.515Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "htmx": {
+    "lastUpdated": "2025-08-11T12:10:23.752Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "http-client": {
+    "lastUpdated": "2025-08-11T12:10:40.676Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "http-request-mock": {
+    "lastUpdated": "2025-08-11T12:11:41.586Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "human": {
+    "lastUpdated": "2025-08-11T12:12:49.962Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "1.6.1 ~ 1.9.4",
+      "1.2.2 ~ 1.5.1",
+      "3.3.2"
+    ]
+  },
+  "humanize-plus": {
+    "lastUpdated": "2025-08-11T12:13:05.976Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "husl": {
+    "lastUpdated": "2025-08-11T12:13:21.355Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hydra.js": {
+    "lastUpdated": "2025-08-11T12:13:42.373Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.9.3"
+    ]
+  },
+  "hyperHtml": {
+    "lastUpdated": "2025-08-11T12:13:51.402Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "hyperform": {
+    "lastUpdated": "2025-08-11T12:14:44.671Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "i3d3": {
+    "lastUpdated": "2025-08-11T12:14:49.789Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ical.js": {
+    "lastUpdated": "2025-08-11T12:15:04.651Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "iconify": {
+    "lastUpdated": "2025-08-11T12:15:20.347Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "3.0.0 ~ 3.1.1"
+    ]
+  },
+  "ideal-image-slider": {
+    "lastUpdated": "2025-08-11T12:15:28.387Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ie-love": {
+    "lastUpdated": "2025-08-11T12:15:33.991Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.1, 0.0.2, 0.0.3"
+    ]
+  },
+  "ieBetter.js": {
+    "lastUpdated": "2025-08-11T12:15:39.684Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0.rc ~ 1.0.3"
+    ]
+  },
+  "ifvisible": {
+    "lastUpdated": "2025-08-11T12:15:48.243Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "imagine.js": {
+    "lastUpdated": "2025-08-11T12:15:53.254Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "imask": {
+    "lastUpdated": "2025-08-11T12:16:43.806Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "unknown",
+      "7.0.0 ~ 7.1.0-alpha.0, 7.1.0-alpha.2 ~ 7.1.3",
+      "6.5.0, 6.5.0-alpha.1 ~ 6.6.0-alpha.0, 6.6.1-alpha.0, 6.6.1-alpha.1"
+    ]
+  },
+  "immer": {
+    "lastUpdated": "2025-08-11T12:17:22.534Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "6.0.0 ~ 6.0.9",
+      "7.0.0 ~ 7.0.9",
+      "8.0.0 ~ 9.0.3, 9.0.5 ~ 9.0.9"
+    ]
+  },
+  "incremental-dom": {
+    "lastUpdated": "2025-08-11T12:17:29.560Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "infect": {
+    "lastUpdated": "2025-08-11T12:17:35.784Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "inferno-shared": {
+    "lastUpdated": "2025-08-11T12:18:58.777Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "6.0.0, 6.0.0-rc.3 ~ 7.1.9",
+      "4.0.0-3"
+    ]
+  },
+  "ink": {
+    "lastUpdated": "2025-08-11T12:19:14.796Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.2.1 ~ 3.1.9"
+    ]
+  },
+  "interact.js": {
+    "lastUpdated": "2025-08-11T12:24:34.147Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "intween": {
+    "lastUpdated": "2025-08-11T12:34:39.276Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ipaddr.js": {
+    "lastUpdated": "2025-08-11T12:50:24.159Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "is_js": {
+    "lastUpdated": "2025-08-11T12:54:30.719Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.8.0"
+    ]
+  },
+  "ismobilejs": {
+    "lastUpdated": "2025-08-11T13:03:33.081Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "isomer": {
+    "lastUpdated": "2025-08-11T13:03:42.794Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "iview": {
+    "lastUpdated": "2025-08-11T13:48:26.803Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.9.10, 0.9.10-rc-4",
+      "0.9.8, 0.9.8-rc-5"
+    ]
+  },
+  "izitoast": {
+    "lastUpdated": "2025-08-11T13:48:37.276Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.1.5"
+    ]
+  },
+  "jade": {
+    "lastUpdated": "2025-08-11T13:49:41.176Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "javascript-state-machine": {
+    "lastUpdated": "2025-08-11T13:49:46.513Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jblocks": {
+    "lastUpdated": "2025-08-11T13:49:56.835Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jclic.js": {
+    "lastUpdated": "2025-08-11T13:51:12.944Z",
+    "misdetectionCount": 7,
+    "misdetections": [
+      "0.1.6",
+      "0.1.42, 0.1.43",
+      "0.1.3, 0.1.4, 0.1.5",
+      "0.0.0, 0.1.2",
+      "1.0.5",
+      "0.1.49, 1.0.0 ~ 1.0.4",
+      "2.1.0-beta.1, 2.1.0-beta.2 ~ 2.1.0-beta.5"
+    ]
+  },
+  "jimp": {
+    "lastUpdated": "2025-08-11T13:52:53.523Z",
+    "misdetectionCount": 4,
+    "misdetections": [
+      "0.11.1-canary.891.908.0 ~ 0.12.1-canary.892.924.0",
+      "0.12.2-canary.899.952.0 ~ 0.13.0-canary.899.964.0",
+      "0.14.0 ~ 0.16.1, 0.16.2 ~ 0.16.2-canary.984.1126.0, 0.16.3-canary.1014.1579.0 ~ 0.16.3-canary.999.1588.0",
+      "0.21.1 ~ 0.22.9"
+    ]
+  },
+  "jmespath": {
+    "lastUpdated": "2025-08-11T13:53:01.518Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jo": {
+    "lastUpdated": "2025-08-11T13:53:06.470Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jointjs": {
+    "lastUpdated": "2025-08-11T13:54:02.678Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "4.0.0 ~ 4.1.3"
+    ]
+  },
+  "joopl": {
+    "lastUpdated": "2025-08-11T13:54:07.945Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jos-animation": {
+    "lastUpdated": "2025-08-11T13:54:14.833Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jquery-browser": {
+    "lastUpdated": "2025-08-11T13:54:21.304Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jquery-infinitescroll": {
+    "lastUpdated": "2025-08-11T13:54:33.339Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "3.0.0 ~ 3.0.6",
+      "4.0.0 ~ 5.0.0"
+    ]
+  },
+  "jquery-tools": {
+    "lastUpdated": "2025-08-11T13:54:40.537Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "v1.2.6",
+      "@VERSION"
+    ]
+  },
+  "jquery.isotope": {
+    "lastUpdated": "2025-08-11T13:54:51.319Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "jquery": {
+    "lastUpdated": "2025-08-11T13:55:48.893Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "1.3",
+      "1.4"
+    ]
+  },
+  "js-bson": {
+    "lastUpdated": "2025-08-11T13:57:19.825Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "js-combinatorics": {
+    "lastUpdated": "2025-08-11T13:57:44.899Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "js-nacl": {
+    "lastUpdated": "2025-08-11T13:57:55.876Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.3"
+    ]
+  },
+  "js-sha1": {
+    "lastUpdated": "2025-08-11T13:58:04.200Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "js-yaml": {
+    "lastUpdated": "2025-08-11T13:58:36.462Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jscolor": {
+    "lastUpdated": "2025-08-11T13:58:57.728Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsdiff": {
+    "lastUpdated": "2025-08-11T13:59:28.872Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "6.0.0 ~ 7.0.0"
+    ]
+  },
+  "jsel": {
+    "lastUpdated": "2025-08-11T13:59:36.763Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "jsencrypt": {
+    "lastUpdated": "2025-08-11T13:59:47.731Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsface": {
+    "lastUpdated": "2025-08-11T13:59:53.178Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "jsfeat": {
+    "lastUpdated": "2025-08-11T13:59:57.905Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsfile": {
+    "lastUpdated": "2025-08-11T14:00:10.438Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "jsforce": {
+    "lastUpdated": "2025-08-11T14:01:21.228Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "2.0.0-beta.1 ~ 3.6.5",
+      "1.9.1, 1.9.2, 2.0.0-alpha.1 ~ 2.0.0-alpha.9"
+    ]
+  },
+  "jsfx": {
+    "lastUpdated": "2025-08-11T14:01:26.570Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jshashes": {
+    "lastUpdated": "2025-08-11T14:01:33.944Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jshint": {
+    "lastUpdated": "2025-08-11T14:02:08.409Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jslite": {
+    "lastUpdated": "2025-08-11T14:02:17.629Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "jsnetworkx": {
+    "lastUpdated": "2025-08-11T14:02:25.156Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.3.2, 0.3.3"
+    ]
+  },
+  "jsnlog": {
+    "lastUpdated": "2025-08-11T14:03:16.242Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "2.4.10 ~ 2.4.9",
+      "2.6.10 ~ 2.6.9"
+    ]
+  },
+  "json2html": {
+    "lastUpdated": "2025-08-11T14:03:26.884Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "json3": {
+    "lastUpdated": "2025-08-11T14:03:36.151Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsondiffpatch": {
+    "lastUpdated": "2025-08-11T14:04:09.044Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "jsoneditor": {
+    "lastUpdated": "2025-08-11T14:06:20.189Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "4.0.0 ~ 4.2.1"
+    ]
+  },
+  "jsonform": {
+    "lastUpdated": "2025-08-11T14:06:30.651Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsonlint": {
+    "lastUpdated": "2025-08-11T14:06:38.454Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsrender": {
+    "lastUpdated": "2025-08-11T14:07:36.319Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jssip": {
+    "lastUpdated": "2025-08-11T14:09:48.462Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jssor-slider": {
+    "lastUpdated": "2025-08-11T14:10:12.488Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "16.0, 17.0"
+    ]
+  },
+  "jstat": {
+    "lastUpdated": "2025-08-11T14:10:56.644Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "1.7.0 ~ 1.8.0"
+    ]
+  },
+  "jsts": {
+    "lastUpdated": "2025-08-11T14:11:46.400Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsuites": {
+    "lastUpdated": "2025-08-11T14:13:13.909Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "jsxgraph": {
+    "lastUpdated": "2025-08-11T14:14:18.269Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "unknown",
+      "1.10.1 ~ 1.11.0beta2",
+      "0.93"
+    ]
+  },
+  "just-animate": {
+    "lastUpdated": "2025-08-11T14:15:06.756Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "kartograph-js": {
+    "lastUpdated": "2025-08-11T14:15:12.343Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "keen-js": {
+    "lastUpdated": "2025-08-11T14:16:04.966Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "6.0.0, 6.0.1",
+      "3.0.1"
+    ]
+  },
+  "kefir": {
+    "lastUpdated": "2025-08-11T14:17:02.934Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "0.2.0, 0.2.1, 0.2.2, 0.2.3",
+      "2.0.0 ~ 2.1.0",
+      "3.1.0, 3.2.0"
+    ]
+  },
+  "keydrown": {
+    "lastUpdated": "2025-08-11T14:17:22.602Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "keymage": {
+    "lastUpdated": "2025-08-11T14:17:30.364Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "keymaster": {
+    "lastUpdated": "2025-08-11T14:17:35.384Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "keypress": {
+    "lastUpdated": "2025-08-11T14:17:44.363Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "kibo": {
+    "lastUpdated": "2025-08-11T14:17:49.386Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "kineticjs": {
+    "lastUpdated": "2025-08-11T14:17:57.234Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "kissui.scrollanim": {
+    "lastUpdated": "2025-08-11T14:18:02.879Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "kiwi.js": {
+    "lastUpdated": "2025-08-11T14:18:11.744Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "knockback-core-stack": {
+    "lastUpdated": "2025-08-11T14:18:17.163Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "knockout": {
+    "lastUpdated": "2025-08-11T14:18:30.051Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "kontra": {
+    "lastUpdated": "2025-08-11T14:18:40.534Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "kotlin": {
+    "lastUpdated": "2025-08-11T14:19:43.935Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.3.61, 1.3.70-eap-42, 1.3.70-eap-47"
+    ]
+  },
+  "kronos.js": {
+    "lastUpdated": "2025-08-11T14:19:49.926Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "l20n": {
+    "lastUpdated": "2025-08-11T14:19:55.470Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "labjs": {
+    "lastUpdated": "2025-08-11T14:20:01.081Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lamb": {
+    "lastUpdated": "2025-08-11T14:20:51.582Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "later": {
+    "lastUpdated": "2025-08-11T14:20:57.845Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "layui": {
+    "lastUpdated": "2025-08-11T14:22:21.506Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "layx": {
+    "lastUpdated": "2025-08-11T14:22:30.261Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lazy.js": {
+    "lastUpdated": "2025-08-11T14:22:40.547Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "leader-line": {
+    "lastUpdated": "2025-08-11T14:22:48.778Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "leaflet-omnivore": {
+    "lastUpdated": "2025-08-11T14:22:57.649Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "leaflet-vector-layers": {
+    "lastUpdated": "2025-08-11T14:23:05.415Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "leaflet": {
+    "lastUpdated": "2025-08-11T14:23:44.443Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.5.0"
+    ]
+  },
+  "less.js": {
+    "lastUpdated": "2025-08-11T14:24:58.837Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "1.5.1",
+      "unknown",
+      "3.10.0 ~ 3.12.1-alpha.12, 3.12.2 ~ 3.13.1-next.1"
+    ]
+  },
+  "libil": {
+    "lastUpdated": "2025-08-11T14:25:04.013Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "libsodium-wrappers": {
+    "lastUpdated": "2025-08-11T14:26:12.703Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.7.0 ~ 0.7.9"
+    ]
+  },
+  "lightgallery-js": {
+    "lastUpdated": "2025-08-11T14:26:23.950Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "liquidjs": {
+    "lastUpdated": "2025-08-11T14:26:47.780Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "litegraph.js": {
+    "lastUpdated": "2025-08-11T14:26:56.315Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.7.10"
+    ]
+  },
+  "livereload-js": {
+    "lastUpdated": "2025-08-11T14:27:10.633Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "livescript": {
+    "lastUpdated": "2025-08-11T14:27:17.824Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "livingston-css3-mediaqueries-js": {
+    "lastUpdated": "2025-08-11T14:27:22.778Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "loStorage.js": {
+    "lastUpdated": "2025-08-11T14:27:31.366Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "localforage": {
+    "lastUpdated": "2025-08-11T14:28:11.423Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "unknown",
+      "0.9.0, 0.9.1",
+      "1.2.0"
+    ]
+  },
+  "lockr": {
+    "lastUpdated": "2025-08-11T14:28:19.826Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lodash-compat": {
+    "lastUpdated": "2025-08-11T14:28:33.881Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lodash-fp": {
+    "lastUpdated": "2025-08-11T14:28:39.677Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "log4javascript": {
+    "lastUpdated": "2025-08-11T14:28:44.823Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "logdown": {
+    "lastUpdated": "2025-08-11T14:28:53.315Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "loglevel": {
+    "lastUpdated": "2025-08-11T14:29:15.968Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.5.0, 1.5.1"
+    ]
+  },
+  "logline": {
+    "lastUpdated": "2025-08-11T14:29:24.346Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.10 ~ 1.0.9"
+    ]
+  },
+  "lottie-player": {
+    "lastUpdated": "2025-08-11T14:29:45.928Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.5.6 ~ 1.6.0, 1.6.2 ~ 1.7.1, 2.0.10 ~ 2.0.9"
+    ]
+  },
+  "lottie-web": {
+    "lastUpdated": "2025-08-11T14:30:27.029Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lovefield": {
+    "lastUpdated": "2025-08-11T14:30:52.864Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "2.0.57",
+      "unknown",
+      "2.1.10 ~ 2.1.9"
+    ]
+  },
+  "lscache": {
+    "lastUpdated": "2025-08-11T14:31:00.787Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lunar-javascript": {
+    "lastUpdated": "2025-08-11T14:31:21.256Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "lunr.js": {
+    "lastUpdated": "2025-08-11T14:32:07.865Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lz-string": {
+    "lastUpdated": "2025-08-11T14:32:18.482Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "lzutf8": {
+    "lastUpdated": "2025-08-11T14:32:28.151Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mach": {
+    "lastUpdated": "2025-08-11T14:32:34.419Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mainloop.js": {
+    "lastUpdated": "2025-08-11T14:32:40.678Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mapbox-gl-export": {
+    "lastUpdated": "2025-08-11T14:33:07.431Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mapbox-polyline": {
+    "lastUpdated": "2025-08-11T14:33:14.321Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mapbox.js": {
+    "lastUpdated": "2025-08-11T14:33:20.169Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "markdown.js": {
+    "lastUpdated": "2025-08-11T14:33:26.757Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "marvinj": {
+    "lastUpdated": "2025-08-11T14:33:32.298Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "marzipano": {
+    "lastUpdated": "2025-08-11T14:33:40.778Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "material-colors": {
+    "lastUpdated": "2025-08-11T14:33:51.087Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "material-design-lite": {
+    "lastUpdated": "2025-08-11T14:34:03.442Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.0.0-3"
+    ]
+  },
+  "materialize": {
+    "lastUpdated": "2025-08-11T14:34:36.230Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "materialstyle": {
+    "lastUpdated": "2025-08-11T14:34:43.417Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mathjax": {
+    "lastUpdated": "2025-08-11T14:35:17.862Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.6.1"
+    ]
+  },
+  "matreshka": {
+    "lastUpdated": "2025-08-11T14:36:30.599Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "matter-js": {
+    "lastUpdated": "2025-08-11T14:36:49.474Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mavo": {
+    "lastUpdated": "2025-08-11T14:36:56.159Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mdb-ui-kit": {
+    "lastUpdated": "2025-08-11T14:37:31.938Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "2.0.0, 2.1.0"
+    ]
+  },
+  "mdui": {
+    "lastUpdated": "2025-08-11T14:37:51.163Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mediaelement": {
+    "lastUpdated": "2025-08-11T14:39:42.932Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "4.2.11 ~ 4.2.12",
+      "4.2.14 ~ 4.2.15-rc1"
+    ]
+  },
+  "melonjs": {
+    "lastUpdated": "2025-08-11T14:39:52.696Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "mercury": {
+    "lastUpdated": "2025-08-11T14:40:14.420Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "unknown",
+      "5.0.1 ~ 5.2.1"
+    ]
+  },
+  "metrics-graphics": {
+    "lastUpdated": "2025-08-11T14:40:40.618Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "2.15.6, 3.0-alpha ~ 3.0-alpha3"
+    ]
+  },
+  "metro": {
+    "lastUpdated": "2025-08-11T14:42:06.578Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "5.0.13"
+    ]
+  },
+  "microbejs": {
+    "lastUpdated": "2025-08-11T14:42:30.884Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.4.16"
+    ]
+  },
+  "micromarkdown": {
+    "lastUpdated": "2025-08-11T14:42:37.403Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "microsoft-signalr": {
+    "lastUpdated": "2025-08-11T14:44:17.001Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "midi.js": {
+    "lastUpdated": "2025-08-11T14:44:21.958Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "milojs": {
+    "lastUpdated": "2025-08-11T14:44:47.110Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.2.7",
+      "unknown"
+    ]
+  },
+  "mindb": {
+    "lastUpdated": "2025-08-11T14:45:06.525Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.1.10, 0.1.12, 0.1.13, 0.1.4 ~ 0.1.9",
+      "0.1.14 ~ 0.1.16"
+    ]
+  },
+  "mini-meteor": {
+    "lastUpdated": "2025-08-11T14:45:11.985Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0"
+    ]
+  },
+  "mithril": {
+    "lastUpdated": "2025-08-11T14:47:10.134Z",
+    "misdetectionCount": 3,
+    "misdetections": [
+      "0.1.31 ~ 0.1.34-beta.0",
+      "2.0.11-next.0 ~ 2.0.11-next.7, 2.2.0 ~ 2.2.1-next.2, 2.2.2 ~ 2.2.2-next.1, 2.2.3-next.0",
+      "2.2.10 ~ 2.2.12, 2.2.3, 2.2.4 ~ 2.2.9, 3.0.0-next.10 ~ 3.0.0-next.19, 3.0.0-next.20 ~ 3.0.0-next.29, 3.0.0-next.31 ~ 3.0.0-next.9"
+    ]
+  },
+  "mixitup": {
+    "lastUpdated": "2025-08-11T14:48:11.815Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mo-js": {
+    "lastUpdated": "2025-08-11T14:48:34.616Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.3.0, 1.7.0"
+    ]
+  },
+  "mobile-angular-ui": {
+    "lastUpdated": "2025-08-11T14:49:24.411Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "mobilebone": {
+    "lastUpdated": "2025-08-11T14:49:38.107Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mockstate": {
+    "lastUpdated": "2025-08-11T14:49:45.133Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.1, 0.0.2"
+    ]
+  },
+  "modernizr": {
+    "lastUpdated": "2025-08-11T14:50:09.063Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "monkberry-standalone": {
+    "lastUpdated": "2025-08-11T14:50:18.906Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "0.0.1 ~ 4.0.1"
+    ]
+  },
+  "monkberry": {
+    "lastUpdated": "2025-08-11T14:50:54.306Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "mootools": {
+    "lastUpdated": "2025-08-11T14:51:00.962Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "unknown"
+    ]
+  },
+  "mori": {
+    "lastUpdated": "2025-08-11T14:51:10.097Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "most": {
+    "lastUpdated": "2025-08-11T14:51:44.306Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "moveable": {
+    "lastUpdated": "2025-08-11T14:53:04.510Z",
+    "misdetectionCount": 2,
+    "misdetections": [
+      "0.29.0 ~ 0.29.9-beta.1",
+      "0.35.0 ~ 0.35.4-beta.0"
+    ]
+  },
+  "mui": {
+    "lastUpdated": "2025-08-11T14:53:24.825Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "murmurhash3js": {
+    "lastUpdated": "2025-08-11T14:53:31.885Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "myscript": {
+    "lastUpdated": "2025-08-11T14:53:57.742Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "4.1.3"
+    ]
+  },
+  "najaxjs": {
+    "lastUpdated": "2025-08-11T14:54:05.251Z",
+    "misdetectionCount": 1,
+    "misdetections": [
+      "1.0.0 ~ 1.0.2"
+    ]
+  },
+  "navigo": {
+    "lastUpdated": "2025-08-11T14:55:10.343Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "neataptic": {
+    "lastUpdated": "2025-08-11T14:55:19.119Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ngl": {
+    "lastUpdated": "2025-08-11T16:08:29.971Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "nlp_compromise": {
+    "lastUpdated": "2025-08-11T16:09:18.437Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "nod": {
+    "lastUpdated": "2025-08-11T16:09:23.739Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "nomnoml": {
+    "lastUpdated": "2025-08-11T16:09:48.520Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "noty": {
+    "lastUpdated": "2025-08-11T16:09:56.359Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "nprogress": {
+    "lastUpdated": "2025-08-11T16:10:03.685Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "nuclear-js": {
+    "lastUpdated": "2025-08-11T16:10:14.362Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "numbers.js": {
+    "lastUpdated": "2025-08-11T16:10:20.392Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "numbro": {
+    "lastUpdated": "2025-08-11T16:10:53.626Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "numeric": {
+    "lastUpdated": "2025-08-11T16:11:07.825Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "numjs": {
+    "lastUpdated": "2025-08-11T16:11:28.499Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "nunjucks": {
+    "lastUpdated": "2025-08-11T16:12:01.955Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oauth-io": {
+    "lastUpdated": "2025-08-11T16:12:11.045Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "obelisk.js": {
+    "lastUpdated": "2025-08-11T16:12:17.186Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "object-fit": {
+    "lastUpdated": "2025-08-11T16:12:26.379Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "object-path": {
+    "lastUpdated": "2025-08-11T16:12:36.470Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ocanvas": {
+    "lastUpdated": "2025-08-11T16:12:58.845Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "offline-js": {
+    "lastUpdated": "2025-08-11T16:13:20.290Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ofilterjs": {
+    "lastUpdated": "2025-08-11T16:13:27.850Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oidc-client-ts": {
+    "lastUpdated": "2025-08-11T16:13:53.957Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oimo": {
+    "lastUpdated": "2025-08-11T16:14:02.422Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oj.mustache": {
+    "lastUpdated": "2025-08-11T16:14:07.405Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ol3": {
+    "lastUpdated": "2025-08-11T16:14:56.232Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "omi": {
+    "lastUpdated": "2025-08-11T16:16:37.501Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "onsen": {
+    "lastUpdated": "2025-08-11T16:18:16.911Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oojs": {
+    "lastUpdated": "2025-08-11T16:18:41.163Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "openfl": {
+    "lastUpdated": "2025-08-11T16:19:12.846Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "openlocationcode": {
+    "lastUpdated": "2025-08-11T16:19:18.705Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "openpgp": {
+    "lastUpdated": "2025-08-11T16:21:01.570Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "openseadragon": {
+    "lastUpdated": "2025-08-11T16:21:23.135Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "opentip": {
+    "lastUpdated": "2025-08-11T16:21:48.082Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "opentype.js": {
+    "lastUpdated": "2025-08-11T16:22:18.011Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oppia": {
+    "lastUpdated": "2025-08-11T16:22:23.199Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "origamijs": {
+    "lastUpdated": "2025-08-11T16:22:32.151Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ot.js": {
+    "lastUpdated": "2025-08-11T16:22:41.473Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "otpauth": {
+    "lastUpdated": "2025-08-11T16:23:30.257Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "overthrow": {
+    "lastUpdated": "2025-08-11T16:23:34.952Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "oz.js": {
+    "lastUpdated": "2025-08-11T16:23:43.923Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "p2.js": {
+    "lastUpdated": "2025-08-11T16:23:51.785Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pablo": {
+    "lastUpdated": "2025-08-11T16:23:56.474Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "packery": {
+    "lastUpdated": "2025-08-11T16:24:06.446Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "page.js": {
+    "lastUpdated": "2025-08-11T16:24:27.422Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pako": {
+    "lastUpdated": "2025-08-11T16:24:48.606Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pangu": {
+    "lastUpdated": "2025-08-11T16:24:59.092Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "paper.js": {
+    "lastUpdated": "2025-08-11T16:25:34.370Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "parse": {
+    "lastUpdated": "2025-08-11T16:27:40.328Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "parsimmon": {
+    "lastUpdated": "2025-08-11T16:27:50.874Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "path.js": {
+    "lastUpdated": "2025-08-11T16:27:55.612Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pdf-lib": {
+    "lastUpdated": "2025-08-11T16:28:15.035Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "peaks.js": {
+    "lastUpdated": "2025-08-11T16:29:16.939Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pegjs": {
+    "lastUpdated": "2025-08-11T16:29:22.290Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "perfbar": {
+    "lastUpdated": "2025-08-11T16:29:27.908Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "phaser-ce": {
+    "lastUpdated": "2025-08-11T16:30:04.454Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "piexifjs": {
+    "lastUpdated": "2025-08-11T16:30:12.220Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pinyin-pro": {
+    "lastUpdated": "2025-08-11T16:30:57.936Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pipes-core": {
+    "lastUpdated": "2025-08-11T16:31:09.817Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pixi.js": {
+    "lastUpdated": "2025-08-11T16:36:10.654Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pizzicato": {
+    "lastUpdated": "2025-08-11T16:36:22.037Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "placeholders": {
+    "lastUpdated": "2025-08-11T16:36:27.659Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "planck-js": {
+    "lastUpdated": "2025-08-11T16:36:58.451Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "plastiq": {
+    "lastUpdated": "2025-08-11T16:37:22.127Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pleasejs": {
+    "lastUpdated": "2025-08-11T16:37:29.317Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "plotly.js": {
+    "lastUpdated": "2025-08-11T16:40:23.273Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pluralize": {
+    "lastUpdated": "2025-08-11T16:40:45.164Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pnp-pnpjs": {
+    "lastUpdated": "2025-08-11T16:42:00.549Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "polyglot.js": {
+    "lastUpdated": "2025-08-11T16:42:19.202Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "popmotion": {
+    "lastUpdated": "2025-08-11T16:43:34.037Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "portal": {
+    "lastUpdated": "2025-08-11T16:43:40.260Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "porthole": {
+    "lastUpdated": "2025-08-11T16:43:44.980Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "postal.js": {
+    "lastUpdated": "2025-08-11T16:44:17.914Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pouchdb": {
+    "lastUpdated": "2025-08-11T16:45:06.336Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "powerbi-client": {
+    "lastUpdated": "2025-08-11T16:45:37.171Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "preconditions": {
+    "lastUpdated": "2025-08-11T16:45:42.699Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "prefixfree": {
+    "lastUpdated": "2025-08-11T16:45:47.673Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "prettify": {
+    "lastUpdated": "2025-08-11T16:45:52.825Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "prettydiff": {
+    "lastUpdated": "2025-08-11T16:46:55.065Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "primish": {
+    "lastUpdated": "2025-08-11T16:47:02.281Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "proj4js": {
+    "lastUpdated": "2025-08-11T16:47:46.520Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "prostyle": {
+    "lastUpdated": "2025-08-11T16:47:52.397Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "proteic": {
+    "lastUpdated": "2025-08-11T16:48:13.092Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "protobufjs": {
+    "lastUpdated": "2025-08-11T16:48:31.988Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "proton-engine": {
+    "lastUpdated": "2025-08-11T16:49:04.272Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "prototype": {
+    "lastUpdated": "2025-08-11T16:49:13.280Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "protovis": {
+    "lastUpdated": "2025-08-11T16:49:18.012Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pts": {
+    "lastUpdated": "2025-08-11T16:50:08.512Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pubnub": {
+    "lastUpdated": "2025-08-11T16:50:18.049Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pubsub-js": {
+    "lastUpdated": "2025-08-11T16:50:48.635Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "punycode": {
+    "lastUpdated": "2025-08-11T16:51:09.944Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pusher": {
+    "lastUpdated": "2025-08-11T16:51:52.842Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "pwnjs": {
+    "lastUpdated": "2025-08-11T16:51:57.763Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "q.js": {
+    "lastUpdated": "2025-08-11T16:52:34.161Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "qoopido.js": {
+    "lastUpdated": "2025-08-11T16:53:24.343Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "qooxdoo": {
+    "lastUpdated": "2025-08-11T16:53:35.491Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "qr-scanner": {
+    "lastUpdated": "2025-08-11T16:53:42.674Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "quill-vuejs": {
+    "lastUpdated": "2025-08-11T16:53:50.842Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "qunit": {
+    "lastUpdated": "2025-08-11T16:54:47.108Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "qwest": {
+    "lastUpdated": "2025-08-11T16:55:23.486Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "r2d3": {
+    "lastUpdated": "2025-08-11T16:55:28.709Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ractive.js": {
+    "lastUpdated": "2025-08-11T16:55:33.849Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "radash": {
+    "lastUpdated": "2025-08-11T16:55:53.392Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rainbow": {
+    "lastUpdated": "2025-08-11T16:56:05.569Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rambda": {
+    "lastUpdated": "2025-08-11T16:57:30.052Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ramjet.js": {
+    "lastUpdated": "2025-08-11T16:57:37.538Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "random-js": {
+    "lastUpdated": "2025-08-11T16:57:48.371Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rangy": {
+    "lastUpdated": "2025-08-11T16:57:53.860Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rantjs": {
+    "lastUpdated": "2025-08-11T16:58:11.970Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rapidoc": {
+    "lastUpdated": "2025-08-11T16:58:21.640Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rax": {
+    "lastUpdated": "2025-08-11T16:58:40.844Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-ace": {
+    "lastUpdated": "2025-08-11T16:59:41.618Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-big-calendar": {
+    "lastUpdated": "2025-08-11T17:01:07.791Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-bootstrap-typeahead": {
+    "lastUpdated": "2025-08-11T17:03:00.948Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-faux-dom": {
+    "lastUpdated": "2025-08-11T17:03:13.084Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-intl": {
+    "lastUpdated": "2025-08-11T17:03:32.004Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-router-redux": {
+    "lastUpdated": "2025-08-11T17:03:42.388Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "react-sortable-hoc": {
+    "lastUpdated": "2025-08-11T17:04:31.370Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "reacthttp": {
+    "lastUpdated": "2025-08-11T17:04:39.697Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "recompose": {
+    "lastUpdated": "2025-08-11T17:04:59.462Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "redom": {
+    "lastUpdated": "2025-08-11T17:06:52.328Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "redux-persist": {
+    "lastUpdated": "2025-08-11T17:07:27.692Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "redux-router": {
+    "lastUpdated": "2025-08-11T17:07:33.083Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "redux-search": {
+    "lastUpdated": "2025-08-11T17:07:40.181Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "regression": {
+    "lastUpdated": "2025-08-11T17:07:46.613Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "remoteStorage": {
+    "lastUpdated": "2025-08-11T17:08:11.480Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "require-jquery": {
+    "lastUpdated": "2025-08-11T17:08:16.885Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "require.js": {
+    "lastUpdated": "2025-08-11T17:09:02.675Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "reselect": {
+    "lastUpdated": "2025-08-11T17:09:26.864Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "reveal.js": {
+    "lastUpdated": "2025-08-11T17:10:03.024Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rickshaw": {
+    "lastUpdated": "2025-08-11T17:10:13.716Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rison": {
+    "lastUpdated": "2025-08-11T17:10:18.712Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rita": {
+    "lastUpdated": "2025-08-11T17:12:11.021Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rollbar.js": {
+    "lastUpdated": "2025-08-11T17:14:15.657Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "roslibjs": {
+    "lastUpdated": "2025-08-11T17:14:36.554Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "rx-player": {
+    "lastUpdated": "2025-08-11T17:15:49.023Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ryejs": {
+    "lastUpdated": "2025-08-11T17:15:53.753Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sails.io.js": {
+    "lastUpdated": "2025-08-11T17:16:30.051Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "san": {
+    "lastUpdated": "2025-08-11T17:18:14.655Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sanctuary": {
+    "lastUpdated": "2025-08-11T17:18:19.978Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sat": {
+    "lastUpdated": "2025-08-11T17:18:26.677Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "satellite.js": {
+    "lastUpdated": "2025-08-11T17:18:37.692Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sceditor": {
+    "lastUpdated": "2025-08-11T17:19:01.965Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "scenejs": {
+    "lastUpdated": "2025-08-11T17:19:34.046Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "screenfull.js": {
+    "lastUpdated": "2025-08-11T17:19:56.706Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "scribbletune": {
+    "lastUpdated": "2025-08-11T17:20:46.869Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "scroll-lock": {
+    "lastUpdated": "2025-08-11T17:20:54.636Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "scrollmonitor": {
+    "lastUpdated": "2025-08-11T17:21:14.515Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "selecto": {
+    "lastUpdated": "2025-08-11T17:21:52.089Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sendbird-calls": {
+    "lastUpdated": "2025-08-11T17:22:13.403Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shine.js": {
+    "lastUpdated": "2025-08-11T17:22:18.121Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shoestring": {
+    "lastUpdated": "2025-08-11T17:22:24.609Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shopify-buy": {
+    "lastUpdated": "2025-08-11T17:23:25.471Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shopify-cartjs": {
+    "lastUpdated": "2025-08-11T17:23:45.268Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "should.js": {
+    "lastUpdated": "2025-08-11T17:24:43.808Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shower-core": {
+    "lastUpdated": "2025-08-11T17:24:55.961Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shpjs": {
+    "lastUpdated": "2025-08-11T17:25:06.598Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "shred": {
+    "lastUpdated": "2025-08-11T17:25:40.310Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "side-comments": {
+    "lastUpdated": "2025-08-11T17:25:45.049Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sigma.js": {
+    "lastUpdated": "2025-08-11T17:27:02.322Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simple-ajax-uploader": {
+    "lastUpdated": "2025-08-11T17:27:10.004Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simple-datatables": {
+    "lastUpdated": "2025-08-11T17:27:20.480Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simple-module": {
+    "lastUpdated": "2025-08-11T17:27:29.459Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simple-statistics": {
+    "lastUpdated": "2025-08-11T17:28:17.544Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simplebar": {
+    "lastUpdated": "2025-08-11T17:29:29.841Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simplemde": {
+    "lastUpdated": "2025-08-11T17:29:39.327Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simplestatemanager": {
+    "lastUpdated": "2025-08-11T17:29:45.891Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "simplewebauthn-browser": {
+    "lastUpdated": "2025-08-11T17:29:56.941Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "single-spa": {
+    "lastUpdated": "2025-08-11T17:30:59.292Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sip.js": {
+    "lastUpdated": "2025-08-11T17:31:10.548Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sir-trevor-js": {
+    "lastUpdated": "2025-08-11T17:31:44.503Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sizzle": {
+    "lastUpdated": "2025-08-11T17:32:11.023Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sjcl": {
+    "lastUpdated": "2025-08-11T17:32:18.564Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "skel-layers": {
+    "lastUpdated": "2025-08-11T17:32:26.935Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "skel": {
+    "lastUpdated": "2025-08-11T17:32:35.562Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sketch.js": {
+    "lastUpdated": "2025-08-11T17:32:40.875Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "skycons": {
+    "lastUpdated": "2025-08-11T17:32:45.830Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "slim.js": {
+    "lastUpdated": "2025-08-11T17:33:50.171Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "snarl": {
+    "lastUpdated": "2025-08-11T17:33:58.240Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sockjs-client": {
+    "lastUpdated": "2025-08-11T17:34:20.868Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "soga": {
+    "lastUpdated": "2025-08-11T17:34:29.109Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "soroban-client": {
+    "lastUpdated": "2025-08-11T17:34:51.003Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "soundmanager2": {
+    "lastUpdated": "2025-08-11T17:35:26.136Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "soxx": {
+    "lastUpdated": "2025-08-11T17:35:32.785Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sp-pnp-js": {
+    "lastUpdated": "2025-08-11T17:36:16.985Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "space": {
+    "lastUpdated": "2025-08-11T17:36:21.684Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "spellbook": {
+    "lastUpdated": "2025-08-11T17:37:47.463Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "spf": {
+    "lastUpdated": "2025-08-11T17:37:55.863Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "spinejs": {
+    "lastUpdated": "2025-08-11T17:38:00.832Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "springy": {
+    "lastUpdated": "2025-08-11T17:38:10.508Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "spritejs": {
+    "lastUpdated": "2025-08-11T17:39:01.239Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "squel": {
+    "lastUpdated": "2025-08-11T17:39:53.325Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "squire-rte": {
+    "lastUpdated": "2025-08-11T17:40:30.143Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stackblur-canvas": {
+    "lastUpdated": "2025-08-11T17:40:38.929Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stage.js": {
+    "lastUpdated": "2025-08-11T17:40:48.920Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stellar-base": {
+    "lastUpdated": "2025-08-11T17:42:48.029Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stellar-freighter-api": {
+    "lastUpdated": "2025-08-11T17:43:02.025Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sticky-sidebar": {
+    "lastUpdated": "2025-08-11T17:43:08.882Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stomp.js": {
+    "lastUpdated": "2025-08-11T17:43:15.147Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "store.js": {
+    "lastUpdated": "2025-08-11T17:43:39.454Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "store2": {
+    "lastUpdated": "2025-08-11T17:44:09.992Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stretchy": {
+    "lastUpdated": "2025-08-11T17:44:15.878Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "string-fn": {
+    "lastUpdated": "2025-08-11T17:44:54.750Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "strman": {
+    "lastUpdated": "2025-08-11T17:45:04.599Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "strophe.js": {
+    "lastUpdated": "2025-08-11T17:45:30.541Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "stylus": {
+    "lastUpdated": "2025-08-11T17:45:35.277Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sugar": {
+    "lastUpdated": "2025-08-11T17:45:59.820Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "superagent": {
+    "lastUpdated": "2025-08-11T17:47:55.158Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "superdom": {
+    "lastUpdated": "2025-08-11T17:48:13.488Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "svgeezy": {
+    "lastUpdated": "2025-08-11T17:48:18.194Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sw-toolbox": {
+    "lastUpdated": "2025-08-11T17:48:29.095Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sweetalert2": {
+    "lastUpdated": "2025-08-11T17:49:26.740Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "swig": {
+    "lastUpdated": "2025-08-11T17:49:37.839Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "switchery": {
+    "lastUpdated": "2025-08-11T17:49:57.315Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "sylvester": {
+    "lastUpdated": "2025-08-11T17:50:02.083Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "synaptic": {
+    "lastUpdated": "2025-08-11T17:50:15.495Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "t7": {
+    "lastUpdated": "2025-08-11T17:50:33.949Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "taffydb": {
+    "lastUpdated": "2025-08-11T17:50:39.563Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "taquito": {
+    "lastUpdated": "2025-08-11T17:52:05.229Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "task.js": {
+    "lastUpdated": "2025-08-11T17:52:25.010Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "templatebinding": {
+    "lastUpdated": "2025-08-11T17:52:30.273Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tempus-dominus": {
+    "lastUpdated": "2025-08-11T17:53:03.256Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tensorflow": {
+    "lastUpdated": "2025-08-11T17:54:52.172Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "terraformer": {
+    "lastUpdated": "2025-08-11T17:55:04.973Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tesseract.js": {
+    "lastUpdated": "2025-08-11T17:55:44.586Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "textile-js": {
+    "lastUpdated": "2025-08-11T17:56:04.355Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tez.js": {
+    "lastUpdated": "2025-08-11T17:56:36.738Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "themoviedb-javascript-library": {
+    "lastUpdated": "2025-08-11T17:56:42.736Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "three.js": {
+    "lastUpdated": "2025-08-11T17:59:39.230Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "thrift": {
+    "lastUpdated": "2025-08-11T17:59:46.591Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "timekit-js-sdk": {
+    "lastUpdated": "2025-08-11T18:00:11.144Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "timelinejs": {
+    "lastUpdated": "2025-08-11T18:01:23.207Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tinycolor": {
+    "lastUpdated": "2025-08-11T18:01:43.238Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tinycon": {
+    "lastUpdated": "2025-08-11T18:01:49.562Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tinymce": {
+    "lastUpdated": "2025-08-11T18:03:53.733Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tldjs": {
+    "lastUpdated": "2025-08-11T18:03:58.451Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tmlib.js": {
+    "lastUpdated": "2025-08-11T18:04:16.628Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "toastr.js": {
+    "lastUpdated": "2025-08-11T18:04:25.419Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tocas": {
+    "lastUpdated": "2025-08-11T18:04:35.522Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tota11y": {
+    "lastUpdated": "2025-08-11T18:04:44.260Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "touchjs": {
+    "lastUpdated": "2025-08-11T18:04:49.323Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "toxiclibsjs": {
+    "lastUpdated": "2025-08-11T18:04:54.179Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tracing.js": {
+    "lastUpdated": "2025-08-11T18:05:01.212Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tracking.js": {
+    "lastUpdated": "2025-08-11T18:05:07.133Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "translate.js": {
+    "lastUpdated": "2025-08-11T18:05:40.999Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "treejs": {
+    "lastUpdated": "2025-08-11T18:05:48.768Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "trix": {
+    "lastUpdated": "2025-08-11T18:06:26.765Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tsparticles-all": {
+    "lastUpdated": "2025-08-11T18:06:31.576Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tsparticles-basic": {
+    "lastUpdated": "2025-08-11T18:06:36.331Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tsparticles-confetti": {
+    "lastUpdated": "2025-08-11T18:06:44.093Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tsparticles-demo-configs": {
+    "lastUpdated": "2025-08-11T18:06:52.606Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tsparticles-particles.js": {
+    "lastUpdated": "2025-08-11T18:07:23.651Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tsparticles-plugin-polygon-mask": {
+    "lastUpdated": "2025-08-11T18:07:55.975Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "tweetnacl": {
+    "lastUpdated": "2025-08-11T18:08:15.670Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "twemoji-js": {
+    "lastUpdated": "2025-08-11T18:08:20.672Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "twemoji": {
+    "lastUpdated": "2025-08-11T18:09:12.398Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "twgl.js": {
+    "lastUpdated": "2025-08-11T18:09:35.407Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "twine": {
+    "lastUpdated": "2025-08-11T18:09:57.480Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "twing": {
+    "lastUpdated": "2025-08-11T18:10:17.339Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "twitterlib.js": {
+    "lastUpdated": "2025-08-11T18:10:22.765Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "two.js": {
+    "lastUpdated": "2025-08-11T18:10:54.428Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "typeit": {
+    "lastUpdated": "2025-08-11T18:12:17.709Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "typogr": {
+    "lastUpdated": "2025-08-11T18:12:28.813Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "ua-device-detector": {
+    "lastUpdated": "2025-08-11T18:12:37.049Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "underscore.js": {
+    "lastUpdated": "2025-08-11T18:13:34.175Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "underscore.string": {
+    "lastUpdated": "2025-08-11T18:14:00.221Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "unibox": {
+    "lastUpdated": "2025-08-11T18:14:35.359Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "unicorn.js": {
+    "lastUpdated": "2025-08-11T18:14:40.515Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "upb": {
+    "lastUpdated": "2025-08-11T18:14:48.585Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "upng-js": {
+    "lastUpdated": "2025-08-11T18:14:54.181Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "uppy": {
+    "lastUpdated": "2025-08-11T18:16:53.933Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "urljs": {
+    "lastUpdated": "2025-08-11T18:17:05.296Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "uswds": {
+    "lastUpdated": "2025-08-11T18:18:22.180Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "v-charts": {
+    "lastUpdated": "2025-08-11T18:18:30.467Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vConsole": {
+    "lastUpdated": "2025-08-11T18:19:16.186Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "validate.js": {
+    "lastUpdated": "2025-08-11T18:19:34.723Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "valigators": {
+    "lastUpdated": "2025-08-11T18:19:40.719Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "valine": {
+    "lastUpdated": "2025-08-11T18:20:40.142Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vault.js": {
+    "lastUpdated": "2025-08-11T18:20:51.527Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vega-tooltip": {
+    "lastUpdated": "2025-08-11T18:21:55.992Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vega": {
+    "lastUpdated": "2025-08-11T18:23:57.497Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "velocity": {
+    "lastUpdated": "2025-08-11T18:24:45.775Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "venn.js": {
+    "lastUpdated": "2025-08-11T18:24:54.150Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vex-js": {
+    "lastUpdated": "2025-08-11T18:25:13.793Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vexflow": {
+    "lastUpdated": "2025-08-11T18:26:37.833Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "videojs-vimeo": {
+    "lastUpdated": "2025-08-11T18:26:43.386Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vis-data": {
+    "lastUpdated": "2025-08-11T18:26:54.081Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vis-network": {
+    "lastUpdated": "2025-08-11T18:27:06.561Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vis-timeline": {
+    "lastUpdated": "2025-08-11T18:27:27.064Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "visibility.js": {
+    "lastUpdated": "2025-08-11T18:27:35.907Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "visibly.js": {
+    "lastUpdated": "2025-08-11T18:27:45.029Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vivagraphjs": {
+    "lastUpdated": "2025-08-11T18:28:05.641Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vivus": {
+    "lastUpdated": "2025-08-11T18:28:16.414Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "voca": {
+    "lastUpdated": "2025-08-11T18:28:24.897Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "voerro-vue-tagsinput": {
+    "lastUpdated": "2025-08-11T18:28:36.929Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vonic": {
+    "lastUpdated": "2025-08-11T18:29:25.566Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vtt.js": {
+    "lastUpdated": "2025-08-11T18:29:35.661Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-cesium": {
+    "lastUpdated": "2025-08-11T18:30:48.144Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-chartjs": {
+    "lastUpdated": "2025-08-11T18:31:49.075Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-color": {
+    "lastUpdated": "2025-08-11T18:32:13.355Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-echarts": {
+    "lastUpdated": "2025-08-11T18:33:01.628Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-multiselect": {
+    "lastUpdated": "2025-08-11T18:33:19.964Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-smart-table": {
+    "lastUpdated": "2025-08-11T18:33:53.299Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vue-strap": {
+    "lastUpdated": "2025-08-11T18:34:28.209Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vuejs-paginate": {
+    "lastUpdated": "2025-08-11T18:34:54.119Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "vuejs-paginator": {
+    "lastUpdated": "2025-08-11T18:35:01.788Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "waud.js": {
+    "lastUpdated": "2025-08-11T18:36:10.566Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "wdt-emoji-bundle": {
+    "lastUpdated": "2025-08-11T18:36:17.224Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "wdt-loading": {
+    "lastUpdated": "2025-08-11T18:36:22.539Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "weather": {
+    "lastUpdated": "2025-08-11T18:36:27.733Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "web-vitals": {
+    "lastUpdated": "2025-08-11T18:36:47.400Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "webcamjs": {
+    "lastUpdated": "2025-08-11T18:37:06.205Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "webkul-micron": {
+    "lastUpdated": "2025-08-11T18:37:17.194Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "webpack-cesium": {
+    "lastUpdated": "2025-08-11T18:37:23.384Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "webrtc-adapter": {
+    "lastUpdated": "2025-08-11T18:38:34.267Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "websqltracer": {
+    "lastUpdated": "2025-08-11T18:38:39.861Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "when": {
+    "lastUpdated": "2025-08-11T18:39:39.554Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "wikibase-sdk": {
+    "lastUpdated": "2025-08-11T18:40:24.443Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "winjs": {
+    "lastUpdated": "2025-08-11T18:40:32.925Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "wysihtml": {
+    "lastUpdated": "2025-08-11T18:41:04.798Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "wysihtml5": {
+    "lastUpdated": "2025-08-11T18:41:09.536Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "x-tag": {
+    "lastUpdated": "2025-08-11T18:41:31.039Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "x18n": {
+    "lastUpdated": "2025-08-11T18:41:37.987Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "x2js": {
+    "lastUpdated": "2025-08-11T18:41:45.377Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "xls": {
+    "lastUpdated": "2025-08-11T18:42:05.489Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "xlsx-populate": {
+    "lastUpdated": "2025-08-11T18:42:13.569Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "xsound": {
+    "lastUpdated": "2025-08-11T18:43:12.171Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "yairEO-validator": {
+    "lastUpdated": "2025-08-11T18:43:21.271Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "yaml-js": {
+    "lastUpdated": "2025-08-11T18:43:29.790Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "yasqe": {
+    "lastUpdated": "2025-08-11T18:44:21.095Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "youtube-google-analytics": {
+    "lastUpdated": "2025-08-11T18:44:26.806Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "yox": {
+    "lastUpdated": "2025-08-11T18:44:46.032Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zenscroll": {
+    "lastUpdated": "2025-08-11T18:44:58.182Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zepto": {
+    "lastUpdated": "2025-08-11T18:45:11.328Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zingchart": {
+    "lastUpdated": "2025-08-11T18:45:57.050Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zingtouch": {
+    "lastUpdated": "2025-08-11T18:46:03.915Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zonos-elements": {
+    "lastUpdated": "2025-08-11T18:47:26.820Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zooming": {
+    "lastUpdated": "2025-08-11T18:48:27.419Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  },
+  "zrender": {
+    "lastUpdated": "2025-08-11T18:49:25.483Z",
+    "misdetectionCount": 0,
+    "misdetections": []
+  }
+}
