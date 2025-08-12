@@ -332,7 +332,7 @@ if (require.main === module) {
       const folderName = crawler.getNameFromURL(url);
       dirPath = path.join(dataStorageDirectory, folderName);
       if(!fs.existsSync(dirPath)){
-        logger.error("no directory found at", dirPath)
+        logger.error(`no directory found at ${dirPath}`)
         process.exit(1)
       }
     }

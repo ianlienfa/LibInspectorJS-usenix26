@@ -189,8 +189,14 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 	const webpageFolder = pathModule.join(dataDirectory, webpageFolderName);
 
 
-	// append url in urls.out in the website-specific directory
-	fs.appendFileSync(pathModule.join(dataDirectory, "urls.out"), url + '\n');
+	// append url in urls.out in the website-specific directory	
+	let URLsdata
+	if(fs.existsSync(pathModule.join(dataDirectory, "urls.out"))){
+		URLsdata = fs.readFileSync(pathModule.join(dataDirectory, "urls.out"));
+	}
+	const existingUrls = URLsdata ? URLsdata.toString().trim().split('\n') : [];
+	const urlSet = new Set([...existingUrls, url]);
+	fs.writeFileSync(pathModule.join(dataDirectory, "urls.out"), [...urlSet].join('\n'));
 
 	// collect the webpage data
 	if(COLLECT_AND_CREATE_PAGE){

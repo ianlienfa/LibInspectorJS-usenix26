@@ -220,6 +220,25 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	var graphBuilderOptions= { 'ipcg': true, 'erddg': true, 'output': webpageFolder, 'iterativeOutput': iterative_output };
 	const graph = await SourceSinkAnalyzerInstance.api.buildHPG(graphBuilderOptions); // IPCG, ERDDG + SemanticTypes + node/edge format
 	const graphid = hashURL(url);
+
+	DEBUG && console.log('[StaticAnalysis] started mapping foxhound edges and semantic types.');
+	// read taintflows, script_mapping and sourcemap files
+	var taintflows = readFile(pathModule.join(webpageFolder, 'taintflows.json'));
+
+	if(taintflows === -1){
+		taintflows = false;
+	}else{
+		try{
+			taintflows = JSON.parse(taintflows);
+		}
+		catch{
+			taintflows = false;
+		}
+	}
+	const foxhound_data = await SourceSinkAnalyzerInstance.api.getDynamicFoxhoundEdgesAndSemTypes(taintflows, scripts_mapping, sourcemaps);
+	DEBUG && console.log('[StaticAnalysis] finished mapping foxhound edges and semantic types.')
+
+
 	GraphExporter.exportToCSV(graph, graphid, webpageFolder);
 	DEBUG && console.log('[StaticAnalysis] finished HPG export: IPCG/ERDDG/SemTypes.')
 	

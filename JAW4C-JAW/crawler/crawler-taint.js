@@ -61,9 +61,9 @@ var maxVisitedUrls = 100;
 const DEBUG = true;         
 
 // when true, nodejs will log the browser console logs to the console as they arrive
-const BROWSER_LOG = false;
+const BROWSER_LOG = true;
 
-const TAINT_LOG = false;
+const TAINT_LOG = true;
 
 // additional data that the crawler should store 
 const COLLECT_WEBPAGE = true;
@@ -162,8 +162,13 @@ function isValid(link){
  * @param url: eTLD+1 domain name
  * @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 **/
-function getNameFromURL(url){
-	return url.replace(/\:/g, '-').replace(/\//g, '');
+function getNameFromURL(url) {
+  return url
+    .replace(/:/g, '-')
+    .replace(/\//g, '')
+    .replace(/&/g, '%26')
+    .replace(/=/g, '%3D')
+    .replace(/\?/g, '%3F');
 }
 
 
@@ -204,6 +209,17 @@ function directoryExists(url){
 		return false;
 	}
 
+}
+
+
+function cleanDirectory(url){
+
+	const folderName = getNameFromURL(url);
+	const folderPath = pathModule.join(dataStorageDirectory, folderName);
+	if(fs.existsSync(folderPath)){
+		// Recursively remove everything inside folderPath
+		fs.rmSync(folderPath, { recursive: true, force: true });
+	}
 }
 
 /**
@@ -267,9 +283,14 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 	const webpageFolderName = hashURL(url);
 	const webpageFolder = pathModule.join(dataDirectory, webpageFolderName);
 
-
-	// append url in urls.out in the website-specific directory
-	fs.appendFileSync(pathModule.join(dataDirectory, "urls.out"), url + '\n');
+	// append url in urls.out in the website-specific directory	
+	let URLsdata
+	if(fs.existsSync(pathModule.join(dataDirectory, "urls.out"))){
+		URLsdata = fs.readFileSync(pathModule.join(dataDirectory, "urls.out"));
+	}
+	const existingUrls = URLsdata ? URLsdata.toString().trim().split('\n') : [];
+	const urlSet = new Set([...existingUrls, url]);
+	fs.writeFileSync(pathModule.join(dataDirectory, "urls.out"), [...urlSet].join('\n'));
 
 
 	if(COLLECT_WEBPAGE){
@@ -289,10 +310,12 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 
 		if(COLLECT_SCRIPTS){
 
+
 			let scriptMapping = {};
 
 			let scriptLineRanges = getScriptLineRanges(html);
 
+			DEBUG && console.log('[Crawler] collecting scripts, length:', scripts.length);
 
 			var sid = 0;
 			for(let i=0; i< scripts.length; i++){
@@ -458,7 +481,7 @@ async function getScriptSourceMappingObject(script_content) {
 **/
 
 
-async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, debug_run, wait_before_next_url){
+async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, debug_run, wait_before_next_url, BrowserContext){
 
 
 	let url = pageURL;
@@ -471,7 +494,14 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 		var closePage= true;
 
 		// Create a new incognito browser context with disabled CSP
-		const context = await browser.newContext({ bypassCSP: true });
+		const context = await browser.newContext({ 
+			bypassCSP: true,
+			// proxy: {
+			// 	server: 'http://127.0.0.1:8002',
+			// },
+			// ignoreHTTPSErrors: true
+			...BrowserContext
+		});
 
 		const scriptPath = pathModule.join(BASE_DIR, "crawler/scripts/flowHandler.js");
 		context.addInitScript({ path: scriptPath});
@@ -535,7 +565,7 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 
 			// @DOC
 			// https://playwright.dev/docs/api/class-page#page-reload
-			let load_options = {waitUntil: 'commit'}; // 'networkidle'
+			let load_options = {waitUntil: 'load'}; // 'commit'
 			
 			// this sometimes throws `NS_ERROR_CONNECTION_REFUSED` in firefox?
 			await page.goto(url, load_options);
@@ -550,12 +580,20 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 			let page2 = await context.newPage();
 			for (let i = 0; i < number_of_reloads; i++) {
 				DEBUG && console.log('[pageLoad] reloading page ' + (i+1) + '/' + number_of_reloads);
-				if(i == 0){
-					await page2.goto(url, load_options);
-				}else{
-					await page2.reload({waitUntil: 'commit'});
+				try {
+					if(i == 0){
+						await page2.goto(url, load_options);
+					}else{
+						await page2.reload({
+							waitUntil: 'commit',
+							timeout: 3000 // 30 seconds
+						});
+					}
+					await page2.waitForTimeout(2000);
+				} catch (error) {
+					DEBUG && console.log('[pageLoad] page crashed, moving to next URL:', error.message);
+					break;
 				}
-				await page2.waitForTimeout(2000);
 			}
 			await page2.close();
 
@@ -588,6 +626,8 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 
 
 			let html = await page.content();
+			DEBUG && console.log('[Crawler] Done retreiving page content.');
+
 			// console.log(html);
 			
 			/*
@@ -677,6 +717,7 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 				}
 
 		   }
+			DEBUG && console.log('[Crawler] Done collecting scripts.');
 
 			// web storage data
 			let webStorageData = await page.evaluate( () => {
@@ -695,10 +736,12 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 				let webStorageData = getWebStorageData();
 				return webStorageData;
 			});
+			DEBUG && console.log('[Crawler] Done getting webstorages.');
 
 			// cookies and local storage
 			// https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state
 			let cookies = await context.storageState() // .cookies();
+			DEBUG && console.log('[Crawler] Done getting cookies.');
 
 			try{
 				// save the collected data 
@@ -707,6 +750,8 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 				DEBUG && console.log('[PageSaveError] error while saving the webpage data');
 				DEBUG && console.log('[PageSaveError]', e);
 			}
+			DEBUG && console.log('[Crawler] Done saving page data.');
+
 			/** 
 			* @warning
 			* prevent auto navigation / auto page refresh 
@@ -746,7 +791,7 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 				}
 			}
 
-			await page.waitForTimeout(wait_before_next_url);
+			await page.waitForTimeout(50000);
 
 		} catch (e){
 			console.log('[exception] error while navigating/saving the page', e)
@@ -830,7 +875,7 @@ async function launch_firefox(headless_mode) {
 				// executablePath: "/mnt/workspace/playwright/project-foxhound/obj-build-playwright/dist/bin/firefox",
 				executablePath: foxhound_executable_path,
 				headless: headless_mode,
-				firefoxUserPrefs: ffopts
+				firefoxUserPrefs: ffopts,
 			});
 
 		}
@@ -886,13 +931,17 @@ async function launch_browsers(headless_mode){
 
 
 	const headless_mode = (config.headless && config.headless.toLowerCase() === 'false')? false: true;
+	const additional_args = ((config.additionalargs && config.additionalargs.toLowerCase() === 'false') || (!config.additionalargs)) ? undefined : JSON.parse(config.additionalargs);	
 	const debug_run = false;
-	const wait_before_next_url = 1000; // wait for 1 second
+	const wait_before_next_url = 30000; // wait for 1 second
 
 
 	if(!overwrite_results && directoryExists(url)){
 		DEBUG && console.log('site already crawled: '+ url);
 		return 1;
+	}
+	else{
+		cleanDirectory(url)
 	}
 
 	/** 
@@ -916,7 +965,7 @@ async function launch_browsers(headless_mode){
 
 	// use public suffix list to restrict crawled urls to the same domain 
 	var domain = psl.get(url.replace('https://', '').replace('http://', ''));
-	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url);
+	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, additional_args);
 
 	const globalTime = globalTimer.get();
 	globalTimer.end();

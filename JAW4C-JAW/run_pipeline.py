@@ -173,15 +173,25 @@ def main():
 		crawler_node_memory = config["crawler"]["memory"]
 		
 	# crawling
-	crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={6} --seedurl=SEED_URL".format(
-		config["crawler"]["maxurls"],
-		config["crawler"]["browser"]["name"],
-		config["crawler"]["browser"]["headless"],
-		config["crawler"]["overwrite"],
-		config["crawler"]["browser"]["foxhound"], # should_use_foxhound
-		crawler_node_memory,
-		parse_additional_args_to_posix_style(config["crawler"]["puppeteer"])
-	)
+	if config["testbed"]["archive"]["enable"]:
+		crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={6} --seedurl=SEED_URL".format(
+			config["crawler"]["maxurls"],
+			config["crawler"]["browser"]["name"],
+			config["crawler"]["browser"]["headless"],
+			config["crawler"]["overwrite"],
+			config["crawler"]["browser"]["foxhound"], # should_use_foxhound
+			crawler_node_memory,
+			parse_additional_args_to_posix_style(config["crawler"]["puppeteer"])
+		)
+	else:
+		crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --seedurl=SEED_URL".format(
+			config["crawler"]["maxurls"],
+			config["crawler"]["browser"]["name"],
+			config["crawler"]["browser"]["headless"],
+			config["crawler"]["overwrite"],
+			config["crawler"]["browser"]["foxhound"], # should_use_foxhound
+			crawler_node_memory
+		)		
 		
 	browser_name = config["crawler"]["browser"]["name"]
 	if browser_name == 'chrome':
@@ -421,9 +431,29 @@ def main():
 			# static analysis over neo4j
 			if config['cve_vuln']["passes"]["static_neo4j"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-				vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
-				CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+				try:
+					lib_det_res = DetectorReader.read_result_with_url(website_url)
+				except Exception as e:
+					LOGGER.error(e)
+					exit(1)
+				for affiliatedurl, detectionRes in lib_det_res.items():
+					detection_list = lib_det_res.get(affiliatedurl, {}).get('PTV', {}).get('detection', [])
+					first_detection = detection_list[0] if detection_list else None
+					if first_detection:
+						LOGGER.info(f"first_detection: {first_detection}")	
+						ModLibMapping = {}
+						for i in lib_det_res[affiliatedurl]['PTV']['detection'][0]:
+							ModLibMapping[i['libname']] = {'location': i['location']}
+						LOGGER.info(f"ModLibMapping: {ModLibMapping}")
+						for lib in ModLibMapping.keys():
+							vuln = vuln_db.package_vuln_search(lib)
+							ModLibMapping[lib]['vuln'] = vuln
+							if vuln != None:
+								LOGGER.info(f"vuln found! {vuln}")
+						LOGGER.info(f"ModLibMapping after: {json.dumps(ModLibMapping)}")
+				# vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
+				# CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+				# LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
 	# archive/csv crawl/analysis
 	else: 
@@ -437,6 +467,7 @@ def main():
 				urls = list(mapping.keys())
 				for i in range(from_row, to_row+1):				
 					website_url = create_start_crawl_url(urls[i])
+					LOGGER.info(f"Running on website: {website_url}")
 					if domain_health_check:
 						LOGGER.info('checking if domain is up with python requests ...')
 						website_up = False
@@ -496,11 +527,11 @@ def main():
 									continue
 								# LOGGER.info(affiliatedurl, detectionRes)							
 								LOGGER.info(f"first_detection: {first_detection}")	
-								detectionLib = list(set([i['libname'] for i in first_detection]))
+								# detectionLib = list(set([i['libname'] for i in first_detection]))
 								ModLibMapping = {}
 								for i in lib_det_res[affiliatedurl]['PTV']['detection'][0]:
 									ModLibMapping[i['libname']] = {'location': i['location']}
-								LOGGER.info(f"detectionLib: {detectionLib}")
+								# LOGGER.info(f"detectionLib: {detectionLib}")
 								LOGGER.info(f"ModLibMapping: {ModLibMapping}")
 								for lib in ModLibMapping.keys():
 									vuln = vuln_db.package_vuln_search(lib)

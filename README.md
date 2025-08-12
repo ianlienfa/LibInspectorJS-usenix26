@@ -56,7 +56,7 @@ port=543
 ```
 source ./env.sh
 ```
-This should be executed in the JAW4C-JAW directory
+This should be executed in the JAW4C-JAW directory, it will set up the python environment and the required docker services 
 ```
 python3 -m run_pipeline --conf=config.yaml
 ```
@@ -70,3 +70,15 @@ The pipeline configuration is in JAW4C-JAW/config.yaml
 
 # Commonly seen problems
 - 'Failed to launch the browser process!': remember to source env.sh
+- Archive stuck at:
+    ```* Host localhost:8002 was resolved.
+    * IPv6: ::1
+    * IPv4: 127.0.0.1
+    *   Trying [::1]:8002...
+    * Connected to localhost (::1) port 8002
+    > GET http://240.240.240.240/?target=https%3A%2F%2Fwww.us.jll.com%2Fen%2Fsolutions%2Frelocation-project-management%3Fhighlight%3Doccupier-services&type=soak HTTP/1.1
+    > Host: 240.240.240.240
+    > User-Agent: curl/8.5.0
+    > Accept: */*
+    ```
+    -> Check the correctness of url
