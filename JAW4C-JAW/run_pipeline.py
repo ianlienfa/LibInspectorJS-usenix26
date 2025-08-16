@@ -451,9 +451,9 @@ def main():
 							if vuln != None:
 								LOGGER.info(f"vuln found! {vuln}")
 						LOGGER.info(f"ModLibMapping after: {json.dumps(ModLibMapping)}")
-				# vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
-				# CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-				# LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+				vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
+				CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
 	# archive/csv crawl/analysis
 	else: 

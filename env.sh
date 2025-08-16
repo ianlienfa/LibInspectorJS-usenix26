@@ -32,7 +32,10 @@ cleanup_services() {
             tmux kill-session -t "$session_id" 2>/dev/null || true
         fi
     done
-    
+
+    # Cleaning up neo4j containers
+    docker ps -a | grep 'arm64v8/neo4j:4.4' | cut -f 1 -d ' ' | while read id; do docker stop $id && docker rm $id; done;
+
     echo "Cleanup complete!"    
 }
 

@@ -36,10 +36,12 @@ const elapsed = require("elapsed-time-logger");
 **/
 const constantsModule = require('./../../engine/lib/jaw/constants')
 const SourceSinkAnalyzerModule = require('./cve_vuln_traversals.js');
+const globalsModule = require('./globals.js');
 const SourceSinkAnalyzer = SourceSinkAnalyzerModule.CVESourceSinkAnalyzer;
 
 
 const GraphExporter = require('./../../engine/core/io/graphexporter');
+const logger = require('../../engine/core/io/logging.js');
 
 /**
  * ------------------------------------------------
@@ -66,18 +68,8 @@ var iterative_output = false;
  * ------------------------------------------------
 **/
 
-var libraryHeuristics = []
+// var libraryHeuristics = []
 
-function isLibraryScript(scriptContent){
-	let flag = false;
-	for(let h of libraryHeuristics){
-		if(scriptContent.includes(h)){
-			flag = true;
-			break;
-		}
-	}
-	return flag;
-}
 
 const withTimeout = (millis, promise) => {
     const timeout = new Promise((resolve, reject) =>
@@ -143,6 +135,43 @@ function getOrCreateDataDirectoryForWebsite(url){
 }
 
 
+
+
+/** 
+ * @function isLibraryScript 
+ * @param {string} script: script src (when `mode: src`) or script content (when `mode: content`)
+ * @param {string} options: determines the type of the `script` param (format `{mode: type}` with types being `src` or `content`)
+ * @return {boolean} whether or not the input is a library script
+**/
+function isLibraryScript(script, options){
+
+	let return_flag = false;
+
+	if(options.mode === 'src'){
+
+		let script_src = script.toLowerCase();
+		for(let h of globalsModule.lib_src_heuristics){
+			if(script_src.includes(h)){ // check script src
+				return_flag = true;
+				break;
+			}
+		}
+
+	}else{ // [options.mode === 'content']
+
+		let script_content = script.toLowerCase();
+		for(let h of globalsModule.lib_content_heuristics){
+			if(script_content.includes(h)){ // check script content
+				return_flag = true;
+				break;
+			}
+		}
+	}
+
+	return return_flag;
+}
+
+
 /**
  * ------------------------------------------------
  *  		Main Static Analysis Thread
@@ -151,28 +180,79 @@ function getOrCreateDataDirectoryForWebsite(url){
 
 
 async function staticallyAnalyzeWebpage(url, webpageFolder){
+
 	let results_timing_file = pathModule.join(webpageFolder, "time.static_analysis.out");
 	if(!overwrite_hpg && fs.existsSync(results_timing_file)){
 		DEBUG && console.log('[skipping] results already exists for: '+ webpageFolder)
 		return 1;
 	}
 
-
 	// read the crawled scripts from disk
 	let scripts = [];
+	var sourcemaps = {};
 	let dirContent = fs.readdirSync( webpageFolder );
-	let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/.*\.(js$)/ig);});
-	for(let i=0; i<scriptFiles.length; i++){
-		let scriptName = pathModule.join(webpageFolder, '' + i + '.js');
-		let scriptContent = await readFile(scriptName);
-		if(scriptContent != -1 && !isLibraryScript(scriptContent)){
-			scripts.push({
-				scriptId: i,
-				source: scriptContent,
-				name: scriptName,
-			})
+
+
+	let scripts_mapping = {};
+	let scripts_mapping_content = await readFile(pathModule.join(webpageFolder, 'scripts_mapping.json'));
+	if(scripts_mapping_content != -1){
+		try{
+			scripts_mapping = JSON.parse(scripts_mapping_content);
+		}
+		catch{
+			// PASS
 		}
 	}
+	
+
+		var library_scripts = [];
+		let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/.*\.(js$)/ig);});
+		for(let i=0; i<scriptFiles.length; i++){
+			
+			let script_short_name = '' + i + '.js';
+			let script_full_name = pathModule.join(webpageFolder, script_short_name);
+			let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
+			
+			// if possible, filter out libraries based on their src in the rendered DOM tree
+			if(script_short_name in scripts_mapping){
+	
+				let script_object = scripts_mapping[script_short_name];
+				if(script_object['type'] === 'external'){
+					let is_library = isLibraryScript(script_object['src'], {mode: 'src'});
+					DEBUG && is_library && console.log(`[Analyzer] ${script_object['src']} is library object`)
+					if(is_library){
+						library_scripts.push(script_short_name);
+						continue;
+					}
+				}
+			}
+	
+	
+			let script_content = await readFile(script_full_name);
+			if(script_content != -1){
+	
+				// if possible, filter out libraries based on the script content
+				let is_library = isLibraryScript(script_content, {mode: 'content'});
+				if(is_library){
+					DEBUG && is_library && console.log(`[Analyzer] ${script_object['src']} is library object`)
+					library_scripts.push(script_short_name);
+					continue;
+				}
+				scripts.push({
+					scriptId: i,
+					source: script_content,
+					name: script_full_name,
+				})
+			}
+	
+			let sourcemap_content = await readFile(source_map_name);
+			if(sourcemap_content != -1){
+				sourcemaps[script_short_name] = JSON.parse(sourcemap_content);
+			}
+		}
+	
+		let library_scripts_path_name = pathModule.join(webpageFolder, 'library_scripts.json');
+		fs.writeFileSync(library_scripts_path_name, JSON.stringify(library_scripts));
 	
 	/*
 	*  ----------------------------------------------
@@ -239,9 +319,17 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	DEBUG && console.log('[StaticAnalysis] finished mapping foxhound edges and semantic types.')
 
 
-	GraphExporter.exportToCSV(graph, graphid, webpageFolder);
-	DEBUG && console.log('[StaticAnalysis] finished HPG export: IPCG/ERDDG/SemTypes.')
+	DEBUG && console.log('[StaticAnalysis] started HPG export to CSV.');
+	GraphExporter.exportToCSVDynamic(graph, foxhound_data, graphid, webpageFolder);
+	DEBUG && console.log('[StaticAnalysis] finished HPG export to CSV.');
 	
+	const pdgMarker =  pathModule.join(webpageFolder, "pdg.tmp");
+	await fs.writeFileSync(pdgMarker, JSON.stringify({"pdg": timeoutPDG? 1: 0}));
+	
+
+	const CsvHpgConstructionTime = CsvHpgConstructionTimer.get();
+	CsvHpgConstructionTimer.end();
+
 
 	if(do_compress_graphs){
 		DEBUG && console.log('[StaticAnalysis] started compressing HPG.');
@@ -249,16 +337,10 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		DEBUG && console.log('[StaticAnalysis] finished compressing HPG.');	
 	}
 
-	const CsvHpgConstructionTime = CsvHpgConstructionTimer.get();
-	CsvHpgConstructionTimer.end();
-
 
 	const totalTime = totalTimer.get();
 	totalTimer.end();
 
-
-	const pdgMarker =  pathModule.join(webpageFolder, "pdg.tmp");
-	await fs.writeFileSync(pdgMarker, JSON.stringify({"pdg": timeoutPDG? 1: 0}));
 
 
 	// store elapsed time to disk

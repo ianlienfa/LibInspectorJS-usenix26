@@ -1026,27 +1026,7 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
                     DEBUG_FOXHOUND_TAINT_LOGS && console.log('location:', JSON.stringify({
                         "original": toNodeObject.original, 
                         "generated": toNodeObject.generated
-                    }));
-
-
-                    if(fromNodeObject.object.operation === "PushSubscription.endpoint"){
-
-                        let node = toNode;
-                        let semanticTypes = ["REQ_PUSH_SUB"];
-                        
-                        if(!(node._id in nodes)){
-                            nodes[node._id] = semanticTypes;
-                        }else{
-                            nodes[node._id].push(...semanticTypes);
-                        }                   
-
-                        DEBUG_FOXHOUND_TAINT_LOGS && console.log("semanticTypes:", semanticTypes);
-                        DEBUG_FOXHOUND_TAINT_LOGS && console.log('sink:', taintflow.sink);
-                        DEBUG_FOXHOUND_TAINT_LOGS && console.log("node:", escodegen.generate(node));
-                        DEBUG_FOXHOUND_TAINT_LOGS && console.log('--------');
-                        break;
-
-                    }
+                    }));                    
 
 
                     let fromNode = fromNodeObject.node;

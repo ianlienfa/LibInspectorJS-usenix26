@@ -523,7 +523,7 @@ if (require.main === module) {
     const headless_mode = (config.headless && config.headless.toLowerCase() === 'false')? false: true;
 	const debug_run = false;
 	const wait_before_next_url = 0; // 5 * 60000; // wait 5 minutes
-	const additional_args = (config.additionalargs && config.additionalargs.toLowerCase() === 'false') ? undefined : JSON.parse(config.additionalargs);	
+	const additional_args = ((!config.additionalargs) || (config.additionalargs && config.additionalargs.toLowerCase() === 'false')) ? undefined : JSON.parse(config.additionalargs);	
 	override_mapping = {}
 
 	if(!overwrite_results && directoryExists(url)){

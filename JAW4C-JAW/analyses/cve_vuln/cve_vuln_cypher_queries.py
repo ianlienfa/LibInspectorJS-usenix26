@@ -1190,6 +1190,10 @@ def getSinkExpression(tx, vuln_info):
 			match constructVal:
 				case 'PAYLOAD':					
 					return True
+				case 'LIBOBJ':
+					return True
+				case 'WILDCARD':
+					return True
 				case _:
 					raise RuntimeError("Not yet implemented")
 			
@@ -1289,12 +1293,11 @@ def getSinkExpression(tx, vuln_info):
 		# Traverse downwards
 		uuid = random.randint(0, 606060606)		
 		print(f"props-{uuid}-{constructKey} before:", props)		
-		# breakpoint()       
 		for key, prop in props.items():
 			if key == 'root':
 				continue
 			if not isinstance(prop, list):		
-				if prop == False:
+				if prop == False:					
 					if contentCompare(key, node, construct) == False:
 						print("1 early halt on", key, node, construct)
 						return Status.FAIL # early halt
@@ -1464,40 +1467,7 @@ def getSinkExpression(tx, vuln_info):
 			"a": argNode
 		})
 		print("res", [[getCodeOf(tx, n)] for n in res[0].values()])
-	return res
-	# for pair in libObjectList:
-	# 	# get the library object node
-	# 	calleeNode = pair[1] # callee node
-	# 	libObjNode = pair[0] # libObj node
-	# 	print("libObj", libObjNode)
-	# 	print("calleeNode", calleeNode)
-		
-	# 	scopeOfIdentifier = neo4jQueryUtilityModule.getScopeOf(tx, calleeNode)
-	# 	identicalObjs = neo4jQueryUtilityModule.getIdenticalObjectInScope(tx, libObjNode)	
-	# 	logger.info(f"identicalObjs: {[getCodeOf(tx, obj) for obj in identicalObjs]}")
-	# 	# from the identicalObjs, identify if they're callExpressions (Todo: the filtering requires a better algo)
-	# 	potentialPairs = [ (node, neo4jQueryUtilityModule.get_ast_parent(tx, node)) for node in identicalObjs ]		
-	# 	print("potentialPairs", potentialPairs)
-	# 	potentialPairs = list(filter(lambda node: node[1]['Type'] in ['CallExpression', 'NewExpression'], potentialPairs))
-	# 	print("potentialPairs after filter", potentialPairs)
-	# 	potentialExpressionsNodes = [ neo4jQueryUtilityModule.get_ast_topmost(tx, node[0]) for node in potentialPairs ]		
-	# 	print("potentialExpressionsNodes", potentialExpressionsNodes)
-	# 	treeNodes = [neo4jQueryUtilityModule.getChildsOf(tx, node) for node in potentialExpressionsNodes]		
-	# 	codeSegments = [neo4jQueryUtilityModule.getAdvancedCodeExpression(tree)[0] for tree in treeNodes]
-	# 	res = []
-	# 	for idx in range(len(codeSegments)):
-	# 		code = codeSegments[idx]
-	# 		if vuln_info['identifiers'] in code:
-	# 			[callexprNode, argNode] = getTargetCallExpressionAndArg(tx, potentialExpressionsNodes[idx], vuln_info['identifiers'])
-	# 			print("callexprNode, argNode", getCodeOf(tx, callexprNode), getCodeOf(tx, argNode))
-	# 			print("potentialExpressionsNodes", getCodeOf(tx, potentialExpressionsNodes[idx]))
-	# 			print("childof", getChildsOf(tx, potentialExpressionsNodes[idx]))
-	# 			res.append({
-	# 				"t": potentialExpressionsNodes[idx],
-	# 				"n": callexprNode,
-	# 				"a": argNode
-	# 			})
-	# 	return res
+	return res	
 
 
 # ----------------------------------------------------------------------- #
