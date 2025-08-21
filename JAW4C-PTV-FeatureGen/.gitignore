@@ -1,0 +1,17 @@
+**/__pycache__
+bin
+pyvenv.cfg
+**/.env
+.DS_Store
+**/.DS_Store
+**/test.py
+**/test.json
+**/node_modules
+log/**
+temp/**
+lib
+include
+static/libs_data/*
+verification/detection-results
+verification/logs
+verification/site-js

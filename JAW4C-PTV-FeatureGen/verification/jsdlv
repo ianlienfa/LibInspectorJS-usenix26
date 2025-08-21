@@ -1,0 +1,121 @@
+#!/opt/homebrew/bin/node
+const { Command } = require('commander');
+const { PTV, PTVOriginal } = require('./index')
+const { urlToDirectoryName } = require('./utilities/webtools')
+const { exec, spawn } = require('child_process');
+const program = new Command()
+const path = require('path');
+const {JAWPath, PTVPuppeteerLaunchConfig, PTVOriginalLaunchConfig} = require('./utilities/ptv-constants')
+
+program
+    .name('jsdlv')
+    .description('Javascript detector/lifter/vulnerabilty detector')
+    .version('0.0.0');
+
+program
+    .option('-u, --url <url>', 'crawl url and do library detection')
+    .option('-a, --analyze [filename]', 'analyze after crawling')  
+    .option('-q, --quick-analyze', 'analyze without stopping docker instance')  
+    .parse(process.argv);
+
+program.parse();
+const options = program.opts();
+
+if(Object.keys(options).length === 0 && program.args.length === 0){
+    program.help()
+}
+if(options?.['url']){
+    (async () => {
+        // target_url = "https://www.google.com.pr:443/imghp?hl=en&ogbl";
+        // const url = createStartCrawlUrl(target_url);
+        // const url = 'http://240.240.240.240/\?target\=http%3A%2F%2Ftvprogram.idnes.cz%2Ftvprogram.aspx%3Fchannel%3D4%26date%3D2025-03-07%2391835217\&type\=s_d6ed3d76/sdk.3fa17537af3c5a48fed3cac3915a59eeab1a0ddf.js\&type\=soak';
+        // const url = "http://localhost:9000/"         
+        url = options['url']
+        resPTV = await PTV(url, PTVPuppeteerLaunchConfig); 
+        resOriginalPTV = await PTVOriginal(url, PTVOriginalLaunchConfig);    
+        console.log("resPTV", JSON.stringify(resPTV));
+        console.log("resOriginalPTV", JSON.stringify(resOriginalPTV));
+        const url_dir = path.join(__dirname,  '/site-js/', urlToDirectoryName(url));
+
+        // fs.writeFileSync('detection-results/mod' + urlToDirectoryName(url), JSON.stringify(resPTV))
+        // fs.writeFileSync('detection-results/original' + urlToDirectoryName(url), JSON.stringify(resOriginalPTV))
+
+        if(options?.['analyze']){
+            if(options?.['analyze'] === true){
+                // visit all scripts
+            }
+            else{ // visit only the specified script                
+                exec(`PYTHONPATH=${JAWPath} python3 -m analyses.example.example_analysis --input=${url_dir}/${options?.["analyze"]}`)
+            }
+        }
+        // archive_detection(18);
+
+    })();
+}
+else{
+    if(options?.['analyze']){
+        if(options?.['analyze'] === true){
+            // visit all scripts
+        }
+        else{ // visit only the specified script
+            args = []            
+            if(!options?.['quickAnalyze']){
+                exec(`cp ` + '\'' + `${options?.['analyze']}` + '\' ' + `${JAWPath}/data/test_program/${options?.['analyze'].split('/').pop()}`, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`❌ Copy failed: ${error.message}`);
+                        return;
+                    }
+                    if (stderr) {
+                        console.error(`⚠️ Stderr: ${stderr}`);
+                        return;
+                    }
+                    console.log(`✅ Successful Copy:\n${stdout}`);
+                    });
+
+                exec(`docker stop $(docker ps | grep 'arm64v8/neo4j:4.4' | cut -f 1 -d ' ')`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`❌ Error: ${error.message}`);
+                    return;
+                }
+                if (stderr) {
+                    console.error(`⚠️ Stderr: ${stderr}`);
+                    return;
+                }
+                console.log(`✅ Output:\n${stdout}`);
+                });                
+                args = [
+                    '-m', 'analyses.example.example_analysis',
+                    '--input', `${JAWPath}/data/test_program/${options?.['analyze'].split('/')?.pop()}`,
+                    '-S', '',
+                    '-C', '',
+                ];
+            }
+            else {
+                args = [
+                    '-m', 'analyses.example.example_analysis',
+                    '--input', `${JAWPath}/data/test_program/${options?.['analyze'].split('/')?.pop()}`,
+                    '--analyze', '',
+                    '--build', '',
+                    '--start', '',
+                    '--stop', '',
+                    '--compress', '',
+                ]
+            }
+
+
+            const pythonProcess = spawn('python3', args, {
+            env: {
+                ...process.env,         // inherit existing env vars
+                PYTHONPATH: JAWPath     // add/override PYTHONPATH
+            },
+            stdio: 'inherit' // optional: streams stdout/stderr to parent process
+            });
+
+            pythonProcess.on('close', (code) => {
+            console.log(`Python process exited with code ${code}`);
+            });
+        }
+    }
+}
+
+
