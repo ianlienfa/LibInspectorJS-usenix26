@@ -64,12 +64,5 @@ CREATE TABLE IF NOT EXISTS vulns (
     validated BOOLEAN
 );
 
-CREATE TABLE advisories_raw (
-  ghsa_id text PRIMARY KEY,
-  doc jsonb NOT NULL,
-  published timestamptz,
-  modified  timestamptz
-);
-
 -- Load table data
 COPY vulns FROM '/app/data.csv' DELIMITER ',' CSV HEADER;
