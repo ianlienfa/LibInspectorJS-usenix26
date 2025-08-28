@@ -73,3 +73,4 @@ CREATE TABLE advisories_raw (
 
 -- Load table data
 COPY vulns FROM '/app/data.csv' DELIMITER ',' CSV HEADER;
+COPY advisories_raw FROM '/app/advisories.csv' DELIMITER ',' CSV HEADER;
