@@ -1,0 +1,46 @@
+services:
+  postgres:
+    build: .
+    # image: vuln-db-full
+    container_name: vulndb
+    ports:
+      - "5431:5432"
+      - "3000:3000" # restful api endpoint
+    environment:
+      POSTGRES_USER: vulndb
+      POSTGRES_PASSWORD: vulndb_pwd
+      POSTGRES_DB: vulndb
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./data.csv:/app/data.csv
+      - ./advisories.csv:/app/advisories.csv
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./postgrest.conf:/app/postgrest.conf
+    command: >
+            sh -c "docker-entrypoint.sh postgres & 
+             until pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}; do sleep 1; done &&
+             /app/postgrest /app/postgrest.conf"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # importer:
+  #  image: python:3.11-slim
+  #  depends_on:
+  #    postgres:
+  #      condition: service_healthy
+  #  working_dir: /app
+  #  volumes:
+  #    - ./import.py:/app/import.py:ro
+  #    - ./advisories:/app/advisories:ro
+  #  environment:
+  #    PGUSER: vulndb
+  #    PGPASSWORD: vulndb_pwd
+  #    PGHOST: postgres
+  #    PGPORT: 5432
+  #    PGDATABASE: vulndb
+  #  command: >
+  #    sh -c "pip install psycopg2-binary && python import.py"
+  #    # run once: `docker compose run --rm importer`

@@ -1,1 +1,7 @@
 pgdata/
+skyvern/
+bin/
+etc/
+lib/
+lib64
+share/

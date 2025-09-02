@@ -74,3 +74,11 @@ CREATE TABLE advisories_raw (
 -- Load table data
 COPY vulns FROM '/app/data.csv' DELIMITER ',' CSV HEADER;
 COPY advisories_raw FROM '/app/advisories.csv' DELIMITER ',' CSV HEADER;
+
+-- postgrest api related setups
+CREATE ROLE web_anon nologin
+grant usage on schema public to web_anon;
+grant select on public.advisories_raw to web_anon;
+grant select on public.vulns to web_anon;
+
+
