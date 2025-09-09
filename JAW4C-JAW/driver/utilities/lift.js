@@ -667,24 +667,6 @@ function lift(code){
         logger.info("Not webpack bundle")        
     }
 
-    // try vite
-    // if(func_obj = is_vite_bundle(code, ast) && func_obj){
-    //     logger.info("Vite bundle", func_obj)        
-    //     // return vite_lift(code, func_obj, ast)
-    //     return ""; // temporary
-    // }
-    // else {
-    //     // console.log("No vite bundle detected.");
-    // }
-
-    // try include statements
-    // if(has_include(code, ast)){
-    //     return include_lift(code, ast);
-    // }
-    // else {
-    //     console.log("No include statement found")        
-    // }
-
     // try browserify
     if(func_node = is_browserify_bundle(code, ast)){
         logger.info("brwoserify bundle detected")

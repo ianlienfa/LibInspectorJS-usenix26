@@ -64,9 +64,56 @@ def get_name_from_url(url):
     )
 
 
+def docker_build_hpg(seed_url):
+	webapp_folder_name = get_name_from_url(seed_url)
+	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
+	if not os.path.exists(webapp_data_directory):
+		logger.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
+
+	webapp_pages = os.listdir(webapp_data_directory)
+	# the name of each webpage folder is a hex digest of a SHA256 hash (as stored by the crawler)
+	webapp_pages = [item for item in webapp_pages if len(item) == 64]
+
+	# must use the default docker container db name which is the only active db in docker
+	database_name = 'neo4j'  
+	graphid = uuid.uuid4().hex
+	container_name = 'neo4j_container_' + graphid
+
+	for each_webpage in webapp_pages:
+		logger.debug(f'Working on {each_webpage}')
+		relative_import_path = os.path.join(webapp_folder_name, each_webpage)
+		container_name = container_name + each_webpage
+		webpage = os.path.join(webapp_data_directory, each_webpage)
+		logger.warning('HPG for: %s'%(webpage))
+
+		# de-compress the hpg 
+		IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
+
+		# import
+		if build_container:
+			nodes_file = os.path.join(webpage, constantsModule.NODE_INPUT_FILE_NAME)
+			rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
+			if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
+				logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
+				continue
+
+			dockerModule.create_neo4j_container(container_name)
+			logger.info('waiting 5 seconds for the neo4j container to be ready.')
+			time.sleep(5)
+
+			logger.info(f'importing data inside container, container_name: {container_name}, database_name: {database_name}, relative_import_path: {relative_import_path}')		
+			dockerModule.import_data_inside_container(container_name, database_name, relative_import_path, 'CSV')
+			logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
+			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+			if not connection_success:
+				sys.exit(1)		
+
+		# compress the hpg after the model import
+		IOModule.compress_graph(webpage)
 
 
-def build_and_analyze_hpg(seed_url, vuln_info):
+
+def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': True, 'stop': True}):
 
 	"""	
 	@param {string} seed_url
@@ -84,10 +131,9 @@ def build_and_analyze_hpg(seed_url, vuln_info):
 
 
 	# neo4j config
-	build = True
-	build_container = True
-	query = True
-	stop_container = False
+	build_container = config['build'] if 'build' in config else True
+	stop_container = config['stop'] if 'stop' in config else True
+	query = config['query'] if 'query' in config else True
 
 	# must use the default docker container db name which is the only active db in docker
 	database_name = 'neo4j'  
@@ -104,72 +150,31 @@ def build_and_analyze_hpg(seed_url, vuln_info):
 		logger.warning('HPG for: %s'%(webpage))
 
 		# de-compress the hpg 
-		# IOModule.decompress_graph(webpage)
+		IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
 
 		# import
-		if build:
+		if build_container:
 			nodes_file = os.path.join(webpage, constantsModule.NODE_INPUT_FILE_NAME)
 			rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
 			if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
 				logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
 				continue
 
-			# remove the old container & database if it exists 
-			if build_container:
-				dockerModule.stop_neo4j_container(container_name)
-				dockerModule.remove_neo4j_container(container_name)
-				dockerModule.remove_neo4j_database(database_name, container_name)
-				time.sleep(5)
-
-				dockerModule.create_neo4j_container(container_name)
-				logger.info('waiting 5 seconds for the neo4j container to be ready.')
-				time.sleep(5)
+			dockerModule.create_neo4j_container(container_name)
+			logger.info('waiting 5 seconds for the neo4j container to be ready.')
+			time.sleep(5)
 
 			logger.info(f'importing data inside container, container_name: {container_name}, database_name: {database_name}, relative_import_path: {relative_import_path}')		
 			dockerModule.import_data_inside_container(container_name, database_name, relative_import_path, 'CSV')
 			logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
 			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
 			if not connection_success:
-				sys.exit(1)
-
-
-		# # import the CSV files into an active neo4j database inside a docker container
-		# if build:
-		# 	nodes_file = os.path.join(webpage, constantsModule.NODE_INPUT_FILE_NAME)
-		# 	rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
-		# 	if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
-		# 		logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
-		# 		continue
-			
-		# 	# must build a container only once
-		# 	if build_container: 
-
-		# 		# remove the old container & database if it exists 
-		# 		dockerModule.stop_neo4j_container(container_name)
-		# 		dockerModule.remove_neo4j_container(container_name)
-		# 		dockerModule.remove_neo4j_database(database_name, container_name)
-		# 		time.sleep(5)
-
-		# 		dockerModule.create_neo4j_container(container_name)
-		# 		logger.info('waiting 5 seconds for the neo4j container to be ready.')
-		# 		time.sleep(5)
-		# 	logger.info('importing data inside container.')
-		# 	dockerModule.import_data_inside_container(container_name, database_name, relative_import_path, 'CSV')
-		# 	logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
-		# 	connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
-		# 	if not connection_success:
-		# 		sys.exit(1)
-		# else:
-		# 	dockerModule.start_neo4j_container(container_name)
-		# 	logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
-		# 	connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
-		# 	if not connection_success:
-		# 		sys.exit(1)
+				sys.exit(1)		
 
 		# compress the hpg after the model import
-		# IOModule.compress_graph(webpage)
+		IOModule.compress_graph(webpage)
 
-		# step3: run the vulnerability detection queries
+		# run the vulnerability detection queries
 		if query:
 			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
 			if not connection_success:
@@ -180,10 +185,13 @@ def build_and_analyze_hpg(seed_url, vuln_info):
 			logger.info(f"analysis out: {out}")
 
 
-		# stop the neo4j docker container
-		if stop_container:
-			dockerModule.stop_neo4j_container(container_name)
+	# stop the neo4j docker container
+	if stop_container:
+		dockerModule.stop_neo4j_container(container_name)
+		dockerModule.remove_neo4j_container(container_name)
+		dockerModule.remove_neo4j_database(database_name, container_name)
 
+	return container_name
 
 
 

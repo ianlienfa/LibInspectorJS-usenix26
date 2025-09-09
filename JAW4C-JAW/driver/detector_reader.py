@@ -28,7 +28,15 @@ def get_name_from_url(url: str) -> str:
 def read_result_with_url(url):
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     data_storage_directory = os.path.join(BASE_DIR, 'data')
-    detection_res_path = os.path.join(data_storage_directory, get_name_from_url(url), 'lib.detection.json')
-    with open(detection_res_path, 'r') as f:
-        obj = json.load(f)
-        return obj
+    hash_mapping_path = os.path.join(data_storage_directory, get_name_from_url(url), 'urls.hashes.out')
+    with open(hash_mapping_path, 'r') as f:
+        hash_mapping = json.load(f)
+    if hash_mapping and (url_hash := hash_mapping.get(url, None)):
+        detection_res_path = os.path.join(data_storage_directory, get_name_from_url(url), url_hash, 'lib.detection.json')    
+    try:
+        with open(detection_res_path, 'r') as f:
+            obj = json.load(f)
+            return obj
+    except Exception as e:
+        print(f"Error loading detection result {detection_res_path}:", e)
+        raise e

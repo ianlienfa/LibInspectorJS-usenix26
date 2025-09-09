@@ -180,7 +180,7 @@ function cleanDirectory(url){
  * @param dataDirectory: string of the base directory to store the data for the current website.
  * @return stores the input webpage data and returns the absolute folder name where the data is saved.
 **/
-function savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, override_mapping, lift_enabled){
+function savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled){
 
 
 	DEBUG && console.log("[IO] started saving webpage.")
@@ -197,6 +197,7 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 	const existingUrls = URLsdata ? URLsdata.toString().trim().split('\n') : [];
 	const urlSet = new Set([...existingUrls, url]);
 	fs.writeFileSync(pathModule.join(dataDirectory, "urls.out"), [...urlSet].join('\n'));
+	let override_mapping = {}
 
 	// collect the webpage data
 	if(COLLECT_AND_CREATE_PAGE){
@@ -206,7 +207,7 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 			fs.mkdirSync(webpageFolder);
 		}
 
-		const liftedFolder = pathModule.join(dataDirectory, "lifted")
+		const liftedFolder = pathModule.join(webpageFolder, "lifted")
 		if(lift_enabled && !fs.existsSync(liftedFolder)){
 			fs.mkdirSync(liftedFolder);
 		}
@@ -235,6 +236,8 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 			});
 		}
 
+			// write override_mapping
+		fs.writeFileSync(pathModule.join(webpageFolder, "override_mapping.json"), JSON.stringify(override_mapping));	
 		COLLECT_COOKIES     && fs.writeFileSync(pathModule.join(webpageFolder, "cookies.json"), JSON.stringify(cookies, null, 4));
 		COLLECT_WEB_STORAGE && fs.writeFileSync(pathModule.join(webpageFolder, "webstorage.json"), JSON.stringify(webStorageData, null, 4));
 		COLLECT_REQUESTS && fs.writeFileSync(pathModule.join(webpageFolder, "requests.json"), JSON.stringify(httpRequests, null, 4));
@@ -276,7 +279,7 @@ async function getSourceFromScriptId(session, scriptId) {
 **/
 
 
-async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, override_mapping, lift_enabled){
+async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled){
 
 	DEBUG && console.log("crawlWebsite called on ", url)
 
@@ -379,7 +382,6 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 			    return storage;
 			}
 
-			// let webStorageData = window.localStorage;
 			let webStorageData = getWebStorageData();
 			return webStorageData;
 		});
@@ -390,7 +392,7 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 
 
 		// save the collected data, populate the override_mapping too
-		const webpageFolder = await savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, override_mapping, lift_enabled);
+		const webpageFolder = await savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled);
 		
 
 		/** 
@@ -524,7 +526,6 @@ if (require.main === module) {
 	const debug_run = false;
 	const wait_before_next_url = 0; // 5 * 60000; // wait 5 minutes
 	const additional_args = ((!config.additionalargs) || (config.additionalargs && config.additionalargs.toLowerCase() === 'false')) ? undefined : JSON.parse(config.additionalargs);	
-	override_mapping = {}
 
 	if(!overwrite_results && directoryExists(url)){
 		DEBUG && console.log('site already crawled: '+ url);
@@ -555,10 +556,7 @@ if (require.main === module) {
 
 	// use public suffix list to restrict crawled urls to the same domain 
 	var domain = psl.get(url.replace('https://', '').replace('http://', ''));
-	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, override_mapping, lift_enabled);
-
-	// write override_mapping
-	fs.writeFileSync(pathModule.join(dataDirectory, "override_mapping.json"), JSON.stringify(override_mapping));	
+	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled);
 
 	const globalTime = globalTimer.get();
 	globalTimer.end();
@@ -589,4 +587,4 @@ if (require.main === module) {
 })();
 }
 
-module.exports = {getNameFromURL}
+module.exports = {getNameFromURL, hashURL}

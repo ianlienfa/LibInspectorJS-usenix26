@@ -93,29 +93,79 @@ def agent_run(libname, prompt="Find the top post on hackernews today", base_url=
         
     async def main_agent():
         # failing CVE-2018-7212
-        query_string = 'doc->>aliases&doc->>aliases=eq.["CVE-2021-23337"]'
-        database_json = await vuln_data_base_query(query_string)
+        query_string = 'doc->>aliases&doc->>aliases=eq.["CVE-2014-6071"]'
+        query_result = await vuln_data_base_query(query_string)
+        tasks = []
+        for database_json in query_result:
+            # Clean up unneeded information
+            if database_json.get('doc', {}).get('affected', None):
+                database_json['doc']['affected'] = ""
 
-        prompt = '''
-        Below is a json string from a vulnerability database descripting a cve information
-        %s    
-        ========
+            prompt = '''
+            Below is a json string from a vulnerability database descripting a cve information
+            %s    
+            ========
+            
+            Look into the reference links below and try to identify ALL (there may be multiple) the proof of concept (PoC) (i.e., code including the call, or sequence of calls, than will trigger the vulnerability), the payload(s) that triggers it, whether the function is exposed by the package (i.e., whether it can be accessed from the package entry point without having to manually import other files). Give confidence scores (between 0 and 1) and a justification for the score for each of these. You will most likely be able to identify the vulnerable function from the diff in the source code, and the payload from the unit tests. If you are confident enough that you can give the correct answers, your task is complete. The PoC could look something like:
+
+            """
+            foo.bar(PAYLOAD);
+            """
+
+            Which would imply a payload that looks like:
+
+            {
+            "PAYLOAD": 
+            }
+
+            Or:
+
+            """
+            foo.bar(PAYLOAD1);
+            baz(PAYLOAD2);
+            """
+
+            Which would imply a payload that looks like:
+
+            {
+            "PAYLOAD1": 
+            "PAYLOAD2": 
+            }
+
+            Among others
+
+            Every input that can/should be an arbitrary attacker-controlled value should be a payload.
+
+            The Final goal output should be in this JSON format:
+
+            [
+            {
+            "PoC": "(<signature>, <confidence_score>)",
+            "payload": "(<payload>, <confidence_score>)",
+            "exported": "(<true/false>, <confidence_score>)"
+            },
+            {
+            "PoC": "(<signature>, <confidence_score>)",
+            "payload": "(<payload>, <confidence_score>)",
+            "exported": "(<true/false>, <confidence_score>)"
+            },
+            ...
+            ]
+
+            Below are the guidelines:
+            1. When you're browsing these page, directly visit the next reference url provided in the initial json reference if you've decided that there's no related information on the current webpage, make good use of "task_type": "goto_url"           
+            2. For GitHub related link, there might be line numbers in the url, focus on looking at those lines and the neighboring code to understand the context            
+            3. If you've worked through all URLs given and still don't think you've got enough information, return only the information that you're confident about.            
+            4. don't visit urls that doesn't show in the reference urls
+            5. For Github pages, avoid visiting pages that is not a discussion webpage or diff, most of the time you won't get any information from there
+            6. Don't visit the same URL visited before if shown in task_history
+            '''%(database_json)
+
+            data_extraction_schema = {'POC': '', 'payload': '', 'exported': ''}
+            tasks.append(run_skyvern_task(prompt, data_extraction_schema=data_extraction_schema))
         
-        look into these reference links and try to identify the vulnerable function and POC. 
-        Look at the urls provided, favor the possibility of finding the required information 
-        Find the information of "POC" and "vulnerable_func"
-
-        Below are the guidelines:
-        1. When you're browsing these page, directly move on to the next url provided in the initial json reference if you've decided that there's no related information instead of sticking onto one URL. 
-        2. For GitHub related link, there might be line numbers in the url, focus on looking at those lines and the neighboring code to understand the context
-        3. If you've worked through all URLs given and still don't think you've got enough information, return only the information that you're confident about.
-        4. If no plan is found, 
-        '''%(database_json)
-
-        data_extraction_schema = {'POC': '', 'vulnerable_func': ''}
-
         L = await asyncio.gather(
-            run_skyvern_task(prompt, data_extraction_schema),
+            *tasks
         )
         print(L)
 

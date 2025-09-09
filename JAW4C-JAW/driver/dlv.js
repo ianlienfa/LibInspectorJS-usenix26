@@ -325,19 +325,22 @@ if (require.main === module) {
     const options = program.opts();
     const url = options?.['url'];
     dirPath = options?.['path'];
+    let hashdirPath = ""
     
     if(url){
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
       const folderName = crawler.getNameFromURL(url);
-      dirPath = path.join(dataStorageDirectory, folderName);
+      const hashfolderName = crawler.hashURL(url)
+      dirPath = path.join(dataStorageDirectory, folderName)
+      hashdirPath = path.join(dataStorageDirectory, folderName, hashfolderName);
       if(!fs.existsSync(dirPath)){
         logger.error(`no directory found at ${dirPath}`)
         process.exit(1)
       }
     }
     
-    if(dirPath){
+    if(dirPath && hashdirPath){
       // read the urls crawled for this domain
       const urls = fs.readFileSync(path.join(dirPath, "urls.out"), 'utf8')
       let res = {}
@@ -346,12 +349,16 @@ if (require.main === module) {
       for(const url of urlList){
         LOGGER(`url: ${url}`)
         res[url] = {}
-        res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, crawlJs=false, do_lift=false, dataDir=dirPath);
+        res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, crawlJs=false, do_lift=false, dataDir=hashdirPath);
         if(res[url]['PTV']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV']['detection']))
         res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, crawlJs=false)
         if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
       }
-      fs.writeFileSync(path.join(dirPath, "lib.detection.json"), JSON.stringify(res))
-    }    
+      fs.writeFileSync(path.join(hashdirPath, "lib.detection.json"), JSON.stringify(res))
+    }
+    else{
+      LOGGER(`Error [dlv.js]: no operation done`)
+    }
+
   })();
 }

@@ -29,7 +29,6 @@ import argparse
 import pandas as pd
 import os, sys
 import requests
-# cve
 import json
 from urllib.parse import urlencode, quote_plus
 
@@ -51,7 +50,8 @@ import analyses.open_redirect.static_analysis_api as or_sast_model_construction_
 import analyses.open_redirect.static_analysis_py_api as or_neo4j_analysis_api
 
 import analyses.cve_vuln.cve_vuln_neo4j_traversals as CVETraversalsModule
-import analyses.cve_vuln.static_analysis_api as cve_sast_model_construction_api
+import analyses.cve_vuln.static_analysis_api as cve_stat_model_construction_api
+import analyses.cve_vuln.lib_detection_api as lib_detection_api
 
 import driver.detector_reader as DetectorReader
 
@@ -64,7 +64,6 @@ def is_website_up(uri):
 		return True
 	except Exception as e:
 		return False
-
 
 def save_website_is_down(domain):
 	base = constantsModule.DATA_DIR_UNREPONSIVE_DOMAINS
@@ -127,6 +126,7 @@ def main():
 					type=int)
 
 
+	# ----------- Config Section -----------
 
 	args= vars(p.parse_args())
 	config = IOModule.load_config_yaml(args["conf"])
@@ -164,7 +164,6 @@ def main():
 	crawler_command_cwd = os.path.join(BASE_DIR, "crawler")
 	force_execution_command_cwd = os.path.join(BASE_DIR, "dynamic")
 	dynamic_verifier_command_cwd = os.path.join(BASE_DIR, "verifier")
-	lib_detection_cwd = os.path.join(BASE_DIR, "driver")
 
 	# default memory for nodejs crawling process
 	crawler_node_memory = 8192
@@ -172,7 +171,7 @@ def main():
 	if "memory" in config["crawler"]:
 		crawler_node_memory = config["crawler"]["memory"]
 		
-	# crawling
+	# crawling config
 	if config["testbed"]["archive"]["enable"]:
 		crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={6} --seedurl=SEED_URL".format(
 			config["crawler"]["maxurls"],
@@ -300,11 +299,13 @@ def main():
 	node_dynamic_verifier = node_dynamic_verfier_command.replace("DRIVER_ENTRY", node_dynamic_verifier_driver_program)
 
 
+	# ----------- Sigle Site Analysis Section -----------
+
 	# single site crawl/analysis
 	if "site" in config["testbed"]:
 		website_url = config["testbed"]["site"]
 
-		# crawling
+		# single site crawling
 		if (config['domclobbering']['enabled'] and config['domclobbering']["passes"]["crawling"]) or \
 			(config['cs_csrf']['enabled'] and config['cs_csrf']["passes"]["crawling"]) or \
 			(config['open_redirect']['enabled'] and config['open_redirect']["passes"]["crawling"]) or \
@@ -331,101 +332,17 @@ def main():
 			IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout)
 			LOGGER.info("successfully crawled %s."%(website_url)) 
 
-		# library detection
+		# single site library detection
 		if lib_detector_enable and lib_detector_lift:
-			lib_detection_command = "node {0} -u '{1}'".format(
-				detector_driver_program,
-				website_url
-			)			
-		LOGGER.debug(lib_detection_command)
-		IOModule.run_os_command(lib_detection_command, cwd=lib_detection_cwd, timeout= detection_timeout)
+			lib_detection_api.lib_detection_single_url(website_url)
 		LOGGER.info("successfully detected libraries on %s."%(website_url)) 
 
-		# dom clobbering
-		if config['domclobbering']['enabled']:
-			print("================ 2 ==================")
-			# static analysis
-			if config['domclobbering']["passes"]["static"]:
-				LOGGER.info("static analysis for site %s."%(website_url))
-				# cmd = domc_static_analysis_command.replace('SEED_URL', website_url)
-				# IOModule.run_os_command(cmd, cwd=domc_analyses_command_cwd, timeout= static_analysis_timeout)
-				domc_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-			# static analysis over neo4j
-			if config['domclobbering']["passes"]["static_neo4j"]:
-				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-				DOMCTraversalsModule.build_and_analyze_hpg_local(website_url)
-				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-
-			# dynamic verification
-			if config['domclobbering']["passes"]["dynamic"]:
-				LOGGER.info("Running dynamic verifier for site %s."%(website_url))
-				cmd = node_force_execution.replace('SITE_URL', website_url)
-				IOModule.run_os_command(cmd, cwd=force_execution_command_cwd, timeout= force_execution_timeout)
-				LOGGER.info("Dynamic verification completed for site %s."%(website_url))
-			
-
-		# client-side csrf
-		if config['cs_csrf']['enabled']:
-			# static analysis
-			print("================ 3 ==================")
-			if config['cs_csrf']["passes"]["static"]:
-				LOGGER.info("static analysis for site %s."%(website_url))
-				# cmd = cs_csrf_static_analysis_command.replace('SEED_URL', website_url)
-				# IOModule.run_os_command(cmd, cwd=cs_csrf_analyses_command_cwd, timeout= static_analysis_timeout)
-				csrf_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-			# static analysis over neo4j
-			if config['cs_csrf']["passes"]["static_neo4j"]:
-				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-				CSRFTraversalsModule.build_and_analyze_hpg(website_url)
-				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))	
-
-		# open redirects
-		if config['open_redirect']['enabled']:
-			print("================ 4 ==================")
-			# static analysis
-			if config['open_redirect']["passes"]["static"]:
-				LOGGER.info("static analysis for site %s."%(website_url))
-				or_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-			# static analysis over neo4j
-			if config['open_redirect']["passes"]["static_neo4j"]:
-				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-				or_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite=static_analysis_overwrite_hpg)
-				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-
-		# request hijacking
-		if config['request_hijacking']['enabled']:
-			print("================ 5 ==================")
-			# static analysis
-			if config['request_hijacking']["passes"]["static"]:
-				LOGGER.info("static analysis for site %s."%(website_url))
-				rh_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-			# static analysis over neo4j
-			if config['request_hijacking']["passes"]["static_neo4j"]:
-				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-				request_hijacking_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite=static_analysis_overwrite_hpg)
-				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-
-			# dynamic verification
-			if config['request_hijacking']['passes']['verification']:
-				LOGGER.info("dynamic data flow verification for site %s."%(website_url))
-				cmd = node_dynamic_verifier.replace("SEED_URL", website_url)
-				request_hijacking_verification_api.start_verification_for_site(cmd, website_url, cwd=dynamic_verifier_command_cwd, timeout=verification_pass_timeout, overwrite=False)
-				LOGGER.info("sucessfully finished dynamic data flow verification for site %s."%(website_url))
-
-		# cve_vuln
+		# single site cve_vuln
 		if config['cve_vuln']['enabled']:
 			# static analysis
 			if config['cve_vuln']["passes"]["static"]:
 				LOGGER.info("static analysis for site %s."%(website_url))
-				cve_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+				cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
 				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
 
 			# static analysis over neo4j
@@ -438,24 +355,107 @@ def main():
 					exit(1)
 				for affiliatedurl, detectionRes in lib_det_res.items():
 					detection_list = lib_det_res.get(affiliatedurl, {}).get('PTV', {}).get('detection', [])
-					first_detection = detection_list[0] if detection_list else None
-					if first_detection:
-						LOGGER.info(f"first_detection: {first_detection}")	
-						ModLibMapping = {}
-						for i in lib_det_res[affiliatedurl]['PTV']['detection'][0]:
-							ModLibMapping[i['libname']] = {'location': i['location']}
-						LOGGER.info(f"ModLibMapping: {ModLibMapping}")
-						for lib in ModLibMapping.keys():
+					detection_list = detection_list[0] if len(detection_list) else None
+					LOGGER.info("detection list", detection_list)
+					if detection_list:
+						mod_lib_mapping = {}						
+						for i in detection_list:
+							mod_lib_mapping[i['libname']] = {'location': i['location']}
+						LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+						for lib in mod_lib_mapping.keys():
 							vuln = vuln_db.package_vuln_search(lib)
-							ModLibMapping[lib]['vuln'] = vuln
+							mod_lib_mapping[lib]['vuln'] = vuln
 							if vuln != None:
-								LOGGER.info(f"vuln found! {vuln}")
-						LOGGER.info(f"ModLibMapping after: {json.dumps(ModLibMapping)}")
-				vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
-				CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-				LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+								LOGGER.info(f"vuln found at library obj {mod_lib_mapping[lib]['location']}: {vuln}")
+						LOGGER.info(f"mod_lib_mapping after: {json.dumps(mod_lib_mapping)}")
+					# vuln_info = {"module_id": mod_lib_mapping[i['libname']].split('_')[1], "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
+					# if config['staticpass']['keep_docker_alive']:
+					# 	CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
+					# else:	
+					# 	CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+					LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
-	# archive/csv crawl/analysis
+
+		# # single site dom clobbering
+		# if config['domclobbering']['enabled']:
+		# 	print("================ 2 ==================")
+		# 	# static analysis
+		# 	if config['domclobbering']["passes"]["static"]:
+		# 		LOGGER.info("static analysis for site %s."%(website_url))
+		# 		# cmd = domc_static_analysis_command.replace('SEED_URL', website_url)
+		# 		# IOModule.run_os_command(cmd, cwd=domc_analyses_command_cwd, timeout= static_analysis_timeout)
+		# 		domc_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
+		# 	# static analysis over neo4j
+		# 	if config['domclobbering']["passes"]["static_neo4j"]:
+		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+		# 		DOMCTraversalsModule.build_and_analyze_hpg_local(website_url)
+		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+
+		# 	# dynamic verification
+		# 	if config['domclobbering']["passes"]["dynamic"]:
+		# 		LOGGER.info("Running dynamic verifier for site %s."%(website_url))
+		# 		cmd = node_force_execution.replace('SITE_URL', website_url)
+		# 		IOModule.run_os_command(cmd, cwd=force_execution_command_cwd, timeout= force_execution_timeout)
+		# 		LOGGER.info("Dynamic verification completed for site %s."%(website_url))
+			
+		# # single site client-side csrf
+		# if config['cs_csrf']['enabled']:
+		# 	# static analysis
+		# 	print("================ 3 ==================")
+		# 	if config['cs_csrf']["passes"]["static"]:
+		# 		LOGGER.info("static analysis for site %s."%(website_url))
+		# 		# cmd = cs_csrf_static_analysis_command.replace('SEED_URL', website_url)
+		# 		# IOModule.run_os_command(cmd, cwd=cs_csrf_analyses_command_cwd, timeout= static_analysis_timeout)
+		# 		csrf_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
+		# 	# static analysis over neo4j
+		# 	if config['cs_csrf']["passes"]["static_neo4j"]:
+		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+		# 		CSRFTraversalsModule.build_and_analyze_hpg(website_url)
+		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))	
+
+		# # single site open redirects
+		# if config['open_redirect']['enabled']:
+		# 	print("================ 4 ==================")
+		# 	# static analysis
+		# 	if config['open_redirect']["passes"]["static"]:
+		# 		LOGGER.info("static analysis for site %s."%(website_url))
+		# 		or_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
+		# 	# static analysis over neo4j
+		# 	if config['open_redirect']["passes"]["static_neo4j"]:
+		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+		# 		or_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite=static_analysis_overwrite_hpg)
+		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+
+		# # single site request hijacking
+		# if config['request_hijacking']['enabled']:
+		# 	print("================ 5 ==================")
+		# 	# static analysis
+		# 	if config['request_hijacking']["passes"]["static"]:
+		# 		LOGGER.info("static analysis for site %s."%(website_url))
+		# 		rh_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
+		# 	# static analysis over neo4j
+		# 	if config['request_hijacking']["passes"]["static_neo4j"]:
+		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+		# 		request_hijacking_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite=static_analysis_overwrite_hpg)
+		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+
+		# 	# dynamic verification
+		# 	if config['request_hijacking']['passes']['verification']:
+		# 		LOGGER.info("dynamic data flow verification for site %s."%(website_url))
+		# 		cmd = node_dynamic_verifier.replace("SEED_URL", website_url)
+		# 		request_hijacking_verification_api.start_verification_for_site(cmd, website_url, cwd=dynamic_verifier_command_cwd, timeout=verification_pass_timeout, overwrite=False)
+		# 		LOGGER.info("sucessfully finished dynamic data flow verification for site %s."%(website_url))
+
+	# ----------- Multiple-sites Analysis Section (Web Archive) -----------
+
 	else: 
 		from_row = int(config["testbed"]["from_row"])
 		to_row = int(config["testbed"]["to_row"]) if not (config["testbed"]["to_row"] == 'end') else config["testbed"]["to_row"]
@@ -471,7 +471,6 @@ def main():
 					if domain_health_check:
 						LOGGER.info('checking if domain is up with python requests ...')
 						website_up = False
-
 						try:
 							website_up = is_website_up(website_url)
 						except:
@@ -483,30 +482,24 @@ def main():
 							save_website_is_down(website_url)
 							continue
 
-					# crawling
+					# Archive analysis crawling
 					if (config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
 						LOGGER.info("crawling site at row %s - %s"%(i, website_url)) 
 						cmd = crawling_command.replace('SEED_URL', f"'{website_url}'")
 						IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
 						LOGGER.info("successfully crawled %s - %s"%(i, website_url)) 
 					
-					# library detection
+					# Archive analysis library detection					
 					if lib_detector_enable and lib_detector_lift:
-						lib_detection_command = "node {0} -u '{1}'".format(
-							detector_driver_program,
-							website_url
-						)			
-					LOGGER.debug(lib_detection_command)
-					IOModule.run_os_command(lib_detection_command, cwd=lib_detection_cwd, timeout= detection_timeout)
+						lib_detection_api.lib_detection(website_url)
 					LOGGER.info("successfully detected libraries on %s."%(website_url)) 
 
-					# cve_vuln
-					if config['cve_vuln']['enabled']:
-						def get_name_from_url(url): return url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
+					# Archive analysis cve_vuln
+					if config['cve_vuln']['enabled']:						
 						# static analysis
 						if config['cve_vuln']["passes"]["static"]:
 							LOGGER.info("static analysis for site %s."%(website_url))
-							cve_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+							cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
 							LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
 
 						# static analysis over neo4j
@@ -517,37 +510,38 @@ def main():
 							except Exception as e:
 								LOGGER.error(e)
 								continue
-							ModLibMappingDoc = {}
+							mod_lib_mappingDoc = {}
 							for affiliatedurl, detectionRes in lib_det_res.items():		
 								detection_list = lib_det_res.get(affiliatedurl, {}).get('PTV', {}).get('detection', [])
 								first_detection = detection_list[0] if detection_list else None
-								if first_detection:
-									pass
-								else:
+								if not first_detection:									
 									continue
 								# LOGGER.info(affiliatedurl, detectionRes)							
-								LOGGER.info(f"first_detection: {first_detection}")	
+								# LOGGER.info(f"first_detection: {first_detection}")	
 								# detectionLib = list(set([i['libname'] for i in first_detection]))
-								ModLibMapping = {}
+								mod_lib_mapping = {}
 								for i in lib_det_res[affiliatedurl]['PTV']['detection'][0]:
-									ModLibMapping[i['libname']] = {'location': i['location']}
+									mod_lib_mapping[i['libname']] = {'location': i['location']}
 								# LOGGER.info(f"detectionLib: {detectionLib}")
-								LOGGER.info(f"ModLibMapping: {ModLibMapping}")
-								for lib in ModLibMapping.keys():
+								LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+								for lib in mod_lib_mapping.keys():
 									vuln = vuln_db.package_vuln_search(lib)
-									ModLibMapping[lib]['vuln'] = vuln
+									mod_lib_mapping[lib]['vuln'] = vuln
 									if vuln != None:
 										LOGGER.info(f"vuln found! {vuln}")
-								LOGGER.info(f"ModLibMapping after: {json.dumps(ModLibMapping)}")
-								ModLibMappingDoc[affiliatedurl] = ModLibMapping								
+								LOGGER.info(f"mod_lib_mapping after: {json.dumps(mod_lib_mapping)}")
+								mod_lib_mappingDoc[affiliatedurl] = mod_lib_mapping								
 								# vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
 								# print('modules:',lib_det_res.get(website_url, {}).get('PTV', {}).get('detection'))
 								# CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
 								# LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-							with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'modlibmapping.json'), 'w') as f:
-								json.dump(ModLibMappingDoc, f)
+							get_name_from_url = lambda url: url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
+							with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'mod_lib_mapping.json'), 'w') as f:
+								json.dump(mod_lib_mappingDoc, f)
+		
+		# ----------- Multiple-sites Analysis Section (CSV) -----------
 
-		else: # search via csv
+		else: # config["testbed"]["archive"]["enable"] == false (search via csv)
 			testbed_filename = BASE_DIR.rstrip('/') + config["testbed"]["sitelist"].strip().strip('\n').strip()
 
 			chunksize = 10**5

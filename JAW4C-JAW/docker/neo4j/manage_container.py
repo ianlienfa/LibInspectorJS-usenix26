@@ -27,6 +27,7 @@
 
 
 import os
+import grp
 import constants
 import utils.utility as utilityModule
 import hpg_neo4j.db_utility as DU
@@ -36,14 +37,28 @@ import shutil
 
 # set up neo4j volume folder
 VOLUME_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "volume")
-
+CONF_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "conf")
+PROCESS_USER_ID = os.getuid()
+PROCESS_GROUP_ID = os.getgid()
 
 
 def create_neo4j_container(container_name, volume_home=VOLUME_HOME):
 
 	if not os.path.exists(volume_home):
 		os.makedirs(volume_home)
-
+	container_data_path = os.path.join(volume_home, container_name, 'neo4j')
+	print("container_data_path", container_data_path)
+	if not os.path.exists(container_data_path):		
+		# os.makedirs(container_data_path)
+		data_dir = os.path.join(container_data_path, 'data')
+		logs_dir = os.path.join(container_data_path, 'logs')
+		plugins_dir = os.path.join(container_data_path, 'plugins')
+		conf_dir = os.path.join(container_data_path, 'conf')
+		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
+			os.makedirs(p)
+			os.chown(p, -1, 7474)
+		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
+			
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
 	# other options:
@@ -52,11 +67,11 @@ def create_neo4j_container(container_name, volume_home=VOLUME_HOME):
     --name {0} \
     -p{5}:7474 -p{6}:7687 \
     -d \
-    -v {1}/neo4j/data:/data \
-    -v {1}/neo4j/logs:/logs \
+    -v {1}/{0}/neo4j/data:/data \
+    -v {1}/{0}/neo4j/logs:/logs \
     -v {4}:/var/lib/neo4j/import \
-    -v {1}/neo4j/plugins:/plugins \
-	-v {1}/neo4j/conf:/conf \
+    -v {1}/{0}/neo4j/plugins:/plugins \
+	-v {1}/{0}/neo4j/conf:/conf \
     -u neo4j:neo4j \
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
@@ -73,26 +88,22 @@ def create_neo4j_container(container_name, volume_home=VOLUME_HOME):
 	logger.info('Docker container %s is starting.'%str(container_name))
 
 
-
-def remove_neo4j_database(database_name, container_name):
-	path_db = os.path.join(VOLUME_HOME, "neo4j/data/databases/"+ str(database_name))
+def remove_neo4j_database(database_name, container_name, all=False):
+	path_db = os.path.join(VOLUME_HOME, container_name)
 	if os.path.exists(path_db):
 		shutil.rmtree(path_db) 
 
-	path_trans = os.path.join(VOLUME_HOME, "neo4j/data/transactions/"+ str(database_name))
-	if os.path.exists(path_trans):
-		shutil.rmtree(path_trans) 
-
 
 def start_neo4j_container(container_name):
-
 	command = "docker start %s"%str(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('Docker container %s is starting.'%str(container_name))
 
 
 def stop_neo4j_container(container_name):
-
+	logger.warning('Cleaning up docker container %s.'%str(container_name))
+	command = "docker exec %s bash -c 'rm -rf /data/* /logs/* /plugins/* /conf/*'"%(container_name)
+	utilityModule.run_os_command(command, print_stdout=True)
 	command = "docker stop %s"%str(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.warning('Docker container %s is being stopped.'%str(container_name))
