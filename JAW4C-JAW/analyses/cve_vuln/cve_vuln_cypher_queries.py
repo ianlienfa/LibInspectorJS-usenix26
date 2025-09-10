@@ -1439,6 +1439,7 @@ def getSinkExpression(tx, vuln_info):
 				# do leaf matching from
 				print("nxt leaf: ",  nxt)
 				code = nxt['name'] if 'name' in nxt else nxt['value'] if 'value' in nxt else None
+				# Problem here >>>
 				if code and libObjScope and code not in POC_PRESERVED:
 					codeMatchingNodes = getCodeMatchInScope(tx, code, libObjScope)
 					print(f"codeMatchingNodes of {code}: {codeMatchingNodes}")

@@ -135,8 +135,8 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
             logger.log('info', 'intercepting %s', interceptedRequest.url());
             logger.log('info', 'overriding file at %s', overrideMapping[interceptedRequest.url()]);
             const response = {              
-                // status: 200,
-                // contentType: 'application/javascript',
+                status: 200,
+                contentType: 'application/javascript',
                 body: fs.readFileSync(overrideMapping[interceptedRequest.url()])
             }            
             interceptedRequest.respond(response);
@@ -149,7 +149,7 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
       );    
     }
 
-    await page.goto(url, {waitUntil: 'networkidle0'}); // temporary set for ground truth verification
+    await page.goto(url, {waitUntil: 'load'}); // temporary set for ground truth verification
 
     // add event listener to trap library detector response
     result["lift_arr_str"] = await page.evaluate(() => {

@@ -37,7 +37,7 @@ detector_driver_program = 'dlv.js'
 lib_detection_cwd = os.path.join(os.path.dirname(__file__), "..", "..", "driver")
 
 
-def lib_detection_single_url(url, timeout=30 * 60):
+def lib_detection_single_url(url, timeout=30):
     lib_detection_command = "node {0} -u '{1}'".format(
         detector_driver_program,
         url
