@@ -1392,8 +1392,8 @@ def getSinkExpression(tx, vuln_info):
 
 
 	# poc flattened tree generation
-	pocStrArr = vuln_info['poc_str']
-	pocStrArr = list(map(lambda s: s.replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['module_id'] + ')'), pocStrArr))
+	pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['module_id'] + ')')]
+	print("pocStrArr", pocStrArr)
 	json_arg = json.dumps(pocStrArr)
 	pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
 		stdout=subprocess.PIPE,
@@ -1502,7 +1502,7 @@ def run_traversals_simple(tx, vuln_info):
 				a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
 				t = call_expr['t'] # top level expression statement
 				print(f"[n, a, t]: n: {n}, a: {a}, t: {t}")
-				request_fn = vuln_info['poc_str'][0] # temporary
+				request_fn = vuln_info['poc_str'] # temporary
 
 				wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
 				logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
@@ -1691,7 +1691,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				n = call_expr['n'] # call expression
 				a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
 				t = call_expr['t'] # top level expression statement
-				request_fn = vuln_info['poc_str'][0] # temporary
+				request_fn = vuln_info['poc_str'] # temporary
 
 			wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
 			logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")

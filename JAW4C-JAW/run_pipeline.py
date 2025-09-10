@@ -349,31 +349,31 @@ def main():
 			if config['cve_vuln']["passes"]["static_neo4j"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
 				try:
-					lib_det_res = DetectorReader.read_result_with_url(website_url)
+					lib_det_res = DetectorReader.read_raw_result_with_url(website_url)
 				except Exception as e:
 					LOGGER.error(e)
 					exit(1)
 				for affiliatedurl, detectionRes in lib_det_res.items():
-					detection_list = lib_det_res.get(affiliatedurl, {}).get('PTV', {}).get('detection', [])
-					detection_list = detection_list[0] if len(detection_list) else None
-					LOGGER.info("detection list", detection_list)
-					if detection_list:
-						mod_lib_mapping = {}						
-						for i in detection_list:
-							mod_lib_mapping[i['libname']] = {'location': i['location']}
-						LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
-						for lib in mod_lib_mapping.keys():
-							vuln = vuln_db.package_vuln_search(lib)
-							mod_lib_mapping[lib]['vuln'] = vuln
+					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
+					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
+						# Do percise search if version is verified accurate
+						for detection_info in matching_obj_lst:
+							if detection_info['accurate']:
+								vuln = vuln_db.package_vuln_search(lib, version=detection_info['version'])
+							# Wide search across all versions otherwise
+							else:
+								vuln = vuln_db.package_vuln_search(lib)
 							if vuln != None:
-								LOGGER.info(f"vuln found at library obj {mod_lib_mapping[lib]['location']}: {vuln}")
-						LOGGER.info(f"mod_lib_mapping after: {json.dumps(mod_lib_mapping)}")
-					# vuln_info = {"module_id": mod_lib_mapping[i['libname']].split('_')[1], "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
-					# if config['staticpass']['keep_docker_alive']:
-					# 	CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
-					# else:	
-					# 	CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-					LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+							# There might be more than one vulnerabilities exist for the current library
+							for matching_vuln in (vuln or []):
+								vuln_info = {"module_id": detection_info['location'], "poc_str":matching_vuln['poc']}
+								if config['staticpass']['keep_docker_alive']:
+									CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
+								else:	
+									CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+							LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
 
 		# # single site dom clobbering
@@ -506,7 +506,7 @@ def main():
 						if config['cve_vuln']["passes"]["static_neo4j"]:
 							LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
 							try:
-								lib_det_res = DetectorReader.read_result_with_url(website_url)
+								lib_det_res = DetectorReader.read_raw_result_with_url(website_url)
 							except Exception as e:
 								LOGGER.error(e)
 								continue

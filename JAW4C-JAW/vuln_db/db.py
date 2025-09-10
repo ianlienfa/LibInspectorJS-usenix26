@@ -74,7 +74,7 @@ class PostgresDB:
             self._conn.close()
             self._conn = None
 
-    def package_vuln_search(self, package_name):
+    def package_vuln_search(self, package_name, version=None):
         all = self.query(
             "SELECT * FROM public.vulns WHERE package_name = %s LIMIT 1;",
             params=(package_name,),

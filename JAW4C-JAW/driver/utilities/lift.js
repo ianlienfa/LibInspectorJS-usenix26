@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const logger = require('./logger');
 const { features } = require("process");
-
+const splitSequence = require("./split-sequence")
 
 function acron_parse(code){
     const acron_config_obj = {ecmaVersion: 2022}    
@@ -636,8 +636,9 @@ function browserify_lift(code, func_node, ast){
 }
 
 // return lifted code
-function lift(code){    
+function lift(code, codeTransform=true){    
     require_func_name = "";
+    res = ""
     let node = undefined;
 
     // first phase parsing
@@ -656,10 +657,10 @@ function lift(code){
         }
         if(require_func_name !== ""){
             if(info?.["type"] === "type1"){
-                return webpack_lift_type1(code, node, ast);
+                res = webpack_lift_type1(code, node, ast);
             }
             else if(info?.["type"] === "type2"){
-                return webpack_lift_type2(code, node, ast, info);
+                res = webpack_lift_type2(code, node, ast, info);
             }
         }        
     }
@@ -670,14 +671,18 @@ function lift(code){
     // try browserify
     if(func_node = is_browserify_bundle(code, ast)){
         logger.info("brwoserify bundle detected")
-        return browserify_lift(code, func_node, ast);        
+        res = browserify_lift(code, func_node, ast);        
     }
     else {
         // console.log("Not a browserify bundle")
     }
 
     // console.log("Not matching any bundle")
-    return "";
+
+    if(codeTransform){
+        res = splitSequence(res)
+    }
+    return res;
 }
 
 module.exports = lift;
