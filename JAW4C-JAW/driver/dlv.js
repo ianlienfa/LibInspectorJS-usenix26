@@ -212,10 +212,6 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
       Object.entries(result).sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
     );
 
-    // ptv_result = path.join(__dirname,  '/site-js/', urlToDirectoryName(url), 'ptv-result.json')
-    // LOGGER("writing result to ", ptv_result)
-    // fs.writeFileSync(ptv_result, JSON.stringify(result))    
-
     return result;
 
   } catch (error) {

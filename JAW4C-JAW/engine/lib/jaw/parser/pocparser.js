@@ -29,16 +29,18 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
 
     options = options || {
         'LIBOBJ_IDENTIFIER_STR': "LIBOBJ",
-        'PAYLOAD_IDENTIFIER_STR': "PAYLOAD"
+        'PAYLOAD_IDENTIFIER_STR': "PAYLOAD",
+        'WILDCARD_IDENTIFIER_STR': "WILDCARD",
     }
 
     blackList = blackList || ['Program', 'ExpressionStatement']
 
 	flattened = {
         "libkeys": [],
-		"leaves": [],
 		"constructs": {},
-        "payloads": []
+        "payloads": [],
+        "search_order": {},
+        "root": ""
 	}
 
     leafSet = new Set()
@@ -53,6 +55,8 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
             return (node["computed"] === true) ? allbut(node, ['operator', 'computed', 'property']) : allbut(node, ['operator', 'computed']) 
         case "Literal":
             return allbut(node, ['raw'])
+        case "Identifier":
+            return (Object.values(options).includes(node["name"]) ? allbut(node, ['type']) : allbut(node, []))
         default:
             return allbut(node, [])
         }
@@ -74,6 +78,7 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
 
     function astDfsWAlk(parentId, parentKey, node){
         let nodeId = undefined
+        let lv = undefined
         if(!blackList.includes(node.type)){            
             // generate key for the node
             nodeId = `${node.type}_${crypto.randomUUID().slice(0, 8)}`;
@@ -81,24 +86,36 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
             // AST element specific copy function 
             flattened["constructs"][nodeId] = elementsToCopy(node, node.type)
 
+            if(!parentId){
+                lv = flattened["constructs"][nodeId]['level'] = 0
+            }
+            else{
+                lv = flattened["constructs"][nodeId]['level'] = flattened["constructs"][parentId]['level'] + 1
+            }
+
             // without merge!!!!
             typeSpecificHook(nodeId, node, node['type'])
-
 
             // bookkeeping of the parent node
             if(!parentId){
                 flattened["constructs"][nodeId]["root"] = true
+                flattened["root"] = nodeId
             } else {
                 flattened["constructs"][nodeId]["next"] = [[parentId, parentKey]]
             }
+
+            // build search order
+            if(!flattened['search_order'].hasOwnProperty(lv)){
+                flattened['search_order'][lv] = []
+            }
+            flattened['search_order'][lv].push(nodeId)
         }
+
         // recursive call
-        let leaves = true
         for (var key in node) { 
             if (node.hasOwnProperty(key)) {
                 var child = node[key];
                 if (typeof child === 'object' && child !== null) { 
-                    leaves = false
                     if (Array.isArray(child)) {
                         if(!blackList.includes(node.type)){
                             flattened["constructs"][nodeId][key] = []
@@ -118,112 +135,13 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
                 }
             }
         }
-        
-        // no traversable elements
-        if(leaves){
-            leafSet.add(nodeId)
-        }
         return nodeId
     }
 
     ast = esprimaParser.parseAST(poc, {range: false, loc: false})        
     astDfsWAlk(undefined, undefined, ast)
-
-    // merge, bottom up level by level traversing, for accurate identical node hash matching
-    // let traverse = [[...leafSet]]
-    // while(true){
-    //     levelNodes = traverse[traverse.length-1]
-    //     let tmpSet = new Set()
-    //     for(leaf of levelNodes){            
-    //         if('next' in flattened["constructs"][leaf]){
-    //             next = flattened["constructs"][leaf]['next']
-    //             for([n, key] of next){
-    //                 tmpSet.add(n)
-    //             }
-    //         }
-    //     }
-    //     if(tmpSet.size === 0){
-    //         break
-    //     }
-    //     else{
-    //         traverse.push([...tmpSet])
-    //     }
-    // }
-
-    // // console.log("traverse", traverse)
-
-    // to_del = []
-    // for(i = 0; i < traverse.length; i++){
-    //     level = traverse[i]
-    //     for(nodeId of level){
-    //         obj = flattened["constructs"][nodeId]
-    //         const clone = { ...obj }; 
-    //         clone['next'] = undefined
-    //         objHash = getObjHash(clone)
-    //         if(uniqueObjSet[objHash] === undefined){
-    //             uniqueObjSet[objHash] = nodeId
-    //             // type specific hook, libkey id are added here
-    //             typeSpecificHook(nodeId, obj, obj['type'])
-    //         }
-    //         else{
-    //             // append its next to the duplicated node's next
-    //             mynext = obj['next']
-    //             if(mynext){
-    //                 // console.log('flattened["constructs"][uniqueObjSet[objHash]]["next"]', flattened["constructs"][uniqueObjSet[objHash]]['next'])
-    //                 flattened["constructs"][uniqueObjSet[objHash]]['next'] = [...flattened["constructs"][uniqueObjSet[objHash]]['next'], ...mynext]
-    //                 // change the parent node's property too
-    //                 for([parentId, prop] of mynext){
-    //                     if(Array.isArray(flattened["constructs"][parentId][prop])){
-    //                         flattened["constructs"][parentId][prop] = flattened["constructs"][parentId][prop].map(x => x === nodeId ? uniqueObjSet[objHash] : x);
-    //                     }
-    //                     else{
-    //                         flattened["constructs"][parentId][prop] = uniqueObjSet[objHash]
-    //                     }
-    //                 }
-    //                 if(i !== 0){
-    //                     // go back and delete the next having me
-    //                     for(prevNodeId of traverse[i-1]){
-    //                         element = flattened["constructs"][prevNodeId]
-    //                         if('next' in element){                                
-    //                             element['next'] = element['next'].filter(x => x[0] !== nodeId)
-    //                         }
-    //                     }
-    //                 }
-    //                 to_del.push(nodeId)
-    //                 if(leafSet.has(nodeId)){
-    //                     leafSet.delete(nodeId)
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // for([nodeId, obj] of Object.entries(flattened["constructs"])){
-    //     const clone = { ...obj }; 
-    //     clone['next'] = undefined
-    //     objHash = getObjHash(clone)
-    //     if(uniqueObjSet[objHash] === undefined){
-    //         uniqueObjSet[objHash] = nodeId
-    //         // type specific hook, libkey id are added here
-    //         typeSpecificHook(nodeId, obj, obj['type'])
-    //     }
-    //     else{
-    //         // append its next to the duplicated node's next
-    //         mynext = obj['next']
-    //         flattened["constructs"][uniqueObjSet[objHash]]['next'] = [...flattened["constructs"][uniqueObjSet[objHash]]['next'], ...mynext]
-    //         to_del.push(nodeId)
-    //         if(leafSet.has(nodeId)){
-    //             leafSet.delete(nodeId)
-    //         }
-    //     }
-    // }
-
-    // console.log("to_del", to_del)
-    // for(d of to_del){
-    //     delete flattened['constructs'][d]
-    // }
-
-    //  post-processing
-    flattened["leaves"] = [...leafSet]
+    search_order = (Object.keys(flattened['search_order'])).sort((a, b) => b - a).map(k => flattened['search_order'][k])
+    flattened['search_order'] = search_order
 
     return flattened
 }
@@ -249,7 +167,7 @@ if (require.main === module) {
     // Read JSON input from command-line argument or stdin
     const args = process.argv.slice(2);
     if (args.length === 0) {
-        console.error("Usage: node pocparser.js '<[\"code1\", \"code2\"]>'");
+        console.error("Usage: node pocparser.js '[\"code1\", \"code2\"]'");
         process.exit(1);
     }
 

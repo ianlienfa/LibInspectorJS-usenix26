@@ -37,7 +37,7 @@ import jsbeautifier
 import itertools
 import difflib
 import json
-from enum import Enum
+from enum import StrEnum, auto
 
 
 import constants as constantsModule
@@ -70,14 +70,14 @@ DEBUG = False
 # detection through forward or backward type propagation and program slicing.
 MAIN_QUERY_ACTIVE = True
 
-# Reserved words for POC parsing
-POC_PRESERVED = ['WILDCARD', 'LIBOBJ', 'PAYLOAD']
 
 # ----------------------------------------------------------------------- #
 #				Utility Functions
 # ----------------------------------------------------------------------- #
 
-
+class EarlyHaltException(Exception):
+    def __init__(self, args=""):
+        self.args = args
 
 
 def _unquote_url(url):
@@ -1117,25 +1117,41 @@ def getSinkExpression(tx, vuln_info):
 			argumentNode = record['argumentNode']
 			return (callExpressionNode, argumentNode)
 		return None	
-	class Status(Enum):
-		ROOTFOUND = 0
-		FAIL = 1
-		SUCCESS = 2
-		PENDING = 3
+	
+
+	# Reserved words for POC parsing
+	POC_PRESERVED = ['WILDCARD', 'LIBOBJ', 'PAYLOAD']
+
+	class PreservedKeys(StrEnum):
+		"""
+			@description This class is used for blacklisting tracking element instead of the real constructs
+			@description 	that would account for the poc tag content matching
+		"""	
+		# make auto() produce lowercase values
+		def _generate_next_value_(name, start, count, last_values):
+			return name.lower()
+		FULFILLED = auto()   # value -> "fulfilled"	
+		ROOT = auto()	
+		LEVEL = auto()
+		NEXT = auto()
+
 
 	def tagInit(poc, pocKey, pocElement, specification = None):
 		"""
+			@description Other than initializing the key elements for a construct, a "fulfilled" tag is added
+			@description fulfilled == None is like bottom, meaning it's still in decision stage
+			@description fulfilled == False/True denotes whether the match succeeds
 			@param {object} poc: the map of poc flattened AST
 			@param {str} pocKey: the key of the pocElement of poc to be init
 			@param {object} pocElement: the object of the pocElement
 			@param {object} specification: extra specification node if were to populate more entries
-			@return {object}: initialized tag
+			@return {object}: initialized tag			
 		"""	
 
 		# initialize tag with False for literal items, 
-		tag = {}
+		tag = {str(PreservedKeys.FULFILLED): None}
 		for key, val in pocElement.items():
-			if key != 'next':
+			if key not in PreservedKeys or key == 'root':
 				if isinstance(val, list):
 					tag[key] = [False if v not in poc['constructs'] else None for v in val]
 				else:
@@ -1225,7 +1241,6 @@ def getSinkExpression(tx, vuln_info):
 				MATCH (cur {Id: '%s'})<-[:AST_parentOf {RelationType: '%s'}]-(node)
 				RETURN node
 			"""%(node['Id'], relationship)
-		print("query", query)
 		res = []
 		results = tx.run(query)			
 		res = [record['node'] for record in results][0]
@@ -1242,7 +1257,6 @@ def getSinkExpression(tx, vuln_info):
 			MATCH (cur {Id: '%s'})-[:AST_parentOf {Arguments: '{"arg":%s}'}]->(node)
 			RETURN node
 		"""%(node['Id'], arg)
-		print("query", query)
 		res = []
 		results = tx.run(query)					
 		res = [record['node'] for record in results][0]		
@@ -1250,9 +1264,11 @@ def getSinkExpression(tx, vuln_info):
 	
 	def getCodeMatchInScope(tx, code, scope):
 		query = """
-			MATCH (node {Code: '%s'})<-[:AST_parentOf|CFG_parentOf*]-(scope {Id:'%s'})
+			MATCH (node)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id:'%s'})
+			WHERE node.Code = '%s' OR node.Value = '%s'
 			RETURN DISTINCT(node)
-		"""%(code, scope['Id'])
+		"""%(scope['Id'], code, code)
+		print(f"getCodeMatchInScope query: {query}")
 		res = []
 		results = tx.run(query)			
 		res = [record['node'] for record in results]
@@ -1270,125 +1286,144 @@ def getSinkExpression(tx, vuln_info):
 		res = [record['node'] for record in results]
 		return res
 
-	# def getCallExprGivenTopExpr(tx, node, topExpr):
+	# To be tested
+	def getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc):
+		# get member node tags
+		res = set()
+		for key, prop in curr_construct.items():
+			# build search list, typically there's only one element, but for arguments there's multiple
+			search_list = []
+			if not isinstance(prop, list):
+				if prop not in poc:
+					continue
+				else: 
+					search_list.append(prop)
+			if key == 'arguments':
+				search_list += prop
+			
+			# iterate query through search list
+			while len(search_list):
+				key_from_search_list = search_list.pop()
+				query = """
+					MATCH (node)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id:'%s'})
+					WHERE node.%s IS NOT NULL
+					MATCH (parent)-[:AST_parentOf]->(node)
+					RETURN DISTINCT(parent)
+				"""%(libObjScope['Id'], key_from_search_list)
+				results = tx.run(query)			
+				res.update([record['parent'] for record in results])
+		return list(res)
+			
 
+		
 
-	import random
+		# add the parents of these node with these tags to candidate
+
+		# return list of candidate ids
+
 	
-	def nodeMatching(poc, constructKey, node, root = [], childrenKey=None, passive = False):
+	def nodeMatching(poc, constructKey, node):
 		"""
 			@param {the flattened poc map} poc
 			@param {str} the construct key to compare with
 			@param {object} the node to compare with
-			@param {[ptr]} saves root node info if found
-			@return Status.SUCCESS/FAIL/ROOTFOUND 
+			@return {bool} match or not
+			@description  simply does matching between the given node and the construct, if the current node is unfilled, traverse downward				
+			@description  invariant: the nodeMatching must return true or false given a node and would be correct is traverse in bottom up poc tree traversal fashion
 		"""
-		print('constructKey', constructKey)
-		construct = poc['constructs'][constructKey] # the current construct under matching
-		print(f"passive:{passive} nodeMatching on {neo4jQueryUtilityModule.getCodeOf(tx, node)} with contruct {construct} and constructKey: {constructKey}")
+		def property_invariance_check(props):
+			boolean_collector = True
+			if isinstance(props, dict): 
+				for key, prop in props.items():					
+					boolean_collector &= property_invariance_check(prop)
+			elif isinstance(props, list):
+				for prop in props:
+					boolean_collector &= property_invariance_check(prop)
+			elif props is None:
+				return False
+			elif props == True or props == False:				
+				return props
+			else:
+				raise RuntimeError(f"not implemented case, {props}")
+			return boolean_collector
+			
+		construct = poc['constructs'][constructKey] 
 		props = getProperties(node, constructKey)
 		if props is None:
-			props = tagInit(poc, constructKey, construct)		
+			# tagInit 
+			props = tagInit(poc, constructKey, construct)
+		else:
+			if props[PreservedKeys.FULFILLED] == True:
+				return True
+			if props[PreservedKeys.FULFILLED] == False:
+				print(f"Visited, no match")
+				return False
 
-		# Traverse downwards
-		uuid = random.randint(0, 606060606)		
-		print(f"props-{uuid}-{constructKey} before:", props)		
-		for key, prop in props.items():
-			if key == 'root':
-				continue
-			if not isinstance(prop, list):		
-				if prop == False:					
-					if contentCompare(key, node, construct) == False:
-						print("1 early halt on", key, node, construct)
-						return Status.FAIL # early halt
-					else:
-						props[key] = True
-				elif prop == None:
-					# test if children has filled
-					if childrenKey and construct[key] == childrenKey:
-						props[key] = True
-					else:
-						relationShipNode = getNodeWithASTRelationship(tx, node, key, direction="downward")
-						match = nodeMatching(poc, construct[key], relationShipNode, root, passive=True)						
-						print("2 early halt on", key, node, construct)
-						if match == Status.FAIL:
-							print("here at fail AST matching")
-							return Status.FAIL # Early halt, else continue on checking other stuffs
-						elif match == Status.SUCCESS:
-							props[key] = True
-						elif match == Status.PENDING:
-							continue
-						else:
-							raise RuntimeError("1 case not covered", prop, match)
-				else: # prop == True, meaning previous matches already tested
+		# not visited before
+		try:
+			for key, prop in props.items():
+				# root mark is solely for marking, not considered a part of content
+				if key in PreservedKeys:
 					continue
-			else:
-				for i in range(len(prop)):
-					p = prop[i]
-					if p == False:
-						raise RuntimeError("2 case not covered", prop, p, key)
-					elif p == None:
-						if childrenKey and construct[key][i] == childrenKey:
-							props[key][i] = True							
+
+				# prop = False: non-explorable prop (ex: str), None: explorable prop, True: fulfilled
+				if not isinstance(prop, list):	
+					if prop == False:					
+						if contentCompare(key, node, construct) == False:
+							print("1 early halt on", key, node, construct)
+							raise EarlyHaltException
 						else:
+							props[key] = True
+					elif prop is None:
+						# test if children has filled
+						relationShipNode = getNodeWithASTRelationship(tx, node, key, direction="downward")
+						match = nodeMatching(poc, construct[key], relationShipNode)						
+						print("2 early halt on", key, node, construct)
+						if match == False:
+							print("here at fail AST matching")
+							raise EarlyHaltException # Early halt, else continue on checking other stuffs
+						else:
+							props[key] = True
+					else: # prop == True, meaning previous matches already tested
+						continue
+				else:
+					for i in range(len(prop)):
+						p = prop[i]
+						if p == False:
+							# This isn't some case we've seen: where p must be a non-explorable item
+							# in some sense this case should have been avoided during POC generation?
+							# ex: func(a, 'b')
+							if contentCompare(key, node, construct) == False:
+								print("1 early halt on", key, node, construct)
+								raise EarlyHaltException
+							else:
+								props[i][key] = True
+						elif p is None:
 							if key == "arguments":
 								relationShipNode = getArgumentNode(tx, node, i)
 								match = nodeMatching(poc, construct[key][i], relationShipNode, root, passive=True)						
-								if match == Status.SUCCESS:
+								if match:
 									props[key][i] = True
-								# if match == Status.FAIL:
-								# 	return Status.FAIL # Early halt, else continue on checking other stuffs
+								else:
+									raise EarlyHaltException
 							else:
 								raise RuntimeError(f"not implemented case, list with type {key}")
-					else:
-						continue
-
-		# Traverse upwards if tag is all filled
-		def inspectVal(props):
-			for key, prop in props.items():
-				if key == "root":
-					continue
-				if prop == True:
-					continue
-				elif isinstance(prop, list):
-					if not all(p == True for p in prop):
-						return False
-				else:
-					return False
-			if 'root' in props:
-				props['root'] = True
-			return True
-		all_true = inspectVal(props)
-		print(f"props-{uuid}-{constructKey} after:", props)			
-		# breakpoint()       
-		pocTagging(node, constructKey, props) # tag if any match		
-
-		if all_true:
-			# print(f"all true for {getCodeOf(tx, node)}", props)
-			if passive:
-				return Status.SUCCESS
-			if 'root' in props:
-				root.append({node})
-				return Status.ROOTFOUND	
-			else:							
-				# res_collection = set()
-				print("all_true not passive at", node)	
-				if 'next' in construct:	
-					for [nxt, prop] in construct['next']:
-						parentNode = get_ast_parent(tx, node)
-						# print("parentNode", getCodeOf(tx, parentNode))
-						# if(parentNode['Id'] == '42' and construct['type'] == 'MemberExpression'):
-						# 	breakpoint()
-						tempres = nodeMatching(poc, nxt, parentNode, root, childrenKey=constructKey)
-						if Status.ROOTFOUND == tempres:
-							return Status.ROOTFOUND # early halting					
-						print(f"temporary results for cmpring {poc['constructs'][nxt]} with {parentNode}", tempres)
-						# breakpoint()
-						# res_collection.add(tempres)
-			return Status.SUCCESS # notifying the full match of a node	
-		else:			
-			print("props not all true", props)
-			return Status.PENDING	
+						else:
+							continue
+		except EarlyHaltException:
+			# tag fulfill to false
+			print(f"No match, early halted at {node}, {constructKey}")
+			props[PreservedKeys.FULFILLED] = False
+			pocTagging(node, constructKey, props)
+			return False
+		
+		props[PreservedKeys.FULFILLED] = True
+		pocTagging(node, constructKey, props)
+		# assertion: invariant, node matching should always be able to determine True or False once returned
+		if not property_invariance_check(props):
+			raise RuntimeError(f"Invariant not hold: {props}")
+				
+		return True
 
 
 	# poc flattened tree generation
@@ -1418,35 +1453,47 @@ def getSinkExpression(tx, vuln_info):
 	root = []
 	# match all provided poc and potential libobjs
 	for poc in flatPoc:
+		# operate on all libobj scope marked
 		for pair in libObjectList:
 			libObj = pair[0] # libObj node
 			libIdentNode = pair[1] # libObj node
 			libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
-			st = set(poc['leaves'])
-			for libkey in poc['libkeys']:
-				st.discard(libkey) # Here we're assuming that libkeys have only one element
-				pocTagging(libIdentNode, libkey, tagInit(poc, libkey, poc['constructs'][libkey], {"name": True}))
-				status = nodeMatching(poc, libkey, libIdentNode, root)
-				print("status before while", status)
-			while status in [Status.SUCCESS, Status.PENDING]:
-				try:
-					nxtKey = next(iter(st))
-				except StopIteration:
-					break
-				print("nxtKey", nxtKey)
-				st.remove(nxtKey)
-				nxt = poc['constructs'][nxtKey]
-				# do leaf matching from
-				print("nxt leaf: ",  nxt)
-				code = nxt['name'] if 'name' in nxt else nxt['value'] if 'value' in nxt else None
-				# Problem here >>>
-				if code and libObjScope and code not in POC_PRESERVED:
-					codeMatchingNodes = getCodeMatchInScope(tx, code, libObjScope)
-					print(f"codeMatchingNodes of {code}: {codeMatchingNodes}")
-					# breakpoint()
-					for codeMatchingNode in codeMatchingNodes:						
-						print(f"matching {nxt} and {codeMatchingNode}")
-						status = nodeMatching(poc, nxtKey, codeMatchingNode, root)
+			libkeys = set(poc['libkeys'])
+
+			# From this scope, follow the search order
+			# if the current key is also in libkeys, apply the tag on the libIdentNode
+			# else just do the code search in scope as usual
+			try:
+				for lv, level_nodes in enumerate(poc['search_order']):
+					for constuctKey in level_nodes:
+						curr_construct = poc['constructs'][constuctKey]
+						code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
+						# for leave nodes, code matching is required						
+						if code and libObjScope:								
+							# matching for POC_PRESERVED node will be done in the parent node in nodeMatching()
+							if code in POC_PRESERVED:
+								continue 
+							else:
+								matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
+								print(f"codeMatchingNodes of {code}: {matching_nodes}")
+						elif not code: # (not leaf nodes)
+							# should do cypher query on the specific ids
+							matching_nodes = getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc['constructs'])
+							print(f"potential matchingNodes for {curr_construct}: {matching_nodes}")
+						else:
+							print(f"conditions not implemented, halting: ", curr_construct)
+							exit(1)
+						matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
+						if not any(matching_res):
+							print('matching_res', matching_res, 'matching_nodes', matching_nodes)
+							raise EarlyHaltException({"curr_construct": curr_construct})
+			except EarlyHaltException as e:
+				print(f"Early halt due to none matching for construct", e)
+				print("poc['constructs']", poc['constructs'])
+
+
+			# root query: query if the special id of root exists
+			root = getNodeFromTagName(tx, poc['root'])
 
 	if libObjScope:						
 		debug_query = """
@@ -1454,7 +1501,6 @@ def getSinkExpression(tx, vuln_info):
 			RETURN p
 		"""%(libObjScope['Id'])
 		print("debug query", debug_query)
-		print("status", status)
 		print("root", root)
 	print('pocFlattenedJsonStr', pocFlattenedJsonStr)
 	if root:

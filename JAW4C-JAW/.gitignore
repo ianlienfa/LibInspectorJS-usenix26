@@ -100,3 +100,7 @@ driver/logs/*
 
 # venv
 cve_jaw
+
+# verification CodeQL
+verification/codeql-action-3.30.3
+verification/codeql-home

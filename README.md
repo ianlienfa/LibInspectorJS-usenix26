@@ -75,6 +75,10 @@ password=vulndb_pwd
 port=543
 ```
 
+# Verification step
+CodeQL is used for collecting ground truth for this project, install CodeQL into JAW-4C/verification folder
+- https://docs.github.com/en/code-security/codeql-cli/using-the-advanced-functionality-of-the-codeql-cli/advanced-setup-of-the-codeql-cli
+
 # Commonly seen problems
 - 'Failed to launch the browser process!': remember to source env.sh
 - Archive stuck at:
