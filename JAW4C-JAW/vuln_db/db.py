@@ -81,7 +81,7 @@ class PostgresDB:
             fetch="all"
         )
         res = [dict(i) for i in all]
-        print("package_vuln_search on ", package_name, "res: ", res, all)  
+        # print("package_vuln_search on ", package_name, "res: ", res, all)  
         return res if all else None
 
 

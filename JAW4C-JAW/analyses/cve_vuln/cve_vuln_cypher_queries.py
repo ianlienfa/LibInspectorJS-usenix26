@@ -1439,6 +1439,7 @@ def getSinkExpression(tx, vuln_info):
 	).stdout
 	print('pocFlattenedJsonStr', pocFlattenedJsonStr)
 	flatPoc = json.loads(pocFlattenedJsonStr)
+	vuln_info['pocFlattened'] = flatPoc
 	print("pocFlattened", flatPoc)
 
 	# see if the callee sats the 
@@ -1449,6 +1450,7 @@ def getSinkExpression(tx, vuln_info):
 	# filter out those matches that are not library Objects
 	libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
 	print("libObjectList", libObjectList)
+	vuln_info['libObjectList'] = libObjectList
 
 	libObjScope = None
 	root = []
@@ -1495,12 +1497,14 @@ def getSinkExpression(tx, vuln_info):
 
 			# root query: query if the special id of root exists
 			root = getNodeFromTagName(tx, poc['root'])
+			vuln_info['root'] = repr(root)
 
 	if libObjScope:						
 		debug_query = """
 			MATCH p = (node)<-[:AST_parentOf*]-(libobjScope {Id:'%s'})
 			RETURN p
 		"""%(libObjScope['Id'])
+		vuln_info['debug_query'] = debug_query
 		print("debug query", debug_query)
 		print("root", root)
 	print('pocFlattenedJsonStr', pocFlattenedJsonStr)
@@ -1729,7 +1733,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 	#	i.e., is any sink value traces back to the defined semantic types
 	if MAIN_QUERY_ACTIVE:		
 		# different kinds of call expressions (sinks)
-		r1 = getSinkExpression(tx, vuln_info=vuln_info)		
+		r1 = getSinkExpression(tx, vuln_info=vuln_info)
 
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
@@ -1770,6 +1774,19 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 
 		# path to store all templates of the current URL
 		template_output_pathname = os.path.join(webpage_directory, "sink.flows.out")
+		vuln_info_pathname = os.path.join(webpage_directory, "vuln.out")
+				
+		try:
+			with open(vuln_info_pathname, 'x') as vuln_info_file:
+				json.dump({}, vuln_info_file)
+		except FileExistsError:
+		# Your error handling goes here
+			breakpoint()		
+			with open(vuln_info_pathname, 'r+') as vuln_fd:
+				vuln = json.load(vuln_fd)
+				vuln[navigation_url] = vuln_info
+				json.dump(vuln, vuln_fd)	
+		breakpoint()		
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "w+") as fd:
 				timestamp = _get_current_timestamp()

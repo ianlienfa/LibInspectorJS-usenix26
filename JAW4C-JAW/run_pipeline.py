@@ -30,6 +30,7 @@ import pandas as pd
 import os, sys
 import requests
 import json
+import time
 from urllib.parse import urlencode, quote_plus
 
 import utils.io as IOModule
@@ -339,12 +340,6 @@ def main():
 
 		# single site cve_vuln
 		if config['cve_vuln']['enabled']:
-			# static analysis
-			if config['cve_vuln']["passes"]["static"]:
-				LOGGER.info("static analysis for site %s."%(website_url))
-				cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
 			# static analysis over neo4j
 			if config['cve_vuln']["passes"]["static_neo4j"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
@@ -368,6 +363,12 @@ def main():
 								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
 							# There might be more than one vulnerabilities exist for the current library
 							for matching_vuln in (vuln or []):
+								# static analysis
+								if config['cve_vuln']["passes"]["static"]:
+									LOGGER.info("static analysis for site %s."%(website_url))
+									cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+									LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
 								# try:
 								# 	poc_obj = json.loads(vuln['poc'])
 								# except Exception as e:
@@ -381,11 +382,18 @@ def main():
 								for poc_str in poc_obj:
 									print('poc_str', poc_str)
 									vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
-									if config['staticpass']['keep_docker_alive']:
-										CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
-									else:	
-										CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-							LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+									
+									for try_attempts in range(2):
+										try:
+											if config['staticpass']['keep_docker_alive']:
+												CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
+											else:	
+												CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+											break
+										except Exception as e:
+											print(f"neo4j exception {e}, retrying ... ")
+											time.sleep(5)											
+								LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
 
 		# # single site dom clobbering
@@ -477,89 +485,101 @@ def main():
 				if to_row == "end":
 					to_row = len(mapping.keys())
 				urls = list(mapping.keys())
-				for i in range(from_row, to_row+1):				
-					website_url = create_start_crawl_url(urls[i])
-					LOGGER.info(f"Running on website: {website_url}")
-					if domain_health_check:
-						LOGGER.info('checking if domain is up with python requests ...')
-						website_up = False
-						try:
-							website_up = is_website_up(website_url)
-						except:
-							save_website_is_down(website_url)
-							continue
-
-						if not website_up:
-							LOGGER.warning('domain %s is not up, skipping!'%website_url)
-							save_website_is_down(website_url)
-							continue
-
-					# Archive analysis crawling
-					if (config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
-						LOGGER.info("crawling site at row %s - %s"%(i, website_url)) 
-						cmd = crawling_command.replace('SEED_URL', f"'{website_url}'")
-						IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
-						LOGGER.info("successfully crawled %s - %s"%(i, website_url)) 
-					
-					# Archive analysis library detection					
-					if lib_detector_enable and lib_detector_lift:
-						lib_detection_api.lib_detection(website_url)
-					LOGGER.info("successfully detected libraries on %s."%(website_url)) 
-
-					# Archive analysis cve_vuln
-					if config['cve_vuln']['enabled']:						
-						# static analysis
-						if config['cve_vuln']["passes"]["static"]:
-							LOGGER.info("static analysis for site %s."%(website_url))
-							cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-							LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-						# static analysis over neo4j
-						if config['cve_vuln']["passes"]["static_neo4j"]:
-							LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+				for i in range(from_row, to_row+1):	
+					try:
+						website_url = create_start_crawl_url(urls[i])
+						LOGGER.info(f"Running on website: {website_url}")
+						if domain_health_check:
+							LOGGER.info('checking if domain is up with python requests ...')
+							website_up = False
 							try:
-								lib_det_res = DetectorReader.read_raw_result_with_url(website_url)
-							except Exception as e:
-								LOGGER.error(e)
+								website_up = is_website_up(website_url)
+							except:
+								save_website_is_down(website_url)
 								continue
-							mod_lib_mappingDoc = {}
-							for affiliatedurl, detectionRes in lib_det_res.items():		
-								mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
-								LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
-								for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-									# Do percise search if version is verified accurate
-									for detection_info in matching_obj_lst:
-										if detection_info['accurate']:
-											vuln = vuln_db.package_vuln_search(lib, version=detection_info['version'])
-										# Wide search across all versions otherwise
-										else:
-											vuln = vuln_db.package_vuln_search(lib)
-										if vuln:
-											LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
-										# There might be more than one vulnerabilities exist for the current library
-										for matching_vuln in (vuln or []):
-											# try:
-											# 	poc_obj = json.loads(vuln['poc'])
-											# except Exception as e:
-											# 	print("Error transforming vuln poc from JSON format")
-											# 	raise RuntimeError		
-											######
-											# TO BE FIXED!!!!
-											poc_obj = (''.join(list(filter(lambda x: x not in ['{', '}'], vuln[0]['poc'])))).split('"', 1)   # using 1 element only bc of the bad encoding								
-											poc_obj = [s.replace("'", '"') for s in poc_obj]
-											######
-											for poc_str in poc_obj:
-												print('poc_str', poc_str)
-												vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
-												if config['staticpass']['keep_docker_alive']:
-													CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
-												else:	
-													CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-										LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
-							get_name_from_url = lambda url: url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
-							with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'mod_lib_mapping.json'), 'w') as f:
-								json.dump(mod_lib_mappingDoc, f)
+							if not website_up:
+								LOGGER.warning('domain %s is not up, skipping!'%website_url)
+								save_website_is_down(website_url)
+								continue
+
+						# Archive analysis crawling
+						if (config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
+							LOGGER.info("crawling site at row %s - %s"%(i, website_url)) 
+							cmd = crawling_command.replace('SEED_URL', f"'{website_url}'")
+							IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
+							LOGGER.info("successfully crawled %s - %s"%(i, website_url)) 
+						
+						# Archive analysis library detection					
+						if lib_detector_enable and lib_detector_lift:
+							lib_detection_api.lib_detection(website_url)
+						LOGGER.info("successfully detected libraries on %s."%(website_url)) 
+
+						# Archive analysis cve_vuln
+						if config['cve_vuln']['enabled']:						
+							# static analysis over neo4j
+							if config['cve_vuln']["passes"]["static_neo4j"]:
+								LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
+								try:
+									lib_det_res = DetectorReader.read_raw_result_with_url(website_url)
+								except Exception as e:
+									LOGGER.error(e)
+									continue
+								mod_lib_mappingDoc = {}
+								for affiliatedurl, detectionRes in lib_det_res.items():		
+									mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
+									LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+									for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
+										# Do percise search if version is verified accurate
+										for detection_info in matching_obj_lst:
+											if detection_info['accurate']:
+												vuln = vuln_db.package_vuln_search(lib, version=detection_info['version'])
+											# Wide search across all versions otherwise
+											else:
+												vuln = vuln_db.package_vuln_search(lib)
+											if vuln:
+												LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+											else:
+												LOGGER.info(f"no matching vuln for {lib}, skipping..." )
+											# There might be more than one vulnerabilities exist for the current library
+											for matching_vuln in (vuln or []):
+												# static analysis will only be apply if vulnerable library matches
+												if config['cve_vuln']["passes"]["static"]:
+													LOGGER.info("static analysis for site %s."%(website_url))
+													cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+													LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+
+												# try:
+												# 	poc_obj = json.loads(vuln['poc'])
+												# except Exception as e:
+												# 	print("Error transforming vuln poc from JSON format")
+												# 	raise RuntimeError		
+												######
+												# TO BE FIXED!!!!
+												poc_obj = (''.join(list(filter(lambda x: x not in ['{', '}'], vuln[0]['poc'])))).split('"', 1)   # using 1 element only bc of the bad encoding								
+												poc_obj = [s.replace("'", '"') for s in poc_obj]
+												######
+												for poc_str in poc_obj:
+													print('poc_str', poc_str)
+													vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
+													for try_attempts in range(2):
+														try:
+															if config['staticpass']['keep_docker_alive']:
+																CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
+															else:	
+																CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+															break
+														except Exception as e:
+															print(f"neo4j exception {e}, retrying ... ")
+															time.sleep(5)											
+
+								get_name_from_url = lambda url: url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
+								with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'mod_lib_mapping.json'), 'w') as f:
+									json.dump(mod_lib_mappingDoc, f)
+					except RuntimeError as r_e:
+						print(f"Runtime error catched for {website_url}: {r_e}, moving on to the next...")
+						continue
+
 		
 		# ----------- Multiple-sites Analysis Section (CSV) -----------
 

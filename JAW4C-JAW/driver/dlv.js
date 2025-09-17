@@ -238,9 +238,9 @@ const PTVOriginal = async (url, PTVPuppeteerLaunchConfig, crawlJs=true) => {
       });
     })        
 
-    // page.on('console', msg => {
-    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
-    // });
+    page.on('console', msg => {
+      LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
+    });
 
     await page.goto(url, {waitUntil: 'networkidle0'});
 
@@ -350,7 +350,7 @@ if (require.main === module) {
         res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, crawlJs=false)
         if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
       }
-      fs.writeFileSync(path.join(hashdirPath, "lib.detection.json"), JSON.stringify(res))
+      fs.writeFileSync(path.join(hashdirPath, "lib.detection.json"), JSON.stringify(res,null, "\t"))
     }
     else{
       LOGGER(`Error [dlv.js]: no operation done`)
