@@ -44,7 +44,7 @@ def read_raw_result_with_url(url):
 # Take raw detection_obj then return the mod_lib_mapping
 def get_mod_lib_mapping(raw_detection_obj, url, filter_library_only=True):
     detection_list = raw_detection_obj.get(url, {}).get('PTV', {}).get('detection', [])
-    detection_list = detection_list[0] if len(detection_list) else None
+    detection_list = detection_list[0] if len(detection_list) else []
     mod_lib_mapping = {}						
     for detected_lib in detection_list:
         print("detected_lib", detected_lib)

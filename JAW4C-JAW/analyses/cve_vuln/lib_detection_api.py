@@ -52,7 +52,7 @@ def lib_detection_single_url(url, timeout=30):
 def lib_detection(website_url, iterative_output='false', memory=None, timeout=None, compress_hpg='true', overwrite_hpg='false'):
 
 	if timeout is None:
-		static_analysis_per_webpage_timeout = 600 # seconds
+		static_analysis_per_webpage_timeout = 30 # seconds
 	else:
 		static_analysis_per_webpage_timeout = timeout
 
@@ -86,7 +86,8 @@ def lib_detection(website_url, iterative_output='false', memory=None, timeout=No
 					detector_driver_program,
 					url
 				)			
-				IOModule.run_os_command(lib_detection_command, cwd=lib_detection_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
+				ret = IOModule.run_os_command(lib_detection_command, cwd=lib_detection_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
+				LOGGER.info("successfully detected libraries on %s, return code: %s"%(url, ret)) 
 
 	elif os.path.exists(webpages_json_file):
 		# if os.path.exists(webpages_json_file):

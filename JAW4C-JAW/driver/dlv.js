@@ -132,8 +132,8 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
       page.on('request', interceptedRequest => {   
         if(typeof overrideMapping !== "undefined"){
           if (interceptedRequest.url() in overrideMapping && overrideMapping[interceptedRequest.url()].startsWith(liftDirectory)) {
-            logger.log('info', 'intercepting %s', interceptedRequest.url());
-            logger.log('info', 'overriding file at %s', overrideMapping[interceptedRequest.url()]);
+            // logger.log('info', 'intercepting %s', interceptedRequest.url());
+            // logger.log('info', 'overriding file at %s', overrideMapping[interceptedRequest.url()]);
             const response = {              
                 status: 200,
                 contentType: 'application/javascript',

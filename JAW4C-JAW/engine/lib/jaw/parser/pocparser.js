@@ -82,6 +82,12 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
         if(!blackList.includes(node.type)){            
             // generate key for the node
             nodeId = `${node.type}_${crypto.randomUUID().slice(0, 8)}`;
+
+            Object.values(options).forEach(element => {
+                if(node.name && node.name.includes(element)){
+                    node.name = element // clear up the indecies (For example: PAYLOAD1, PAYLOAD2)
+                }
+            });
             
             // AST element specific copy function 
             flattened["constructs"][nodeId] = elementsToCopy(node, node.type)
@@ -173,10 +179,11 @@ if (require.main === module) {
 
     try {
         const pocArray = JSON.parse(args[0]);  // Expect JSON array of code strings
+
         const result = pocsFlattening(pocArray);
         console.log(JSON.stringify(result, null, 2));
     } catch (err) {
-        console.error("Invalid input or execution error:", err.message);
+        console.error("Invalid input or execution error:", err.message, err.stack);
         process.exit(1);
     }
 

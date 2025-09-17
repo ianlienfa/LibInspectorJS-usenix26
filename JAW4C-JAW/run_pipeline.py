@@ -364,15 +364,27 @@ def main():
 							# Wide search across all versions otherwise
 							else:
 								vuln = vuln_db.package_vuln_search(lib)
-							if vuln != None:
+							if vuln:
 								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
 							# There might be more than one vulnerabilities exist for the current library
 							for matching_vuln in (vuln or []):
-								vuln_info = {"module_id": detection_info['location'], "poc_str":matching_vuln['poc']}
-								if config['staticpass']['keep_docker_alive']:
-									CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
-								else:	
-									CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+								# try:
+								# 	poc_obj = json.loads(vuln['poc'])
+								# except Exception as e:
+								# 	print("Error transforming vuln poc from JSON format")
+								# 	raise RuntimeError		
+								######
+								# TO BE FIXED!!!!
+								poc_obj = (''.join(list(filter(lambda x: x not in ['{', '}'], vuln[0]['poc'])))).split('"', 1)   # using 1 element only bc of the bad encoding								
+								poc_obj = [s.replace("'", '"') for s in poc_obj]
+								######
+								for poc_str in poc_obj:
+									print('poc_str', poc_str)
+									vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
+									if config['staticpass']['keep_docker_alive']:
+										CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
+									else:	
+										CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
 							LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
 
@@ -512,29 +524,39 @@ def main():
 								continue
 							mod_lib_mappingDoc = {}
 							for affiliatedurl, detectionRes in lib_det_res.items():		
-								detection_list = lib_det_res.get(affiliatedurl, {}).get('PTV', {}).get('detection', [])
-								first_detection = detection_list[0] if detection_list else None
-								if not first_detection:									
-									continue
-								# LOGGER.info(affiliatedurl, detectionRes)							
-								# LOGGER.info(f"first_detection: {first_detection}")	
-								# detectionLib = list(set([i['libname'] for i in first_detection]))
-								mod_lib_mapping = {}
-								for i in lib_det_res[affiliatedurl]['PTV']['detection'][0]:
-									mod_lib_mapping[i['libname']] = {'location': i['location']}
-								# LOGGER.info(f"detectionLib: {detectionLib}")
+								mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
 								LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
-								for lib in mod_lib_mapping.keys():
-									vuln = vuln_db.package_vuln_search(lib)
-									mod_lib_mapping[lib]['vuln'] = vuln
-									if vuln != None:
-										LOGGER.info(f"vuln found! {vuln}")
-								LOGGER.info(f"mod_lib_mapping after: {json.dumps(mod_lib_mapping)}")
-								mod_lib_mappingDoc[affiliatedurl] = mod_lib_mapping								
-								# vuln_info = {"module_id": '692', "poc_str": ["LIBOBJ.app = LIBOBJ.html(data = PAYLOAD)"] }	
-								# print('modules:',lib_det_res.get(website_url, {}).get('PTV', {}).get('detection'))
-								# CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-								# LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+								for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
+									# Do percise search if version is verified accurate
+									for detection_info in matching_obj_lst:
+										if detection_info['accurate']:
+											vuln = vuln_db.package_vuln_search(lib, version=detection_info['version'])
+										# Wide search across all versions otherwise
+										else:
+											vuln = vuln_db.package_vuln_search(lib)
+										if vuln:
+											LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+										# There might be more than one vulnerabilities exist for the current library
+										for matching_vuln in (vuln or []):
+											# try:
+											# 	poc_obj = json.loads(vuln['poc'])
+											# except Exception as e:
+											# 	print("Error transforming vuln poc from JSON format")
+											# 	raise RuntimeError		
+											######
+											# TO BE FIXED!!!!
+											poc_obj = (''.join(list(filter(lambda x: x not in ['{', '}'], vuln[0]['poc'])))).split('"', 1)   # using 1 element only bc of the bad encoding								
+											poc_obj = [s.replace("'", '"') for s in poc_obj]
+											######
+											for poc_str in poc_obj:
+												print('poc_str', poc_str)
+												vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
+												if config['staticpass']['keep_docker_alive']:
+													CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
+												else:	
+													CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
+										LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+
 							get_name_from_url = lambda url: url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
 							with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'mod_lib_mapping.json'), 'w') as f:
 								json.dump(mod_lib_mappingDoc, f)

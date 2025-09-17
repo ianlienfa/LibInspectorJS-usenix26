@@ -1401,7 +1401,7 @@ def getSinkExpression(tx, vuln_info):
 						elif p is None:
 							if key == "arguments":
 								relationShipNode = getArgumentNode(tx, node, i)
-								match = nodeMatching(poc, construct[key][i], relationShipNode, root, passive=True)						
+								match = nodeMatching(poc, construct[key][i], relationShipNode)						
 								if match:
 									props[key][i] = True
 								else:
@@ -1418,6 +1418,8 @@ def getSinkExpression(tx, vuln_info):
 			return False
 		
 		props[PreservedKeys.FULFILLED] = True
+		if PreservedKeys.ROOT in props:
+			props[PreservedKeys.ROOT] = True
 		pocTagging(node, constructKey, props)
 		# assertion: invariant, node matching should always be able to determine True or False once returned
 		if not property_invariance_check(props):
@@ -1436,7 +1438,6 @@ def getSinkExpression(tx, vuln_info):
     	text=True  # returns output as string, not bytes
 	).stdout
 	print('pocFlattenedJsonStr', pocFlattenedJsonStr)
-	# breakpoint()
 	flatPoc = json.loads(pocFlattenedJsonStr)
 	print("pocFlattened", flatPoc)
 
@@ -1482,7 +1483,7 @@ def getSinkExpression(tx, vuln_info):
 							print(f"potential matchingNodes for {curr_construct}: {matching_nodes}")
 						else:
 							print(f"conditions not implemented, halting: ", curr_construct)
-							exit(1)
+							raise RuntimeError(f"conditions not implemented, halting: {curr_construct}")
 						matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
 						if not any(matching_res):
 							print('matching_res', matching_res, 'matching_nodes', matching_nodes)
