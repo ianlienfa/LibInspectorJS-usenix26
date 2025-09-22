@@ -24,6 +24,7 @@
 
 """
 import os, sys
+from enum import StrEnum, auto
 
 BASE_DIR= os.path.dirname(os.path.realpath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -757,3 +758,21 @@ JS_DEFINED_VARS = list(set([
     "trim",
     "valueOf",
 ]))
+
+
+
+# Reserved words for POC parsing
+POC_PRESERVED = ['WILDCARD', 'LIBOBJ', 'PAYLOAD']
+
+class PreservedKeys(StrEnum):
+    """
+        @description This class is used for blacklisting tracking element instead of the real constructs
+        @description 	that would account for the poc tag content matching
+    """	
+    # make auto() produce lowercase values
+    def _generate_next_value_(name, start, count, last_values):
+        return name.lower()
+    FULFILLED = auto()   # value -> "fulfilled"	
+    ROOT = auto()	
+    LEVEL = auto()
+    NEXT = auto()

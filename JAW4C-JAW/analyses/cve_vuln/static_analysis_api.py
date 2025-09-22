@@ -27,11 +27,12 @@
 
 
 
-import os, sys, json
+import os, sys, json, re
 import utils.io as IOModule
 import constants as constantsModule
 import utils.utility as utilityModule
 from utils.logging import logger as LOGGER
+
 
 
 # static analysis without neo4j
@@ -110,3 +111,28 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 		message = 'no webpages.json or urls.out file exists in the webapp directory; skipping analysis...'
 		LOGGER.warning(message)
 	
+
+def grep_matching_pattern(website_url, poc_str):							
+	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)
+	website_folder = os.path.join(constantsModule.DATA_DIR, website_folder_name)
+	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split('[,(){};."]', poc_str)))
+	try:
+		matching_strs = {
+			# grep all the strings into a list that matches any of the poc identifier pattern
+			poc_pattern: filter(lambda x: x, ((IOModule.run_os_command(f"grep -R '{poc_pattern}' {website_folder}/*.js", timeout=5)) or "").split('\n')) 
+				for poc_pattern in patterns
+		}
+	except Exception as e:
+		LOGGER.error(f"Error during ground truth grep: {e}")
+		return False
+	grep_dict = {}
+	try:
+		with open(website_folder, 'r') as f_r:
+			grep_dict = json.load(f_r)
+	except Exception as e:
+		pass
+	with open(os.path.join(website_folder, 'groundTruth.json'), 'w') as f_w:
+		grep_dict[website_url] = matching_strs
+		json.dump(f_w)		
+	return True
+

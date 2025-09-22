@@ -75,7 +75,6 @@ def save_website_is_down(domain):
 	with open(filename, "w+") as fd:
 		fd.write(domain)
 
-
 def create_start_crawl_url(url):
     condition = 'soak'
     query = {'target': url, 'type': condition}
@@ -360,9 +359,14 @@ def main():
 							else:
 								vuln = vuln_db.package_vuln_search(lib)
 							if vuln:
-								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")								
+
+							# build up ground truth for future inspection
+							for poc_str in vuln:
+								cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
+
 							# There might be more than one vulnerabilities exist for the current library
-							for matching_vuln in (vuln or []):
+							for matching_vuln in (vuln or []):								
 								# static analysis
 								if config['cve_vuln']["passes"]["static"]:
 									LOGGER.info("static analysis for site %s."%(website_url))

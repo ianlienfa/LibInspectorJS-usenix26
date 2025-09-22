@@ -37,7 +37,6 @@ import jsbeautifier
 import itertools
 import difflib
 import json
-from enum import StrEnum, auto
 
 
 import constants as constantsModule
@@ -69,7 +68,6 @@ DEBUG = False
 # detect what parts of the xhr data are tainted from which parts of the program
 # detection through forward or backward type propagation and program slicing.
 MAIN_QUERY_ACTIVE = True
-
 
 # ----------------------------------------------------------------------- #
 #				Utility Functions
@@ -1119,23 +1117,6 @@ def getSinkExpression(tx, vuln_info):
 		return None	
 	
 
-	# Reserved words for POC parsing
-	POC_PRESERVED = ['WILDCARD', 'LIBOBJ', 'PAYLOAD']
-
-	class PreservedKeys(StrEnum):
-		"""
-			@description This class is used for blacklisting tracking element instead of the real constructs
-			@description 	that would account for the poc tag content matching
-		"""	
-		# make auto() produce lowercase values
-		def _generate_next_value_(name, start, count, last_values):
-			return name.lower()
-		FULFILLED = auto()   # value -> "fulfilled"	
-		ROOT = auto()	
-		LEVEL = auto()
-		NEXT = auto()
-
-
 	def tagInit(poc, pocKey, pocElement, specification = None):
 		"""
 			@description Other than initializing the key elements for a construct, a "fulfilled" tag is added
@@ -1197,7 +1178,7 @@ def getSinkExpression(tx, vuln_info):
 		constructVal = str(construct[key])
 		nodeVal = str(node[mapping[key]])
 		print(f"key: {key}, constructVal: {constructVal}, nodeVal, {nodeVal}")
-		if constructVal not in POC_PRESERVED:			
+		if constructVal not in constantsModule.POC_PRESERVED:			
 			# print(type(nodeVal), type(constructVal))
 			# print(f"{nodeVal} == {constructVal}: {nodeVal == constructVal}")
 			return nodeVal == constructVal
@@ -1353,9 +1334,9 @@ def getSinkExpression(tx, vuln_info):
 			# tagInit 
 			props = tagInit(poc, constructKey, construct)
 		else:
-			if props[PreservedKeys.FULFILLED] == True:
+			if props[constantsModule.PreservedKeys.FULFILLED] == True:
 				return True
-			if props[PreservedKeys.FULFILLED] == False:
+			if props[constantsModule.PreservedKeys.FULFILLED] == False:
 				print(f"Visited, no match")
 				return False
 
@@ -1363,7 +1344,7 @@ def getSinkExpression(tx, vuln_info):
 		try:
 			for key, prop in props.items():
 				# root mark is solely for marking, not considered a part of content
-				if key in PreservedKeys:
+				if key in constantsModule.PreservedKeys:
 					continue
 
 				# prop = False: non-explorable prop (ex: str), None: explorable prop, True: fulfilled
@@ -1413,13 +1394,13 @@ def getSinkExpression(tx, vuln_info):
 		except EarlyHaltException:
 			# tag fulfill to false
 			print(f"No match, early halted at {node}, {constructKey}")
-			props[PreservedKeys.FULFILLED] = False
+			props[constantsModule.PreservedKeys.FULFILLED] = False
 			pocTagging(node, constructKey, props)
 			return False
 		
-		props[PreservedKeys.FULFILLED] = True
-		if PreservedKeys.ROOT in props:
-			props[PreservedKeys.ROOT] = True
+		props[constantsModule.PreservedKeys.FULFILLED] = True
+		if constantsModule.PreservedKeys.ROOT in props:
+			props[constantsModule.PreservedKeys.ROOT] = True
 		pocTagging(node, constructKey, props)
 		# assertion: invariant, node matching should always be able to determine True or False once returned
 		if not property_invariance_check(props):
@@ -1473,8 +1454,8 @@ def getSinkExpression(tx, vuln_info):
 						code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
 						# for leave nodes, code matching is required						
 						if code and libObjScope:								
-							# matching for POC_PRESERVED node will be done in the parent node in nodeMatching()
-							if code in POC_PRESERVED:
+							# matching for constantsModule.POC_PRESERVED node will be done in the parent node in nodeMatching()
+							if code in constantsModule.POC_PRESERVED:
 								continue 
 							else:
 								matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
@@ -1780,13 +1761,11 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 			with open(vuln_info_pathname, 'x') as vuln_info_file:
 				json.dump({}, vuln_info_file)
 		except FileExistsError:
-		# Your error handling goes here
-			breakpoint()		
+		# Your error handling goes here			
 			with open(vuln_info_pathname, 'r+') as vuln_fd:
 				vuln = json.load(vuln_fd)
 				vuln[navigation_url] = vuln_info
-				json.dump(vuln, vuln_fd)	
-		breakpoint()		
+				json.dump(vuln, vuln_fd)			
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "w+") as fd:
 				timestamp = _get_current_timestamp()
