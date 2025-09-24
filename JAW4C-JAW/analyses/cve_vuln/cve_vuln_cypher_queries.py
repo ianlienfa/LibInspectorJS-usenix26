@@ -1074,10 +1074,11 @@ def getObjectMatch(tx, objCode):
 	if len(components):
 		query = """
 			MATCH		
-			(ident0 {Type: 'Identifier', Value: '%s'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode {Type: 'MemberExpression'})
+			(ident0 {Type: 'Identifier', Code: '%s'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode {Type: 'MemberExpression'})
 			// get the callee id too		
 			RETURN memExprNode
 		"""%(components[0])
+		print("[getObjectMatch]: %s"%(query))
 		results = tx.run(query)
 		for record in results:
 			memExprNode = record['memExprNode']
@@ -1268,11 +1269,12 @@ def getSinkExpression(tx, vuln_info):
 	
 	def getCodeMatchInScope(tx, code, scope):
 		query = """
-			MATCH (node)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id:'%s'})
+			MATCH (node)<-[:AST_parentOf*]-(scope {Id:'%s'})
 			WHERE node.Code = '%s' OR node.Value = '%s'
 			RETURN DISTINCT(node)
 		"""%(scope['Id'], code, code)
 		print(f"getCodeMatchInScope query: {query}")
+		breakpoint()
 		res = []
 		results = tx.run(query)			
 		res = [record['node'] for record in results]
@@ -1491,7 +1493,8 @@ def getSinkExpression(tx, vuln_info):
 						for constuctKey in level_nodes:
 							curr_construct = poc['constructs'][constuctKey]
 							code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
-							# for leave nodes, code matching is required						
+							# for leave nodes, code matching is required	
+							print(f"code: {code}, curr_construct: {curr_construct}")						
 							if code and libObjScope:								
 								# matching for constantsModule.POC_PRESERVED node will be done in the parent node in nodeMatching()
 								if code in constantsModule.POC_PRESERVED:

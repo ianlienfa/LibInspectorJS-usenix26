@@ -688,7 +688,7 @@ def getInitialDeclaration(tx, node, cache = {}):
 	LIMIT 1
 	RETURN declarationNode, initialDeclarationIdentifierNode
 	"""%(top_most_expr['Id'], node['Code'], top_most_expr['Id'], node['Code'], top_most_expr['Id'], node['Code'], node['Code'], top_most_expr['Id'])
-	# print("query", query)
+	print("query", query)
 	results = tx.run(query)	
 	
 	ans = []

@@ -59,48 +59,7 @@ function createStartCrawlUrl(url) {
 
 const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, dataDir = "") => {
   let result = {}
-  // prefetch js files from the site
-  if(do_lift){
-    if(crawlJs){        
-        overrideMapping = await crawl.crawlJsFiles(url, PTVPuppeteerLaunchConfig);
-    }
-    else{
-        try {
-          console.log('override bf: ', url)
-          overrideMappingPath = path.join(__dirname,  '/site-js/', urlToDirectoryName(url), 'override-mapping.json');
-          LOGGER(`loading override mapping for the site: ${overrideMappingPath}`);
-          overrideMapping = JSON.parse(fs.readFileSync(overrideMappingPath));
-        } catch (error) {
-          LOGGER(`No override mapping found for the site: ${url}, still crawling js files`);
-          overrideMapping = await crawl.crawlJsFiles(url, PTVPuppeteerLaunchConfig);
-        }
-    }
-
-    // lift the js files
-    lift_mapping = []
-    for (const [_, filePath] of Object.entries(overrideMapping)) {
-      // LOGGER(`filepath ${filePath}`);
-      try{
-        // LOGGER(`lifting ${filePath}`);
-        code = fs.readFileSync(filePath);
-        if(code){
-          lifted = await lift(code);  
-          if(lifted !== ""){
-            fs.writeFileSync(filePath, lifted);
-            lift_mapping.push(filePath.split('/').at(-1))
-            // LOGGER(`lifted code written back to ${filePath}`);
-          } // else leave it as is          
-        }
-      }
-      catch(e){
-        logger.error('Error lifting js files: ', e);
-      }
-    }    
-  }
-
-  // check lift directory existence
-  const liftedPath = path.join(dataDir, 'lifted');
-  const liftDirectory = fs.existsSync(liftedPath) ? liftedPath : "";  
+    
 
   // visit a page
   try {
@@ -118,22 +77,25 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
     })      
 
     // page.on('console', msg => {
-    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));      
+    //   LOGGER('PAGE LOG:' + msg.text());      
     // });    
+    /*
+    LOG:Failed to load resource: the server responded with a status of 404 ()
+    -> This is probably due to the bug in PTV where there's sometime CORS limit to chrome://extension files
+    */
 
-    if(do_lift || liftDirectory !== ""){
+    if(fs.existsSync(dataDir)){
       await page.setRequestInterception(true);  
-      if(liftDirectory !== ""){
-        const overrideMappingPath = path.join(dataDir, 'override_mapping.json')
-        overrideMapping = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'))
-      }
+      const overrideMappingPath = path.join(dataDir, 'override_mapping.json')
+      overrideMapping = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'))
+    
 
-      // intercept request for file override
+      // intercept request for file override: override all files from local directory to mitigate the effect of lazy loading
       page.on('request', interceptedRequest => {   
         if(typeof overrideMapping !== "undefined"){
-          if (interceptedRequest.url() in overrideMapping && overrideMapping[interceptedRequest.url()].startsWith(liftDirectory)) {
-            // logger.log('info', 'intercepting %s', interceptedRequest.url());
-            // logger.log('info', 'overriding file at %s', overrideMapping[interceptedRequest.url()]);
+          logger.log('info', 'intercepting %s', interceptedRequest.url());
+          if (interceptedRequest.url() in overrideMapping) {
+            logger.log('info', 'overriding file at %s', overrideMapping[interceptedRequest.url()]);
             const response = {              
                 status: 200,
                 contentType: 'application/javascript',
@@ -142,7 +104,7 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
             interceptedRequest.respond(response);
         } else {
               interceptedRequest.continue();
-              // logger.log('info', 'not a overridden file, skipping...');
+              logger.log('info', 'not a overridden file, skipping...');
           }
         }
       }
@@ -150,6 +112,7 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
     }
 
     await page.goto(url, {waitUntil: 'load'}); // temporary set for ground truth verification
+
 
     // add event listener to trap library detector response
     result["lift_arr_str"] = await page.evaluate(() => {
@@ -238,11 +201,11 @@ const PTVOriginal = async (url, PTVPuppeteerLaunchConfig, crawlJs=true) => {
       });
     })        
 
-    page.on('console', msg => {
-      LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
-    });
+    // page.on('console', msg => {
+    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
+    // });
 
-    await page.goto(url, {waitUntil: 'networkidle0'});
+    await page.goto(url, {waitUntil: 'load'});
 
     LOGGER("waiting for extension detection...")
     await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });

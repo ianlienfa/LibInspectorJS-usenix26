@@ -137,7 +137,7 @@ def build_hpg(container_name, webpage):
 	container_name = 'neo4j_container_' + graphid + webapp_folder_name
 
 	try:
-		logger.warning('HPG for: %s'%(webpage))
+		logger.info('HPG for: %s'%(webpage))
 
 		# de-compress the hpg 
 		IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
@@ -213,7 +213,9 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						if 'LIBOBJ' not in v['poc']:
 							continue
 						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
-						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)
+						logger.info("executing vuln: ", vuln_info)
+						breakpoint()
+						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)						
 						logger.info(f"analysis out: {out}")
 				except Exception as e:
 					traceback.print_exc()

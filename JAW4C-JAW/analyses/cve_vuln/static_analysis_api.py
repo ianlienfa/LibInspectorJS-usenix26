@@ -120,15 +120,15 @@ poc_str: a str that decribes poc
 def grep_matching_pattern(website_url: str, poc_str: str) -> bool:			
 	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)
 	website_folder = os.path.join(constantsModule.DATA_DIR, website_folder_name)
-
+	
 	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split('[,(){};."]', poc_str)))
 	try:
 		matching_strs = {}
 		for poc_pattern in patterns:
-			matching_strs[poc_pattern] = []  # Initialize as empty list
+			matching_strs[poc_str] = []  # Initialize as empty list
 			for f in Path(website_folder).rglob("*.js"):
 				matches = [f"{f}:{i}:{line.strip()}" for i, line in enumerate(open(f, 'r', encoding='utf-8'), 1) if poc_pattern in line]
-				matching_strs[poc_pattern].extend(matches)  # Append to list			
+				matching_strs[poc_str].extend(matches)  # Append to list			
 	except Exception as e:
 		LOGGER.error(f"Error during ground truth grep: {e}")
 		return False
@@ -141,6 +141,6 @@ def grep_matching_pattern(website_url: str, poc_str: str) -> bool:
 		pass
 	with open(os.path.join(website_folder, 'groundtruth.json'), 'w') as f_w:
 		grep_dict[website_url] = matching_strs
-		json.dump(grep_dict, f_w)		
+		json.dump(grep_dict, f_w, indent=4)		
 	return True
 

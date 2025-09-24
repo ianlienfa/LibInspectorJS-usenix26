@@ -465,12 +465,12 @@ def main():
 							# 		"version": str,
 							# 		"vuln": list
 							# 	}, ...
-							# ]
-							vuln_list = []
+							# ]							
 
 							# Iterate on the detected obj-lib mapping
+							vuln_list = []
 							for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-								for detection_info in matching_obj_lst:
+								for detection_info in matching_obj_lst:									
 									if detection_info['accurate']:								
 										version = detection_info['version'].split(', ')
 										vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
@@ -482,10 +482,10 @@ def main():
 										continue
 									else:
 										# setup vuln_list for further static analysis
-										LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")				
+										LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")														
 										
 										vuln_list.append({
-											"libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
+											"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
 										})
 										# setup ground truth for this particular site
 										for poc in vuln:
@@ -494,40 +494,42 @@ def main():
 												cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
 											except Exception as e:
 												print('poc formatting problem from database', poc)
-									
-									# Start static analysis, skip if no match on vulnerability
-									if not (config['cve_vuln']["passes"]["static"] and vuln_list):
-										continue
-									else:
-										database_name = 'neo4j'  
-										graphid = uuid.uuid4().hex
-										container_name = 'neo4j_container_' + graphid
-										LOGGER.info("static analysis for site %s."%(url))
-										cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-										LOGGER.info("successfully finished static analysis for site %s."%(url)) 
+
+							# Start static analysis, skip if no match on vulnerability
+							if not (config['cve_vuln']["passes"]["static"] and vuln_list):
+								continue
+							else:
+								vuln_list = list(vuln_list)
+								# breakpoint()
+								database_name = 'neo4j'  
+								graphid = uuid.uuid4().hex
+								container_name = 'neo4j_container_' + graphid
+								LOGGER.info("static analysis for site %s."%(url))
+								cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+								LOGGER.info("successfully finished static analysis for site %s."%(url)) 
+								try:
+									container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+									LOGGER.info("successfully built hpg for %s."%(url)) 
+								except Exception as e:
+									LOGGER.info("Error building hpg for %s."%(url), e) 
+									continue
+				
+								# query on vulnerabilities
+								if container_name:
+									for try_attempts in range(2):
 										try:
-											container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-											LOGGER.info("successfully built hpg for %s."%(url)) 
+											CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
+											break									
 										except Exception as e:
-											LOGGER.info("Error building hpg for %s."%(url), e) 
-											continue
-						
-										# query on vulnerabilities
-										if container_name:
-											for try_attempts in range(2):
-												try:
-													CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
-													break									
-												except Exception as e:
-													print(f"neo4j exception {e}, retrying ... ")
-													time.sleep(5)		
-												breakpoint()									
-											LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-						
-										# Cleanup
-										if not config['staticpass']['keep_docker_alive']:
-											dockerModule.stop_neo4j_container(container_name)
-											dockerModule.remove_neo4j_container(container_name)
+											print(f"neo4j exception {e}, retrying ... ")
+											time.sleep(5)		
+										breakpoint()									
+									LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
+				
+								# Cleanup
+								if not config['staticpass']['keep_docker_alive']:
+									dockerModule.stop_neo4j_container(container_name)
+									dockerModule.remove_neo4j_container(container_name)
 
 
 
