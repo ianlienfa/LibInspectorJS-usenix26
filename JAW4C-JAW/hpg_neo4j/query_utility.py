@@ -947,45 +947,34 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 			MATCH (node)<-[:AST_parentOf|CFG_parentOf*0..]-(scope {Id: '%s'}), (nodeB {Id: '%s'})
 			WHERE node.hash = nodeB.hash
 			AND node.Id <> nodeB.Id
-			RETURN node
+			RETURN distinct(node)
 		"""%(scope['Id'], node['Id'])
 		res = []
 		results = tx.run(query)			
 		res = [record['node'] for record in results]
 		return res
 
-	# def getTightestScopeOfNode(tx, node):		
-	# 	if node['Id'] in scopeCache:
-	# 		return scopeCache[node['Id']]
-	# 	if node['Type'] == 'Identifier':
-	# 		IdNodes = [node]
-	# 	else:
-	# 		IdNodes = getAllIdentifierNodes(tx, node)		
-	# 	def get_or_compute_scope(idnode):
-	# 		return scopeCache.setdefault(idnode['Id'], getScopeOf(tx, idnode))
-	# 	scopeNodes = [get_or_compute_scope(idnode) for idnode in IdNodes]
-	# 	scope = max(scopeNodes, key=lambda x: getRange(x)[0])  # find the tightest scope					
-	# 	return scope
 
 	def _rec(tx, node, scope = None):
 		if scope == None:
 			scope = getScopeOf(tx, node)
 		applyHashingOnScope(tx, scope)
 		matchingNodes = [node] + getNodesWithSameHashInScope(tx, node, scope)
-		matchingNodes = sorted(matchingNodes, key = lambda x: getRange(x)[0], reverse=True)
+		matchingNodes = sorted(matchingNodes, key = lambda x: getRange(x)[0], reverse=True)		
 
 		# the assertion: here all the matching nodes should have the right Code and ordered by its starting range from large to small	
-		# print("matchingNodes bf", matchingNodes)
+		print("matchingNodes bf", matchingNodes)
 
 		# Remove all matching nodes that might be polluted by assignments
 		for i in range(len(matchingNodes)):
-			mnode = matchingNodes[i]
+			mnode = matchingNodes[i]			
 			if isLeftAssignment(tx, mnode, scope) and mnode['Id'] != node['Id']:
-				matchingNodes = matchingNodes[i+1:]
+				print("mnode", mnode, "node", node)
+				matchingNodes = matchingNodes[:i]
 				break
 	
 		# the assertion: only the nodes before the first assignment if left
-		# print("matchingNodes after left assignment test", matchingNodes)
+		print("matchingNodes after left assignment test", matchingNodes)
 				
 		new_res = []
 		print(f"hash matchingNodes for {[node['Id'], node['Code'] if node['Code'] else node['Value']]}:", [[n['Id'], node['Code'] if node['Code'] else node['Value']] for n in matchingNodes])

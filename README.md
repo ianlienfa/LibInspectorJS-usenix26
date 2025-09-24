@@ -76,8 +76,7 @@ port=543
 ```
 
 # Verification step
-CodeQL is used for collecting ground truth for this project, install CodeQL into JAW-4C/verification folder
-- https://docs.github.com/en/code-security/codeql-cli/using-the-advanced-functionality-of-the-codeql-cli/advanced-setup-of-the-codeql-cli
+The ground truth collection is saved in groundtruth.json in each webpage's folder
 
 # Commonly seen problems
 - 'Failed to launch the browser process!': remember to source env.sh
@@ -97,5 +96,7 @@ CodeQL is used for collecting ground truth for this project, install CodeQL into
     - add current user to group 7474 (the group number that is used to create docker database)
     - if there's no group 7474, create one
     ```
+- neo4j connection problem
+    - could be previous container didn't stop gracefully and therefore some lock is helded by the operating system, the proper way to fix this is to remove the /var/lib/neo4j/data/databases/store_lock (now implemented into create_container)
 
     ```

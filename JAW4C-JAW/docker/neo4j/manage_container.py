@@ -42,8 +42,10 @@ PROCESS_USER_ID = os.getuid()
 PROCESS_GROUP_ID = os.getgid()
 
 
-def create_neo4j_container(container_name, volume_home=VOLUME_HOME):
-
+def create_neo4j_container(container_name, weburl_suffix, volume_home=VOLUME_HOME):
+	"""
+	data_home: should be the path to the current url directory we're working on
+	"""
 	if not os.path.exists(volume_home):
 		os.makedirs(volume_home)
 	container_data_path = os.path.join(volume_home, container_name, 'neo4j')
@@ -69,7 +71,7 @@ def create_neo4j_container(container_name, volume_home=VOLUME_HOME):
     -d \
     -v {1}/{0}/neo4j/data:/data \
     -v {1}/{0}/neo4j/logs:/logs \
-    -v {4}:/var/lib/neo4j/import \
+    -v {4}/{7}:/var/lib/neo4j/import/{7} \
     -v {1}/{0}/neo4j/plugins:/plugins \
 	-v {1}/{0}/neo4j/conf:/conf \
     -u neo4j:neo4j \
@@ -81,11 +83,15 @@ def create_neo4j_container(container_name, volume_home=VOLUME_HOME):
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     arm64v8/neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT)
+	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, weburl_suffix)
 	# Note: pass the analyzer outputs folder as the import directory of neo4j
 
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('Docker container %s is starting.'%str(container_name))
+
+	command	= "docker exec %s 'rm -f /var/lib/neo4j/data/databases/store_lock'"%(container_name)
+	utilityModule.run_os_command(command, print_stdout=False)
+	logger.info('%s: Docker container removing lock.'%str(container_name))
 
 
 def remove_neo4j_database(database_name, container_name, all=False):
@@ -100,9 +106,13 @@ def start_neo4j_container(container_name):
 	logger.info('Docker container %s is starting.'%str(container_name))
 
 
-def stop_neo4j_container(container_name):
-	logger.warning('Cleaning up docker container %s.'%str(container_name))
-	command = "docker exec %s bash -c 'rm -rf /data/* /logs/* /plugins/* /conf/*'"%(container_name)
+def stop_neo4j_container(container_name, cleanup=True):
+	if cleanup:
+		logger.warning('Cleaning up docker container %s.'%str(container_name))
+		command = "docker exec %s bash -c 'rm -rf /data/* /logs/* /plugins/* /conf/*'"%(container_name)
+		utilityModule.run_os_command(command, print_stdout=True)
+	command = "docker exec %s bash -c 'neo4j stop'"%(container_name)
+	logger.warning('Gently stopping neo4j %s.'%str(container_name))
 	utilityModule.run_os_command(command, print_stdout=True)
 	command = "docker stop %s"%str(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)

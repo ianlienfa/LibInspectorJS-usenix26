@@ -2,7 +2,7 @@
 import os
 import psycopg2
 import psycopg2.extras
-
+import json
 
 class PostgresDB:
     """
@@ -74,15 +74,101 @@ class PostgresDB:
             self._conn.close()
             self._conn = None
 
-    def package_vuln_search(self, package_name, version=None):
-        all = self.query(
-            "SELECT * FROM public.vulns WHERE package_name = %s LIMIT 1;",
-            params=(package_name,),
-            fetch="all"
-        )
-        res = [dict(i) for i in all]
-        # print("package_vuln_search on ", package_name, "res: ", res, all)  
-        return res if all else None
+    ## Deprecated
+    # def package_vuln_search(self, package_name, version=None):
+    #     all = self.query(
+    #         "SELECT * FROM public.vulns WHERE package_name = %s LIMIT 1;",
+    #         params=(package_name,),
+    #         fetch="all"
+    #     )
+    #     res = [dict(i) for i in all]
+    #     print("package_vuln_search on ", package_name, "res: ", res, all)  
+    #     return res if all else None
+
+    """
+    version can be a list of versions ["3.1", "3.1 ~ 3.4"]
+    return: None if nothing found, else an list of vulnerability objects
+    [{}, ... , {'poc': 'LIBOBJ(WILDCARD).html(PAYLOAD)', 'gadget': 'false', 'payload': "<option><style></style><script>alert('XSS')</script></option>", 'exported': 'true', 'sink_type': 'javascript', 'payload_type': 'string', 'additional_info': {}, 'confidence_score': '0.8', 'vulnerability_type': 'xss'}, {'poc': 'LIBOBJ(WILDCARD).html(PAYLOAD)', 'gadget': 'false', 'payload': "<options>alert('XSS')</options>", 'exported': 'true', 'sink_type': 'javascript', 'payload_type': 'string', 'additional_info': {}, 'confidence_score': '0.8', 'vulnerability_type': 'xss'}, {'poc': 'LIBOBJ(WILDCARD).html(PAYLOAD)', 'gadget': False, 'payload': '<img src=x onerror=alert(1)>', 'exported': True, 'sink_type': 'javascript', 'payload_type': 'string', 'additional_info': {}, 'confidence_score': 0.8, 'vulnerability_type': 'xss'}]
+    """
+    def package_vuln_search(self, package_name: str, version: list | None = None):
+        if version and (not isinstance(version, list)):        
+            raise RuntimeError("Error during package_vuln_search, wrong version input, should be list", version)                
+        res = []
+        if version:            
+            for v in version:
+                try:
+                    st_end = list(map(str.strip, v.split('~')))
+                except Exception as e:
+                    raise RuntimeError("Error during package_vuln_search, wrong version input, improper format in version", v)                
+                if len(st_end) == 1:
+                    st, end = st_end[0], st_end[0]
+                elif len(st_end) == 2:
+                    st, end = st_end[0], st_end[1]
+                else:
+                    raise RuntimeError("Error during package_vuln_search, wrong version input, improper format in version", v)
+                query_str = """
+                WITH input AS (
+                SELECT %s::text AS name, %s::text AS version_st, %s::text AS version_end
+                )
+                SELECT v.doc #>> '{database_specific,exploit,data}' AS exploit_data
+                FROM public.advisories_exploits v
+                JOIN input i ON TRUE
+                WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(v.doc #> '{affected}') aff
+                WHERE aff #>> '{package,ecosystem}' = 'npm'
+                    AND aff #>> '{package,name}' = i.name
+                    AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(aff #> '{ranges}') rng,
+                        LATERAL jsonb_array_elements(rng #> '{events}') ev_intro,
+                        LATERAL jsonb_array_elements(rng #> '{events}') ev_fix
+                    WHERE ev_intro ? 'introduced'
+                        AND ev_fix ? 'fixed'
+                        AND i.version_st >= ev_intro->>'introduced'
+                        AND i.version_end <  ev_fix->>'fixed'
+                    )
+                );
+                """            
+                all = self.query(
+                    query_str,
+                    params=(package_name, st, end),
+                    fetch="all"
+                )
+                try:
+                    if all:
+                        all = [ json.loads(i[0])[0] for i in all ]
+                        res += all                      
+                except Exception as e:
+                    breakpoint()
+                    raise RuntimeError('error parsing database output', all)
+        else:
+            query_str = """
+                WITH input AS (
+                SELECT %s::text AS name
+                )
+                SELECT v.doc #>> '{database_specific,exploit,data}' AS exploit_data
+                FROM public.advisories_exploits v
+                JOIN input i ON TRUE
+                WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(v.doc #> '{affected}') aff
+                WHERE aff #>> '{package,ecosystem}' = 'npm'
+                    AND aff #>> '{package,name}' = i.name
+                );
+            """
+            all = self.query(
+                query_str,
+                params=(package_name,),
+                fetch="all"
+            )
+            try:
+                if all:
+                    res = dict(all)[0]['exploit_data']
+            except Exception as e:
+                raise RuntimeError('error parsing database output', all)
+        print("package_vuln_search on ", package_name, "res: ", res)  
+        return res if res else None
 
 
 # ----- Example usage -----

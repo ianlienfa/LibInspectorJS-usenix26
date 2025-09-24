@@ -1130,9 +1130,9 @@ def getSinkExpression(tx, vuln_info):
 		"""	
 
 		# initialize tag with False for literal items, 
-		tag = {str(PreservedKeys.FULFILLED): None}
+		tag = {str(constantsModule.PreservedKeys.FULFILLED): None}
 		for key, val in pocElement.items():
-			if key not in PreservedKeys or key == 'root':
+			if key not in constantsModule.PreservedKeys or key == 'root':
 				if isinstance(val, list):
 					tag[key] = [False if v not in poc['constructs'] else None for v in val]
 				else:
@@ -1165,6 +1165,7 @@ def getSinkExpression(tx, vuln_info):
 		# breakpoint()
 		identicalObjs, scope = neo4jQueryUtilityModule.getIdenticalObjectInScope(tx, node)
 		# print("identicalObjs of ", getCodeOf(tx, node), [[obj['Id'], obj['Location'], obj['Code']] for obj in identicalObjs])
+		# breakpoint()
 		for matchingNode in identicalObjs: # including itself
 			ret = unitPocTagging(matchingNode, constructKey, tag)
 			print('ret', ret)
@@ -1341,6 +1342,9 @@ def getSinkExpression(tx, vuln_info):
 				return False
 
 		# not visited before
+		# if 'root' in props:
+		# 	print("root found")
+		# 	breakpoint()
 		try:
 			for key, prop in props.items():
 				# root mark is solely for marking, not considered a part of content
@@ -1380,6 +1384,8 @@ def getSinkExpression(tx, vuln_info):
 							else:
 								props[i][key] = True
 						elif p is None:
+							# if 'root' in props and key == 'arguments':
+							# 	breakpoint()
 							if key == "arguments":
 								relationShipNode = getArgumentNode(tx, node, i)
 								match = nodeMatching(poc, construct[key][i], relationShipNode)						
@@ -1408,98 +1414,104 @@ def getSinkExpression(tx, vuln_info):
 				
 		return True
 
+	try:
+		# poc flattened tree generation
+		if 'LIBOBJ' not in vuln_info['poc_str']:
+			raise RuntimeError("poc_str format error")
+		pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['module_id'] + ')')]
+		print("pocStrArr", pocStrArr)
+		json_arg = json.dumps(pocStrArr)
+		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,  # optional: capture error output too
+			text=True  # returns output as string, not bytes
+		).stdout
+		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
+		flatPoc = json.loads(pocFlattenedJsonStr)
+		vuln_info['pocFlattened'] = flatPoc
+		print("pocFlattened", flatPoc)
 
-	# poc flattened tree generation
-	pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['module_id'] + ')')]
-	print("pocStrArr", pocStrArr)
-	json_arg = json.dumps(pocStrArr)
-	pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
-		stdout=subprocess.PIPE,
-    	stderr=subprocess.PIPE,  # optional: capture error output too
-    	text=True  # returns output as string, not bytes
-	).stdout
-	print('pocFlattenedJsonStr', pocFlattenedJsonStr)
-	flatPoc = json.loads(pocFlattenedJsonStr)
-	vuln_info['pocFlattened'] = flatPoc
-	print("pocFlattened", flatPoc)
+		# see if the callee sats the 
+		argIdCode = vuln_info['module_id']	
+		# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
+		res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
+		print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
+		# filter out those matches that are not library Objects
+		libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
+		print("libObjectList", libObjectList)
+		vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
 
-	# see if the callee sats the 
-	argIdCode = vuln_info['module_id']	
-	# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
-	res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
-	print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
-	# filter out those matches that are not library Objects
-	libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
-	print("libObjectList", libObjectList)
-	vuln_info['libObjectList'] = libObjectList
+		libObjScope = None
+		root = []
+		# match all provided poc and potential libobjs
+		for poc in flatPoc:
+			# operate on all libobj scope marked
+			for pair in libObjectList:
+				libObj = pair[0] # libObj node
+				libIdentNode = pair[1] # libObj node
+				libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
+				libkeys = set(poc['libkeys'])
 
-	libObjScope = None
-	root = []
-	# match all provided poc and potential libobjs
-	for poc in flatPoc:
-		# operate on all libobj scope marked
-		for pair in libObjectList:
-			libObj = pair[0] # libObj node
-			libIdentNode = pair[1] # libObj node
-			libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
-			libkeys = set(poc['libkeys'])
-
-			# From this scope, follow the search order
-			# if the current key is also in libkeys, apply the tag on the libIdentNode
-			# else just do the code search in scope as usual
-			try:
-				for lv, level_nodes in enumerate(poc['search_order']):
-					for constuctKey in level_nodes:
-						curr_construct = poc['constructs'][constuctKey]
-						code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
-						# for leave nodes, code matching is required						
-						if code and libObjScope:								
-							# matching for constantsModule.POC_PRESERVED node will be done in the parent node in nodeMatching()
-							if code in constantsModule.POC_PRESERVED:
-								continue 
+				# From this scope, follow the search order
+				# if the current key is also in libkeys, apply the tag on the libIdentNode
+				# else just do the code search in scope as usual
+				try:
+					for lv, level_nodes in enumerate(poc['search_order']):
+						for constuctKey in level_nodes:
+							curr_construct = poc['constructs'][constuctKey]
+							code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
+							# for leave nodes, code matching is required						
+							if code and libObjScope:								
+								# matching for constantsModule.POC_PRESERVED node will be done in the parent node in nodeMatching()
+								if code in constantsModule.POC_PRESERVED:
+									continue 
+								else:
+									matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
+									print(f"codeMatchingNodes of {code}: {matching_nodes}")
+							elif not code: # (not leaf nodes)
+								# should do cypher query on the specific ids
+								matching_nodes = getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc['constructs'])
+								print(f"potential matchingNodes for {curr_construct}: {matching_nodes}")
 							else:
-								matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
-								print(f"codeMatchingNodes of {code}: {matching_nodes}")
-						elif not code: # (not leaf nodes)
-							# should do cypher query on the specific ids
-							matching_nodes = getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc['constructs'])
-							print(f"potential matchingNodes for {curr_construct}: {matching_nodes}")
-						else:
-							print(f"conditions not implemented, halting: ", curr_construct)
-							raise RuntimeError(f"conditions not implemented, halting: {curr_construct}")
-						matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
-						if not any(matching_res):
-							print('matching_res', matching_res, 'matching_nodes', matching_nodes)
-							raise EarlyHaltException({"curr_construct": curr_construct})
-			except EarlyHaltException as e:
-				print(f"Early halt due to none matching for construct", e)
-				print("poc['constructs']", poc['constructs'])
+								print(f"conditions not implemented, halting: ", curr_construct)
+								raise RuntimeError(f"conditions not implemented, halting: {curr_construct}")
+							matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
+							if not any(matching_res):
+								print('matching_res', matching_res, 'matching_nodes', matching_nodes)
+								raise EarlyHaltException({"curr_construct": curr_construct})
+				except EarlyHaltException as e:
+					print(f"Early halt due to none matching for construct", e)
+					print("poc['constructs']", poc['constructs'])
 
 
-			# root query: query if the special id of root exists
-			root = getNodeFromTagName(tx, poc['root'])
-			vuln_info['root'] = repr(root)
+				# root query: query if the special id of root exists
+				root = getNodeFromTagName(tx, poc['root'])
+				vuln_info['root'] = repr(root)
 
-	if libObjScope:						
-		debug_query = """
-			MATCH p = (node)<-[:AST_parentOf*]-(libobjScope {Id:'%s'})
-			RETURN p
-		"""%(libObjScope['Id'])
-		vuln_info['debug_query'] = debug_query
-		print("debug query", debug_query)
-		print("root", root)
-	print('pocFlattenedJsonStr', pocFlattenedJsonStr)
-	if root:
-		print('root here')		
-		argNodes = getNodeFromTagName(tx, poc['payloads'][0]) # temporary testing purpose, not accounting for multiple situations
-		print("argNodes", argNodes)
-		argNode = argNodes[0]  # temporary testing purpose, not accounting for multiple situations
-		res.append({
-			"t": get_ast_topmost(tx, argNode),
-			"n": get_ast_parent(tx, argNode),
-			"a": argNode
-		})
-		print("res", [[getCodeOf(tx, n)] for n in res[0].values()])
+		if libObjScope:						
+			debug_query = """
+				MATCH p = (node)<-[:AST_parentOf*]-(libobjScope {Id:'%s'})
+				RETURN p
+			"""%(libObjScope['Id'])
+			vuln_info['debug_query'] = debug_query
+			print("debug query", debug_query)
+			print("root", root)
+		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
+		if root:
+			print('root here')		
+			argNodes = getNodeFromTagName(tx, poc['payloads'][0]) # temporary testing purpose, not accounting for multiple situations
+			print("argNodes", argNodes)
+			for argNode in argNodes:
+				res.append({
+					"t": get_ast_topmost(tx, argNode),
+					"n": get_ast_parent(tx, argNode),
+					"a": argNode
+				})
+			print("res", [[getCodeOf(tx, n)] for n in res[0].values()])
+	except Exception as e:
+		print(f"Exception threw at getSinkExpression", e)
+		raise e
+	
 	return res	
 
 
@@ -1757,15 +1769,9 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		template_output_pathname = os.path.join(webpage_directory, "sink.flows.out")
 		vuln_info_pathname = os.path.join(webpage_directory, "vuln.out")
 				
-		try:
-			with open(vuln_info_pathname, 'x') as vuln_info_file:
-				json.dump({}, vuln_info_file)
-		except FileExistsError:
-		# Your error handling goes here			
-			with open(vuln_info_pathname, 'r+') as vuln_fd:
-				vuln = json.load(vuln_fd)
-				vuln[navigation_url] = vuln_info
-				json.dump(vuln, vuln_fd)			
+		with open(vuln_info_pathname, 'a') as vuln_fd:
+			json.dump({navigation_url: vuln_info}, vuln_fd)
+			vuln_fd.write('\n')			
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "w+") as fd:
 				timestamp = _get_current_timestamp()

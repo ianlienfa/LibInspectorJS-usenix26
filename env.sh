@@ -11,7 +11,7 @@ cleanup_services() {
     
     # Stop docker compose in vuln_db directory
     echo "Stopping vuln_db services..."
-    (cd "./JAW4C-JAW/vuln_db/" && docker compose down)
+    (cd "./vuln_db_llm/" && docker compose down)
     
     # Kill JAW4C-related tmux sessions
     echo "Killing JAW4C tmux sessions..."
@@ -84,7 +84,7 @@ echo "Starting JAW4C services..."
 
 # Create tmux session for vuln_db
 echo "Creating tmux session for vuln_db..."
-VULN_DB_SESSION=$(tmux new-session -d -c "./JAW4C-JAW/vuln_db/" "docker compose up --build" \; display-message -p "#{session_id}")
+VULN_DB_SESSION=$(tmux new-session -d -c "./vuln_db_llm/" "docker compose up --build" \; display-message -p "#{session_id}")
 echo "Vuln DB session ID: $VULN_DB_SESSION"
 
 # Create tmux session for WebArchive

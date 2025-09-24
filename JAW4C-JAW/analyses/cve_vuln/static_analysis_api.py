@@ -32,6 +32,7 @@ import utils.io as IOModule
 import constants as constantsModule
 import utils.utility as utilityModule
 from utils.logging import logger as LOGGER
+from pathlib import Path
 
 
 
@@ -80,7 +81,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 			webpage_folder = os.path.join(website_folder, webpage)
 			if os.path.exists(webpage_folder):
 				
-				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER',  "'" + webpage_folder + "'")
+				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER',  "'" + webpage_folder + "'")				
 				IOModule.run_os_command(node_command, cwd=cve_vuln_analyses_command_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
 
 
@@ -110,29 +111,36 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 	else:
 		message = 'no webpages.json or urls.out file exists in the webapp directory; skipping analysis...'
 		LOGGER.warning(message)
-	
+		
 
-def grep_matching_pattern(website_url, poc_str):							
+
+"""
+poc_str: a str that decribes poc
+"""
+def grep_matching_pattern(website_url: str, poc_str: str) -> bool:			
 	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)
 	website_folder = os.path.join(constantsModule.DATA_DIR, website_folder_name)
+
 	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split('[,(){};."]', poc_str)))
 	try:
-		matching_strs = {
-			# grep all the strings into a list that matches any of the poc identifier pattern
-			poc_pattern: filter(lambda x: x, ((IOModule.run_os_command(f"grep -R '{poc_pattern}' {website_folder}/*.js", timeout=5)) or "").split('\n')) 
-				for poc_pattern in patterns
-		}
+		matching_strs = {}
+		for poc_pattern in patterns:
+			matching_strs[poc_pattern] = []  # Initialize as empty list
+			for f in Path(website_folder).rglob("*.js"):
+				matches = [f"{f}:{i}:{line.strip()}" for i, line in enumerate(open(f, 'r', encoding='utf-8'), 1) if poc_pattern in line]
+				matching_strs[poc_pattern].extend(matches)  # Append to list			
 	except Exception as e:
 		LOGGER.error(f"Error during ground truth grep: {e}")
 		return False
 	grep_dict = {}
 	try:
-		with open(website_folder, 'r') as f_r:
+		with open(os.path.join(website_folder, 'urls.hashes.out'), 'r') as f_r:
 			grep_dict = json.load(f_r)
+			website_folder = os.path.join(website_folder, grep_dict[website_url])
 	except Exception as e:
 		pass
-	with open(os.path.join(website_folder, 'groundTruth.json'), 'w') as f_w:
+	with open(os.path.join(website_folder, 'groundtruth.json'), 'w') as f_w:
 		grep_dict[website_url] = matching_strs
-		json.dump(f_w)		
+		json.dump(grep_dict, f_w)		
 	return True
 

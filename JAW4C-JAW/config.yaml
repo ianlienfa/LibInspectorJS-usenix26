@@ -1,11 +1,11 @@
 # 1. which webapps to test?
 testbed: 
   ## option 1: test a specifc website
-  # site: http://localhost:3001
+  site: http://localhost:3001
   ## option 2: provide a top-site list (e.g., Alexa, Tranco, etc)
   # sitelist: /input/tranco_Z2QWG_unique.csv
   archive: 
-    enable: true
+    enable: false
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
   from_row: 3
   to_row: 3 # row number or 'end'
@@ -49,9 +49,9 @@ crawler:
 vuln_db:
   connect: true 
   host: localhost
-  port: 5431
-  dbname: vulndb
-  user: vulndb
+  port: 5430
+  dbname: vulndb_annotated
+  user: vulndb_annotated
   password: vulndb_pwd
 
 # 3. static analysis configuration

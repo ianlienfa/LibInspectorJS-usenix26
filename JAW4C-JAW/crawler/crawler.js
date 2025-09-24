@@ -208,8 +208,10 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 		}
 
 		const liftedFolder = pathModule.join(webpageFolder, "lifted")
+		const originalFolder = pathModule.join(webpageFolder, "original")
 		if(lift_enabled && !fs.existsSync(liftedFolder)){
 			fs.mkdirSync(liftedFolder);
+			fs.mkdirSync(originalFolder);
 		}
 
 		// store url in url.out in the webpage-specific directory
@@ -219,20 +221,26 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 		COLLECT_DOM_SNAPSHOT && fs.writeFileSync(pathModule.join(webpageFolder, "index.html"), '' + html);		
 
 		if(COLLECT_SCRIPTS){
+			console.log(`[savePageData]: scripts: ${scripts}`)
 			scripts.forEach((s, i)=> {
 				const pathToWrite = pathModule.join(webpageFolder, `${i}.js`)
-				fs.writeFileSync(pathToWrite, '' + s.source);
+				writeContent = s.source
 				if(s.url && s.url.endsWith('.js')){
 					override_mapping[s.url] = pathToWrite
 					if(s.source){
 						let lifted = lift(s.source);  
 						if(lifted !== ""){
 							const liftedpathToWrite = pathModule.join(liftedFolder, `${i}.js`)
-							fs.writeFileSync(liftedpathToWrite, lifted);
+							const originalpathToWrite =  pathModule.join(originalFolder, `${i}.js`)							
+							fs.writeFileSync(liftedpathToWrite, lifted)
+							fs.writeFileSync(originalpathToWrite, '' + s.source)
+							// overwrite original file right under the webpage folder to be the lifted version for hpg generation
+							writeContent = lifted 
 							override_mapping[s.url] = liftedpathToWrite
 						}
 					}
 				}
+				fs.writeFileSync(pathToWrite, '' + writeContent);
 			});
 		}
 
