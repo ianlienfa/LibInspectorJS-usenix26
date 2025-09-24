@@ -405,7 +405,6 @@ def main():
 									# Wide search across all versions otherwise
 									else:
 										vuln = vuln_db.package_vuln_search(lib) # type: ignore
-									breakpoint()
 									if not vuln:
 										LOGGER.info(f"No vulnerability matched for {lib}, continue...")
 										continue
@@ -457,64 +456,6 @@ def main():
 										if not config['staticpass']['keep_docker_alive']:
 											dockerModule.stop_neo4j_container(container_name)
 											dockerModule.remove_neo4j_container(container_name)
-
-					# for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-					# 	# Do percise search if version is verified accurate
-					# 	for detection_info in matching_obj_lst:
-					# 		if detection_info['accurate']:								
-					# 			version = detection_info['version'].split(', ')
-					# 			vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
-					# 		# Wide search across all versions otherwise
-					# 		else:
-					# 			vuln = vuln_db.package_vuln_search(lib) # type: ignore
-					# 		if vuln:
-					# 			LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")								
-					# 			# build up ground truth for future inspection
-					# 			for poc in vuln:
-					# 				try:
-					# 					poc_str = poc['poc']
-					# 					cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
-					# 				except Exception as e:
-					# 					print('poc formatting problem from database', poc)
-					# 			# generate static analysis node files
-					# 			if config['cve_vuln']["passes"]["static"]:
-					# 				LOGGER.info("static analysis for site %s."%(website_url))
-					# 				cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-					# 				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-					# 		# There might be more than one vulnerabilities exist for the current library
-					# 		for matching_vuln in (vuln or []):								
-					# 			# static analysis
-					# 			if config['cve_vuln']["passes"]["static"]:
-					# 				LOGGER.info("static analysis for site %s."%(website_url))
-					# 				cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-					# 				LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-					# 			# try:
-					# 			# 	poc_obj = json.loads(vuln['poc'])
-					# 			# except Exception as e:
-					# 			# 	print("Error transforming vuln poc from JSON format")
-					# 			# 	raise RuntimeError		
-					# 			######
-					# 			# TO BE FIXED!!!!
-					# 			poc_obj = (''.join(list(filter(lambda x: x not in ['{', '}'], vuln[0]['poc'])))).split('"', 1)   # using 1 element only bc of the bad encoding								
-					# 			poc_obj = [s.replace("'", '"') for s in poc_obj]
-					# 			######
-					# 			for poc_str in poc_obj:
-					# 				print('poc_str', poc_str)
-					# 				vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
-									
-					# 				for try_attempts in range(2):
-					# 					try:
-					# 						if config['staticpass']['keep_docker_alive']:
-					# 							CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
-					# 						else:	
-					# 							CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-					# 						break
-					# 					except Exception as e:
-					# 						print(f"neo4j exception {e}, retrying ... ")
-					# 						time.sleep(5)											
-					# 			LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 
 
 		# # single site dom clobbering
@@ -605,10 +546,10 @@ def main():
 				mapping = json.load(f)
 				if to_row == "end":
 					to_row = len(mapping.keys())
-				urls = list(mapping.keys())
+				archive_urls = list(mapping.keys())
 				for i in range(from_row, to_row+1):	
 					try:
-						website_url = create_start_crawl_url(urls[i])
+						website_url = create_start_crawl_url(archive_urls[i])
 						LOGGER.info(f"Running on website: {website_url}")
 						if domain_health_check:
 							LOGGER.info('checking if domain is up with python requests ...')
@@ -631,80 +572,119 @@ def main():
 							IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
 							LOGGER.info("successfully crawled %s - %s"%(i, website_url)) 
 						
-						# Archive analysis library detection
-						if lib_detector_enable and lib_detector_lift:
-							lib_detection_api.lib_detection_single_url(website_url)
-						LOGGER.info("successfully detected libraries on %s."%(website_url)) 
+						if config['cve_vuln']['enabled']:
+							webapp_folder_name = get_name_from_url(website_url)
+							webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
+							if not os.path.exists(webapp_data_directory):
+								LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
+								continue
+							urls_file = os.path.join(webapp_data_directory, 'urls.out')
+							if not os.path.exists(urls_file):
+								LOGGER.error(f"urls.out file not found: {urls_file}")
+								continue
+							with open(urls_file, 'r') as fd:
+								urls = fd.readlines()
+							urls = list(set(urls))
+							for url in urls:
+								url = url.strip().rstrip('\n').strip()
+								webpage_folder_name = utilityModule.sha256(url)
+								webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
+								if os.path.exists(webpage_folder):
+									# single site library detection
+									if lib_detector_enable and lib_detector_lift:
+										try:
+											lib_detection_api.lib_detection_single_url(url)
+										except Exception as e:
+											LOGGER.error(f"Library detection failed for {url}: {e}")
+											continue
+									LOGGER.info("successfully detected libraries on %s."%(url))
 
-						# Archive analysis cve_vuln
-						if config['cve_vuln']['enabled']:						
-							# static analysis over neo4j
-							if config['cve_vuln']["passes"]["static_neo4j"]:
-								LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-								try:
-									lib_det_res = DetectorReader.read_raw_result_with_url(website_url)
-								except Exception as e:
-									LOGGER.error(e)
-									continue
-								mod_lib_mappingDoc = {}
-								for affiliatedurl, detectionRes in lib_det_res.items():		
-									mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
-									LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
-									for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-										# Do percise search if version is verified accurate
-										for detection_info in matching_obj_lst:
-											if detection_info['accurate']:
-												version = detection_info['version'].split(', ')
-												vuln = vuln_db.package_vuln_search(lib, version=version)
-											# Wide search across all versions otherwise
-											else:
-												vuln = vuln_db.package_vuln_search(lib)
-											if vuln:
-												LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
-												# build up ground truth for future inspection
-												for poc in vuln:
-													try:
-														poc_str = poc['poc']
-													except Exception as e:
-														print('poc formatting problem from database', poc)
-													cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
-											else:
-												LOGGER.info(f"no matching vuln for {lib}, skipping..." )
-											# There might be more than one vulnerabilities exist for the current library
-											for matching_vuln in (vuln or []):
-												# static analysis will only be apply if vulnerable library matches
-												if config['cve_vuln']["passes"]["static"]:
-													LOGGER.info("static analysis for site %s."%(website_url))
-													cve_stat_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-													LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
+									# Detection result and DB querying
+									if config['cve_vuln']["passes"]["static_neo4j"]:
+										LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
+										try:
+											lib_det_res = DetectorReader.read_raw_result_with_url(url)
+										except Exception as e:
+											LOGGER.error(e)
+											continue
 
-												# try:
-												# 	poc_obj = json.loads(vuln['poc'])
-												# except Exception as e:
-												# 	print("Error transforming vuln poc from JSON format")
-												# 	raise RuntimeError		
-												######
-												# TO BE FIXED!!!!
-												poc_obj = (''.join(list(filter(lambda x: x not in ['{', '}'], vuln[0]['poc'])))).split('"', 1)   # using 1 element only bc of the bad encoding								
-												poc_obj = [s.replace("'", '"') for s in poc_obj]
-												######
-												for poc_str in poc_obj:
-													print('poc_str', poc_str)
-													vuln_info = {"module_id": detection_info['location'], "poc_str": poc_str}
-													for try_attempts in range(2):
-														try:
-															if config['staticpass']['keep_docker_alive']:
-																CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info, config={'build': True, 'query': True, 'stop': False})
-															else:	
-																CVETraversalsModule.build_and_analyze_hpg(website_url, vuln_info=vuln_info)
-															break
-														except Exception as e:
-															print(f"neo4j exception {e}, retrying ... ")
-															time.sleep(5)											
+										for affiliatedurl, _ in lib_det_res.items():
+											mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
+											LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+											# vuln_list
+											#  [{
+											#		"libname": str,
+											# 		"location": str,
+											# 		"version": str,
+											# 		"vuln": list
+											# 	}, ...
+											# ]
+											vuln_list = []
 
-								# get_name_from_url = lambda url: url.replace(":", "-").replace("/", "").replace("&", "%26").replace("=", "%3D").replace("?", "%3F")
-								with open(os.path.join(BASE_DIR, 'data', get_name_from_url(website_url), 'mod_lib_mapping.json'), 'w') as f:
-									json.dump(mod_lib_mappingDoc, f)
+											# Iterate on the detected obj-lib mapping
+											for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
+												for detection_info in matching_obj_lst:
+													if detection_info['accurate']:
+														version = detection_info['version'].split(', ')
+														vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
+													# Wide search across all versions otherwise
+													else:
+														vuln = vuln_db.package_vuln_search(lib) # type: ignore
+													if not vuln:
+														LOGGER.info(f"No vulnerability matched for {lib}, continue...")
+														continue
+													else:
+														# setup vuln_list for further static analysis
+														LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+
+														vuln_list.append({
+															"libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
+														})
+														# setup ground truth for this particular site
+														for poc in vuln:
+															try:
+																poc_str = poc['poc']
+																cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
+															except Exception as e:
+																print('poc formatting problem from database', poc)
+
+														# Start static analysis, skip if no match on vulnerability
+														if not (config['cve_vuln']["passes"]["static"] and vuln_list):
+															continue
+														else:
+															database_name = 'neo4j'
+															graphid = uuid.uuid4().hex
+															container_name = 'neo4j_container_' + graphid
+															LOGGER.info("static analysis for site %s."%(url))
+															try:
+																cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+																LOGGER.info("successfully finished static analysis for site %s."%(url))
+																try:
+																	container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+																	LOGGER.info("successfully built hpg for %s."%(url))
+																except Exception as e:
+																	LOGGER.info("Error building hpg for %s."%(url), e)
+																	continue
+															except Exception as e:
+																LOGGER.error(f"Static analysis failed for {url}: {e}")
+																continue
+
+															# query on vulnerabilities
+															if container_name:
+																for try_attempts in range(2):
+																	try:
+																		CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
+																		break
+																	except Exception as e:
+																		print(f"neo4j exception {e}, retrying ... ")
+																		time.sleep(5)
+																	breakpoint()
+																LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
+
+																# Cleanup
+																if not config['staticpass']['keep_docker_alive']:
+																	dockerModule.stop_neo4j_container(container_name)
+																	dockerModule.remove_neo4j_container(container_name)
 					except RuntimeError as r_e:
 						print(f"Runtime error catched for {website_url}: {r_e}, moving on to the next...")
 						continue
