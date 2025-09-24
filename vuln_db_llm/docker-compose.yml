@@ -1,0 +1,13 @@
+services:
+  postgres:
+    build: .
+    container_name: vulndb_annotated
+    ports:
+      - "5430:5432"
+    environment:
+      POSTGRES_USER: vulndb_annotated
+      POSTGRES_PASSWORD: vulndb_pwd
+      POSTGRES_DB: vulndb_annotated
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
