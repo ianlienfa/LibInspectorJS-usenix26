@@ -32,10 +32,11 @@ import requests
 import json
 import time
 import uuid
+import logging
 from urllib.parse import urlencode, quote_plus
 
 import utils.io as IOModule
-from utils.logging import logger as LOGGER
+from utils.logging import logger as LOGGER, LogFormatter
 import utils.utility as utilityModule
 import constants as constantsModule
 import analyses.domclobbering.domc_neo4j_traversals as DOMCTraversalsModule
@@ -613,6 +614,7 @@ def main():
 											LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
 											# vuln_list
 											#  [{
+											#		"mod": boolean,
 											#		"libname": str,
 											# 		"location": str,
 											# 		"version": str,
@@ -638,7 +640,7 @@ def main():
 														LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
 
 														vuln_list.append({
-															"libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
+															"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
 														})
 														# setup ground truth for this particular site
 														for poc in vuln:

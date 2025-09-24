@@ -208,11 +208,11 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 			navigation_url = get_url_for_webpage(webpage)
 			for entry in vuln_list:
 				try:
-					location, vuln = entry['location'], entry['vuln']							
+					location, vuln, mod = entry['location'], entry['vuln'], entry['mod']
 					for v in vuln:
 						if 'LIBOBJ' not in v['poc']:
 							continue
-						vuln_info = {"module_id": location, "poc_str": v['poc']}
+						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
 						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)
 						logger.info(f"analysis out: {out}")
 				except Exception as e:

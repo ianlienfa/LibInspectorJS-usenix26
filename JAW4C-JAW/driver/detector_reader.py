@@ -55,7 +55,7 @@ def read_raw_result_with_url(url):
         raise e
 
 # Take raw detection_obj then return the mod_lib_mapping
-def get_mod_lib_mapping(raw_detection_obj, url, filter_library_only=True):
+def get_mod_lib_mapping(raw_detection_obj, url):
     """
     Return metadata for a given library.
 
@@ -68,18 +68,20 @@ def get_mod_lib_mapping(raw_detection_obj, url, filter_library_only=True):
             }
         }
     """
-    detection_list = raw_detection_obj.get(url, {}).get('PTV', {}).get('detection', [])
+    detection_list = raw_detection_obj.get(url, {}).get('PTV', {}).get('detection', [])    
     detection_list = detection_list[0] if len(detection_list) else []
     mod_lib_mapping = {}						
     for detected_lib in detection_list:
         print("detected_lib", detected_lib)
-        if filter_library_only:
-            if 'mod_' not in detected_lib['location']:
-                continue
+        if 'mod_' not in detected_lib['location']:
+            mod = False
+            detected_lib['location'] = detected_lib['location'].replace('window.', '') # trim window
+        else:
+            mod = True
             detected_lib['location'] = detected_lib['location'].split('_')[1]     
         if detected_lib['libname'] not in mod_lib_mapping:
             mod_lib_mapping[detected_lib['libname']] = []
-        mod_lib_mapping[detected_lib['libname']].append({'location': detected_lib['location'], 'version': detected_lib['version'], 'accurate': detected_lib['accurate']})
+        mod_lib_mapping[detected_lib['libname']].append({'mod': mod, 'location': detected_lib['location'], 'version': detected_lib['version'], 'accurate': detected_lib['accurate']})
     return mod_lib_mapping
 
     

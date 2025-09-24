@@ -1062,6 +1062,28 @@ def getIdentifierAndExprFromArgCode(tx, argCode):
 		res.append((callExprNode, calleeNode))
 	return res	
 
+def getObjectMatch(tx, objCode):
+	"""
+		@param {pointer} tx
+		@param {object} objCode: the code of library object
+		@return {list of node object pairs}: [(callExprNode) ...] : 
+			returns all matching identifier and expression having the matching code in the arguments
+    """	
+	components = objCode.split('.')[::-1]
+	res = []
+	if len(components):
+		query = """
+			MATCH		
+			(ident0 {Type: 'Identifier', Value: '%s'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode {Type: 'MemberExpression'})
+			// get the callee id too		
+			RETURN memExprNode
+		"""%(components[0])
+		results = tx.run(query)
+		for record in results:
+			memExprNode = record['memExprNode']
+			res.append(memExprNode)
+	return res	
+
 
 
 
@@ -1418,7 +1440,7 @@ def getSinkExpression(tx, vuln_info):
 		# poc flattened tree generation
 		if 'LIBOBJ' not in vuln_info['poc_str']:
 			raise RuntimeError("poc_str format error")
-		pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['module_id'] + ')')]
+		pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['location'] + ')')]
 		print("pocStrArr", pocStrArr)
 		json_arg = json.dumps(pocStrArr)
 		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
@@ -1432,14 +1454,20 @@ def getSinkExpression(tx, vuln_info):
 		print("pocFlattened", flatPoc)
 
 		# see if the callee sats the 
-		argIdCode = vuln_info['module_id']	
-		# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
-		res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
-		print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
-		# filter out those matches that are not library Objects
-		libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
-		print("libObjectList", libObjectList)
-		vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
+		if vuln_info['mod']:
+			argIdCode = vuln_info['location']	
+			# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
+			res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
+			print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
+			# filter out those matches that are not library Objects
+			libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
+			print("libObjectList", libObjectList)
+			vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
+		else:
+			# suppose to get location object for non mod objects
+			# - get top expr from the 'property' edge
+			res = getObjectMatch(tx, vuln_info['location'])
+
 
 		libObjScope = None
 		root = []
@@ -1447,8 +1475,11 @@ def getSinkExpression(tx, vuln_info):
 		for poc in flatPoc:
 			# operate on all libobj scope marked
 			for pair in libObjectList:
-				libObj = pair[0] # libObj node
-				libIdentNode = pair[1] # libObj node
+				if vuln_info['mod']:
+					libObj = pair[0] # libObj node
+					libIdentNode = pair[1] # libObj node
+				else:
+					libObj = pair
 				libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
 				libkeys = set(poc['libkeys'])
 
