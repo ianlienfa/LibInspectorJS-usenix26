@@ -111,6 +111,75 @@ def get_name_from_url(url):
            .replace("?", "%3F")
     )
 
+# Global variables to track current URL logging handlers
+current_url_handlers = None
+
+def add_url_logging_handlers(url, webpage_folder, log_level='info'):
+	"""
+	Adds file handlers to the main logger for capturing logs
+	specific to a URL processing into its webpage_folder
+
+	@param url: the URL being processed
+	@param webpage_folder: the directory path for this specific webpage
+	@param log_level: minimum log level to capture ('info', 'warning', 'error')
+	@return: tuple of handlers for later removal
+	"""
+	global current_url_handlers
+
+	# Clean up any existing handlers first
+	cleanup_current_url_handlers()
+
+	# Ensure the webpage folder exists
+	if not os.path.exists(webpage_folder):
+		os.makedirs(webpage_folder, exist_ok=True)
+
+	# Create log files
+	error_log_path = os.path.join(webpage_folder, 'errors.log')
+	warning_log_path = os.path.join(webpage_folder, 'warnings.log')
+	info_log_path = os.path.join(webpage_folder, 'info.log')
+
+	handlers = []
+
+	# Create error file handler (only errors)
+	error_handler = logging.FileHandler(error_log_path)
+	error_handler.setLevel(logging.ERROR)
+	error_handler.setFormatter(LogFormatter())
+	handlers.append(error_handler)
+
+	# Create warning file handler (warnings and errors)
+	warning_handler = logging.FileHandler(warning_log_path)
+	warning_handler.setLevel(logging.WARNING)
+	warning_handler.setFormatter(LogFormatter())
+	handlers.append(warning_handler)
+
+	# Create info file handler if log_level includes info
+	if log_level.lower() in ['info', 'debug']:
+		info_handler = logging.FileHandler(info_log_path)
+		info_handler.setLevel(logging.INFO)
+		info_handler.setFormatter(LogFormatter())
+		handlers.append(info_handler)
+
+	# Add all handlers to the main logger
+	for handler in handlers:
+		LOGGER.addHandler(handler)
+
+	# Store handlers globally for cleanup
+	current_url_handlers = tuple(handlers)
+
+	return current_url_handlers
+
+def cleanup_current_url_handlers():
+	"""
+	Removes any currently active URL-specific handlers from the main logger
+	"""
+	global current_url_handlers
+
+	if current_url_handlers:
+		for handler in current_url_handlers:
+			LOGGER.removeHandler(handler)
+			handler.close()
+		current_url_handlers = None
+
 
 
 
@@ -370,6 +439,8 @@ def main():
 				webpage_folder_name = utilityModule.sha256(url)
 				webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
 				if os.path.exists(webpage_folder):
+					# Add URL-specific logging handlers to capture all logs for this URL
+					add_url_logging_handlers(url, webpage_folder)
 					# single site library detection
 					if lib_detector_enable and lib_detector_lift:
 						lib_detection_api.lib_detection_single_url(url)
@@ -457,6 +528,7 @@ def main():
 										if not config['staticpass']['keep_docker_alive']:
 											dockerModule.stop_neo4j_container(container_name)
 											dockerModule.remove_neo4j_container(container_name)
+
 
 
 		# # single site dom clobbering
@@ -591,6 +663,9 @@ def main():
 								webpage_folder_name = utilityModule.sha256(url)
 								webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
 								if os.path.exists(webpage_folder):
+									# Add URL-specific logging handlers to capture all logs for this URL
+									add_url_logging_handlers(url, webpage_folder)
+
 									# single site library detection
 									if lib_detector_enable and lib_detector_lift:
 										try:
@@ -826,5 +901,8 @@ def main():
 	if vuln_db:
 		vuln_db.close()
 		LOGGER.info("db connection closed")
+
+	# Clean up any remaining URL logging handlers
+	cleanup_current_url_handlers()
 if __name__ == "__main__":
 	main()

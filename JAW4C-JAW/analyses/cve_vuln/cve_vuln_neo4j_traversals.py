@@ -133,7 +133,7 @@ def build_hpg(container_name, webpage):
 	graphid = uuid.uuid4().hex	
 	webapp_folder_name = os.path.basename(webpage)
 	weburl_suffix = os.path.join(os.path.basename(os.path.dirname(webpage)), webapp_folder_name)
-	relative_import_path = weburl_suffix
+	relative_import_path = webapp_folder_name
 	container_name = 'neo4j_container_' + graphid + webapp_folder_name
 
 	try:
@@ -148,7 +148,7 @@ def build_hpg(container_name, webpage):
 		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
 			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')			
 		
-		dockerModule.create_neo4j_container(container_name, weburl_suffix)
+		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
 		logger.info('waiting 5 seconds for the neo4j container to be ready.')
 		time.sleep(5)
 
@@ -165,7 +165,7 @@ def build_hpg(container_name, webpage):
 		#### To avoid the neo4j admin <-> neo4j user racing for the same lock, recreate the whole stuff on the same volume
 		dockerModule.stop_neo4j_container(container_name, cleanup=False)
 		dockerModule.remove_neo4j_container(container_name)
-		dockerModule.create_neo4j_container(container_name, weburl_suffix)
+		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
 		####
 
 		# Wait for the data to be stable
@@ -217,7 +217,6 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						logger.info(f"analysis out: {out}")
 				except Exception as e:
 					traceback.print_exc()
-					breakpoint()					
 					raise RuntimeError(f"Error executing query: {entry}, {e}")
 					
 	except Exception as e:

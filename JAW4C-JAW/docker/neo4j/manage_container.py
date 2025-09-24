@@ -42,7 +42,7 @@ PROCESS_USER_ID = os.getuid()
 PROCESS_GROUP_ID = os.getgid()
 
 
-def create_neo4j_container(container_name, weburl_suffix, volume_home=VOLUME_HOME):
+def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_home=VOLUME_HOME):
 	"""
 	data_home: should be the path to the current url directory we're working on
 	"""
@@ -71,7 +71,7 @@ def create_neo4j_container(container_name, weburl_suffix, volume_home=VOLUME_HOM
     -d \
     -v {1}/{0}/neo4j/data:/data \
     -v {1}/{0}/neo4j/logs:/logs \
-    -v {4}/{7}:/var/lib/neo4j/import/{7} \
+    -v {4}/{7}:/var/lib/neo4j/import/{8} \
     -v {1}/{0}/neo4j/plugins:/plugins \
 	-v {1}/{0}/neo4j/conf:/conf \
     -u neo4j:neo4j \
@@ -83,7 +83,7 @@ def create_neo4j_container(container_name, weburl_suffix, volume_home=VOLUME_HOM
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     arm64v8/neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, weburl_suffix)
+	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, weburl_suffix, webapp_name)
 	# Note: pass the analyzer outputs folder as the import directory of neo4j
 
 	utilityModule.run_os_command(command, print_stdout=False)

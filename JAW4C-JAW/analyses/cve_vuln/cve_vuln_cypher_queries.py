@@ -1466,7 +1466,7 @@ def getSinkExpression(tx, vuln_info):
 		else:
 			# suppose to get location object for non mod objects
 			# - get top expr from the 'property' edge
-			res = getObjectMatch(tx, vuln_info['location'])
+			libObjectList = getObjectMatch(tx, vuln_info['location'])
 
 
 		libObjScope = None
