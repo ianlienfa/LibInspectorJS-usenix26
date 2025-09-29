@@ -17,6 +17,7 @@ var psl = require('psl');
 const { URL } = require('url');
 
 const lift = require('../driver/utilities/lift');
+const transform = require('../driver/utilities/transform');
 
 /**
  * ------------------------------------------------
@@ -180,7 +181,7 @@ function cleanDirectory(url){
  * @param dataDirectory: string of the base directory to store the data for the current website.
  * @return stores the input webpage data and returns the absolute folder name where the data is saved.
 **/
-function savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled){
+function savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled, transform_enabled, pure_crawl){
 
 
 	DEBUG && console.log("[IO] started saving webpage.")
@@ -197,8 +198,29 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 	const existingUrls = URLsdata ? URLsdata.toString().trim().split('\n') : [];
 	const urlSet = new Set([...existingUrls, url]);
 	fs.writeFileSync(pathModule.join(dataDirectory, "urls.out"), [...urlSet].join('\n'));
-	let override_mapping = {}
+	let override_mapping = {
+		'lift': {},
+		'transform': {}
+	}
 
+	if(!fs.existsSync(webpageFolder)){
+		fs.mkdirSync(webpageFolder, { recursive: true });
+	}
+
+	const liftedFolder = pathModule.join(webpageFolder, "lifted")
+	const originalFolder = pathModule.join(webpageFolder, "original")
+	const transformedFolder = pathModule.join(webpageFolder, "transformed")
+	if((lift_enabled || transform_enabled) && !fs.existsSync(originalFolder)){
+		fs.mkdirSync(originalFolder);
+		if(lift_enabled && !fs.existsSync(liftedFolder)){
+			console.log("here making folder", liftedFolder)
+			fs.mkdirSync(liftedFolder);
+		}
+		if(transform_enabled && !fs.existsSync(transformedFolder)){
+			fs.mkdirSync(transformedFolder);
+		}
+	}
+	debugger;
 	// collect the webpage data
 	if(COLLECT_AND_CREATE_PAGE){
 
@@ -226,17 +248,35 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 				const pathToWrite = pathModule.join(webpageFolder, `${i}.js`)
 				writeContent = s.source
 				if(s.url && s.url.endsWith('.js')){
-					override_mapping[s.url] = pathToWrite
-					if(s.source){
-						let lifted = lift(s.source);  
-						if(lifted !== ""){
-							const liftedpathToWrite = pathModule.join(liftedFolder, `${i}.js`)
-							const originalpathToWrite =  pathModule.join(originalFolder, `${i}.js`)							
-							fs.writeFileSync(liftedpathToWrite, lifted)
-							fs.writeFileSync(originalpathToWrite, '' + s.source)
-							// overwrite original file right under the webpage folder to be the lifted version for hpg generation
-							writeContent = lifted 
-							override_mapping[s.url] = liftedpathToWrite
+					override_mapping.lift[s.url] = pathToWrite
+					override_mapping.transform[s.url] = pathToWrite
+
+					// Save processed version if lifting or transformation is enabled
+					if((lift_enabled || transform_enabled) && s.source){
+						const originalpathToWrite = pathModule.join(originalFolder, `${i}.js`)
+						fs.writeFileSync(originalpathToWrite, s.source, 'utf8')
+
+						if(lift_enabled){
+							let lifted = lift(s.source);
+							if(lifted !== ""){
+								const liftedpathToWrite = pathModule.join(liftedFolder, `${i}.js`)
+								fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
+								// Override original file with lifted version for analysis
+								writeContent = lifted
+								override_mapping.lift[s.url] = liftedpathToWrite
+							}
+						} 
+						if(transform_enabled){
+							let transformed = transform(s.source);
+							if(transformed !== ""){
+								const transformedpathToWrite = pathModule.join(transformedFolder, `${i}.js`)
+								const transformedpathToWriteParent = pathModule.join(webpageFolder, `${i}.js`)
+								fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
+								fs.writeFileSync(transformedpathToWriteParent, transformed, 'utf8')
+								// Override original file with transformed version for analysis
+								writeContent = transformed
+								override_mapping.transform[s.url] = transformedpathToWriteParent
+							}
 						}
 					}
 				}
@@ -287,7 +327,7 @@ async function getSourceFromScriptId(session, scriptId) {
 **/
 
 
-async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled){
+async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled, transform_enabled, pure_crawl){
 
 	DEBUG && console.log("crawlWebsite called on ", url)
 
@@ -400,7 +440,7 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 
 
 		// save the collected data, populate the override_mapping too
-		const webpageFolder = await savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled);
+		const webpageFolder = await savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled, transform_enabled, pure_crawl);
 		
 
 		/** 
@@ -495,7 +535,7 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 	let nextURL = await frontier.unvisited[Math.floor(Math.random()*frontier.unvisited.length)];
 
 	// recurse
-	return await crawlWebsite(browser, nextURL, domain, frontier, dataDirectory, false, 0);
+	return await crawlWebsite(browser, nextURL, domain, frontier, dataDirectory, false, 0, lift_enabled, transform_enabled, pure_crawl);
 
 }
 
@@ -526,6 +566,8 @@ if (require.main === module) {
     const url = config.seedurl;
     const overwrite_results = (config.overwrite && config.overwrite.toLowerCase() === 'true')? true: false;
 	const lift_enabled = (config.lift && config.lift.toLowerCase() === 'true')? true: false;
+	const transform_enabled = (config.transform && config.transform.toLowerCase() === 'true')? true: false;
+	const pure_crawl = (config.pure && config.pure.toLowerCase() === 'true')? true: false;
 
     if(config.maxurls){
     	maxVisitedUrls = config.maxurls;
@@ -564,7 +606,7 @@ if (require.main === module) {
 
 	// use public suffix list to restrict crawled urls to the same domain 
 	var domain = psl.get(url.replace('https://', '').replace('http://', ''));
-	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled);
+	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled, transform_enabled, pure_crawl);
 
 	const globalTime = globalTimer.get();
 	globalTimer.end();

@@ -175,6 +175,7 @@ def build_hpg(container_name, webpage):
 		print(f"[build_hpg] Error found during execution {e}")
 		dockerModule.stop_neo4j_container(container_name)
 		dockerModule.remove_neo4j_container(container_name)
+		IOModule.compress_graph(webpage)
 		raise RuntimeError
 
 	return container_name
@@ -213,8 +214,8 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						if 'LIBOBJ' not in v['poc']:
 							continue
 						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
-						logger.info("executing vuln: ", vuln_info)
-						breakpoint()
+						logger.info(f"executing vuln: {vuln_info}")
+						# breakpoint()
 						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)						
 						logger.info(f"analysis out: {out}")
 				except Exception as e:

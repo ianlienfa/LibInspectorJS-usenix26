@@ -37,6 +37,9 @@ const { URL } = require('url');
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
+const lift = require('../driver/utilities/lift');
+const transform = require('../driver/utilities/transform');
+
 /**
  * ------------------------------------------------
  *              constants and globals
@@ -277,13 +280,13 @@ function getValueFromDictOrNull(dictionary, key){
  * @param dataDirectory: string of the base directory to store the data for the current website.
  * @return stores the input webpage data and returns the absolute folder name where the data is saved.
 **/
-function savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, taintFlows, dataDirectory){
+function savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, taintFlows, dataDirectory, lift_enabled, transform_enabled, collect_only){
 
 	DEBUG && console.log("[IO] started saving webpage.");
 	const webpageFolderName = hashURL(url);
 	const webpageFolder = pathModule.join(dataDirectory, webpageFolderName);
 
-	// append url in urls.out in the website-specific directory	
+	// append url in urls.out in the website-specific directory
 	let URLsdata
 	if(fs.existsSync(pathModule.join(dataDirectory, "urls.out"))){
 		URLsdata = fs.readFileSync(pathModule.join(dataDirectory, "urls.out"));
@@ -291,6 +294,25 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 	const existingUrls = URLsdata ? URLsdata.toString().trim().split('\n') : [];
 	const urlSet = new Set([...existingUrls, url]);
 	fs.writeFileSync(pathModule.join(dataDirectory, "urls.out"), [...urlSet].join('\n'));
+	let override_mapping = {
+		'lift': {},
+		'transform': {}
+	}
+
+	// In collect_only mode, read existing override_mapping from first pass
+	if(collect_only){
+		const overrideMappingPath = pathModule.join(webpageFolder, "override_mapping.json")
+		if(fs.existsSync(overrideMappingPath)){
+			try {
+				const existingMapping = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'))
+				if(existingMapping.lift) override_mapping.lift = existingMapping.lift
+				if(existingMapping.transform) override_mapping.transform = existingMapping.transform
+				console.log("[TaintCrawler] Loaded existing override_mapping from first pass")
+			} catch(e) {
+				console.log("[TaintCrawler] Error reading existing override_mapping:", e)
+			}
+		}
+	}
 
 
 	if(COLLECT_WEBPAGE){
@@ -299,8 +321,26 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 			fs.mkdirSync(webpageFolder);
 		}
 
+		// Only create directories and process scripts if not in collect_only mode
+		if(!collect_only){
+			const liftedFolder = pathModule.join(webpageFolder, "lifted")
+			const originalFolder = pathModule.join(webpageFolder, "original")
+			const transformedFolder = pathModule.join(webpageFolder, "transformed")
+			if((lift_enabled || transform_enabled) && !fs.existsSync(originalFolder)){
+				fs.mkdirSync(originalFolder);
+				if(lift_enabled && !fs.existsSync(liftedFolder)){
+					fs.mkdirSync(liftedFolder);
+				}
+				if(transform_enabled && !fs.existsSync(transformedFolder)){
+					fs.mkdirSync(transformedFolder);
+				}
+			}
+		}
+
 		// store url in url.out in the webpage-specific directory
-		fs.writeFileSync(pathModule.join(webpageFolder, "url.out"), url);
+		if(!collect_only){
+			fs.writeFileSync(pathModule.join(webpageFolder, "url.out"), url);
+		}
 
 
 		try{
@@ -339,10 +379,10 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 
 				if(scriptSourceMappingObject.original_code && scriptSourceMappingObject.original_code.length > 0){
 
-					// calculate the script MD5 hash
+					// calculate the script MD5 hash of the original code (for taint analysis compatibility)
 					let scriptHash = getMD5Hash(scriptSourceMappingObject.original_code);
 
-					// save the script 
+					// save the script
 					if(scriptKind === TYPE_SCRIPT_INTERNAL){
 
 						scriptMapping[`${sid}.js`] = {
@@ -352,13 +392,36 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 							'hash': scriptHash
 						};
 
+						// Save processed version if lifting or transformation is enabled (skip in collect_only mode)
+						if(!collect_only && (lift_enabled || transform_enabled) && scriptSourceMappingObject.original_code){
+							const originalpathToWrite = pathModule.join(originalFolder, `${sid}.js`)
+							fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.original_code, 'utf8')
+
+							if(lift_enabled){
+								let lifted = lift(scriptSourceMappingObject.original_code);
+								if(lifted !== ""){
+									const liftedpathToWrite = pathModule.join(liftedFolder, `${sid}.js`)
+									fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
+								}
+							} else if(transform_enabled){
+								let transformed = transform(scriptSourceMappingObject.original_code);
+								if(transformed !== ""){
+									const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
+									const transformedpathToWriteParent = pathModule.join(webpageFolder, `${sid}.js`)
+									fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
+									fs.writeFileSync(transformedpathToWriteParent, transformed, 'utf8')
+								}
+							}
+						}
+
+						 // Main files use beautified code (not lifted) for taint analysis
 						 fs.writeFileSync(script_path_name, scriptSourceMappingObject.code, 'utf8');
 						 fs.writeFileSync(script_path_name_org, scriptSourceMappingObject.original_code);
 						 fs.writeFileSync(script_path_name_source_map, JSON.stringify(sourcemap));
 
 						 sid = sid + 1;
 					}else{
-						if(s.length === 4){ // checks if `SCRIPT_SRC_REPLACED_WITH_CONTENT` is in `s` 
+						if(s.length === 4){ // checks if `SCRIPT_SRC_REPLACED_WITH_CONTENT` is in `s`
 
 							let scriptSrc = s[2];
 							scriptMapping[`${sid}.js`] = {
@@ -368,9 +431,46 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 								'hash': scriptHash
 							};
 
+							// Add to override_mapping for external scripts with .js URLs
+							if(scriptSrc && scriptSrc.endsWith('.js')){
+								override_mapping.lift[scriptSrc] = script_path_name;
+								override_mapping.transform[scriptSrc] = script_path_name;
+							}
+
+							// Save processed version if lifting or transformation is enabled (skip in collect_only mode)
+							if(!collect_only && (lift_enabled || transform_enabled) && scriptSourceMappingObject.original_code){
+								const originalpathToWrite = pathModule.join(originalFolder, `${sid}.js`)
+								fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.original_code, 'utf8')
+
+								if(lift_enabled){
+									let lifted = lift(scriptSourceMappingObject.original_code);
+									if(lifted !== ""){
+										const liftedpathToWrite = pathModule.join(liftedFolder, `${sid}.js`)
+										fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
+										// Update override_mapping to point to lifted version for .js URLs
+										if(scriptSrc && scriptSrc.endsWith('.js')){
+											override_mapping.lift[scriptSrc] = liftedpathToWrite;
+										}
+									}
+								} else if(transform_enabled){
+									let transformed = transform(scriptSourceMappingObject.original_code);
+									if(transformed !== ""){
+										const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
+										const transformedpathToWriteParent = pathModule.join(webpageFolder, `${sid}.js`)
+										fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
+										fs.writeFileSync(transformedpathToWriteParent, transformed, 'utf8')
+										// Update override_mapping to point to transformed version for .js URLs
+										if(scriptSrc && scriptSrc.endsWith('.js')){
+											override_mapping.transform[scriptSrc] = transformedpathToWriteParent;
+										}
+									}
+								}
+							}
+
+							// Main files use beautified code (not lifted) for taint analysis
 							fs.writeFileSync(script_path_name, scriptSourceMappingObject.code ? scriptSourceMappingObject.code : "", 'utf8');
 							fs.writeFileSync(script_path_name_org, scriptSourceMappingObject.original_code ? scriptSourceMappingObject.original_code : "");
-						    fs.writeFileSync(script_path_name_source_map, sourcemap ? JSON.stringify(sourcemap) : ""); 
+						    fs.writeFileSync(script_path_name_source_map, sourcemap ? JSON.stringify(sourcemap) : "");
 							sid = sid + 1;
 
 						}
@@ -395,6 +495,16 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 				fs.writeFileSync(pathModule.join(webpageFolder, "scripts_mapping.json"),  JSON.stringify(scriptMapping, null, '\t'), 'utf8');
 			}catch(e){
 				console.log('[ScriptMappingFileSaveError]', e);
+			}
+
+			// Only write override_mapping if not in collect_only mode
+			if(!collect_only){
+				try{
+					// write override_mapping
+					fs.writeFileSync(pathModule.join(webpageFolder, "override_mapping.json"), JSON.stringify(override_mapping, null, '\t'), 'utf8');
+				}catch(e){
+					console.log('[OverrideMappingFileSaveError]', e);
+				}
 			}
 		}
 
@@ -481,7 +591,7 @@ async function getScriptSourceMappingObject(script_content) {
 **/
 
 
-async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, debug_run, wait_before_next_url, BrowserContext){
+async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, debug_run, wait_before_next_url, BrowserContext, lift_enabled, transform_enabled, collect_only){
 
 
 	let url = pageURL;
@@ -504,11 +614,21 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 		});
 
 		const scriptPath = pathModule.join(BASE_DIR, "crawler/scripts/flowHandler.js");
-		context.addInitScript({ path: scriptPath});
-		context.exposeBinding("__playwright_taint_report", async function (source, value) {
-			if (!finished){
-				TAINT_LOG && console.log("[TaintFlow] " + value.sources[0] + " --> " + value.sink);
-				taintFlows.push(value)
+		// context.addInitScript({ path: scriptPath});
+		context.addInitScript(
+        { content: "window.addEventListener('__taintreport', (r) => { __playwright_taint_report(r.detail, r.detail.str.taint); });"}
+    	);	
+		context.exposeBinding("__playwright_taint_report", async function (source, value, taint) {
+			if (!finished){				
+				try {
+					let flow = taint[0]['flow']
+					console.log("[TaintFlow] " + flow[flow.length-1]['operation'] + " --> " + value.sink); 
+					taint[0]['sink'] = value.sink
+					taint[0]['source'] = flow[flow.length-1]['operation']
+					taintFlows.push(taint)
+				} catch (error) {
+					console.log("Error printing taintflow", JSON.stringify(taint)); 
+				}
 			};
 		});
 
@@ -561,46 +681,65 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 
 			// redirect puppeteer console log in the browser to node js log
 			BROWSER_LOG && page.on('console', consoleObj => console.log('[BrowserConsole] ' + consoleObj.text()));
-
+			
 
 			// @DOC
 			// https://playwright.dev/docs/api/class-page#page-reload
 			let load_options = {waitUntil: 'load'}; // 'commit'
-			
+
+			// Set up request interception in collect_only mode to use transformed scripts
+			if(collect_only){
+				// Read override_mapping for request interception
+				const webpageFolderName = hashURL(url);
+				const webpageFolder = pathModule.join(dataDirectory, webpageFolderName);
+				const overrideMappingPath = pathModule.join(webpageFolder, "override_mapping.json");
+
+				if(fs.existsSync(overrideMappingPath)){
+					try {
+						const override_mapping = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'));
+
+						await page.route('**/*', async (route, request) => {
+							const requestUrl = request.url();
+
+							// Check if this request should be intercepted with transformed script
+							if(override_mapping.transform && override_mapping.transform[requestUrl]){
+								const transformedFilePath = override_mapping.transform[requestUrl];
+
+								if(fs.existsSync(transformedFilePath)){
+									console.log(`[RequestInterception] Intercepting ${requestUrl} -> ${transformedFilePath}`);
+									const transformedContent = fs.readFileSync(transformedFilePath, 'utf8');
+
+									await route.fulfill({
+										status: 200,
+										contentType: 'application/javascript',
+										body: transformedContent
+									});
+									return;
+								}
+							}
+
+							// Default: continue with original request
+							await route.continue();
+						});
+
+						console.log("[TaintCrawler] Request interception set up with transformed scripts");
+					} catch(e) {
+						console.log("[TaintCrawler] Error setting up request interception:", e);
+					}
+				}
+			}
+
 			// this sometimes throws `NS_ERROR_CONNECTION_REFUSED` in firefox?
 			await page.goto(url, load_options);
 			await page.waitForTimeout(1000);
 			DEBUG && console.log('[pageLoad] new page loaded successfully');
 
-			// @NOTE: we need to load the webpage multiple times to be able to collect the push api taint flows
-			// However, we should NOT refresh the same page multiple times as it will hang the page, causing it
-			// to not load properly (i.e., `NS_BINDING_ABORTED` error in firefox)
-			// As a consequence of the page not being loaded properly, we won't be able to collect new URLs
-			// and the crawler terminates pre-maturely.
-			let page2 = await context.newPage();
-			for (let i = 0; i < number_of_reloads; i++) {
-				DEBUG && console.log('[pageLoad] reloading page ' + (i+1) + '/' + number_of_reloads);
-				try {
-					if(i == 0){
-						await page2.goto(url, load_options);
-					}else{
-						await page2.reload({
-							waitUntil: 'commit',
-							timeout: 3000 // 30 seconds
-						});
-					}
-					await page2.waitForTimeout(2000);
-				} catch (error) {
-					DEBUG && console.log('[pageLoad] page crashed, moving to next URL:', error.message);
-					break;
-				}
-			}
-			await page2.close();
+			/* Remove reload for now  */
 
 			// wait for 20 seconds to make sure the page is loaded 
 			// and also to collect the taint flows
 			DEBUG && console.log('[pageLoad] waiting for 20 seconds.');
-			await page.waitForTimeout(20000);
+			await page.waitForTimeout(5000); // should set to 20000
 			// wait until no further network requests are seen for at least 500ms
 			// DEBUG && console.log('[pageLoad] waiting for networkidle.');
 			// await page.waitForLoadState('networkidle');
@@ -685,7 +824,6 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 				// console.log('hs', getMD5Hash(scriptTag.textContent))
 			}
 
-		   // console.log('allScripts', allScripts);
 		   var iii = 0
 		   for(const [index, scriptItem] of allScripts.entries()){
 
@@ -745,7 +883,7 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 
 			try{
 				// save the collected data 
-				await savePageData(url, html, allScripts, cookies, webStorageData, httpRequests, httpResponses, taintFlows, dataDirectory);
+				await savePageData(url, html, allScripts, cookies, webStorageData, httpRequests, httpResponses, taintFlows, dataDirectory, lift_enabled, transform_enabled, collect_only);
 			}catch(e){
 				DEBUG && console.log('[PageSaveError] error while saving the webpage data');
 				DEBUG && console.log('[PageSaveError]', e);
@@ -791,7 +929,7 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 				}
 			}
 
-			await page.waitForTimeout(50000);
+			await page.waitForTimeout(1000);
 
 		} catch (e){
 			console.log('[exception] error while navigating/saving the page', e)
@@ -913,14 +1051,18 @@ async function launch_browsers(headless_mode){
 	const overwrite_results = (config.overwrite && config.overwrite.toLowerCase() === 'true')? true: false; 
 
 	// default: true
-	const should_use_foxhound_config = (config.foxhound && config.foxhound.toLowerCase() === 'false')? false: true; 
+	const should_use_foxhound_config = (config.foxhound && config.foxhound.toLowerCase() === 'false')? false: true;
+
+	// default: false
+	const lift_enabled = (config.lift && config.lift.toLowerCase() === 'true')? true: false;
+	const transform_enabled = (config.transform && config.transform.toLowerCase() === 'true')? true: false;
+	const collect_only = (config.collect && config.collect.toLowerCase() === 'true')? true: false;
 
 	should_use_foxhound = should_use_foxhound_config;
 
 	if(config.maxurls){
 		maxVisitedUrls = config.maxurls;
-	}
-
+	}	
 	
 	if(config.foxhoundpath){
 		foxhound_executable_path = config.foxhoundpath;		
@@ -936,9 +1078,12 @@ async function launch_browsers(headless_mode){
 	const wait_before_next_url = 30000; // wait for 1 second
 
 
-	if(!overwrite_results && directoryExists(url)){
+	if(!overwrite_results && directoryExists(url) && (!collect_only)){
 		DEBUG && console.log('site already crawled: '+ url);
 		return 1;
+	}
+	else if(collect_only){
+		DEBUG && console.log('collect only called');
 	}
 	else{
 		cleanDirectory(url)
@@ -965,7 +1110,7 @@ async function launch_browsers(headless_mode){
 
 	// use public suffix list to restrict crawled urls to the same domain 
 	var domain = psl.get(url.replace('https://', '').replace('http://', ''));
-	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, additional_args);
+	browser = await crawlWebsite(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, additional_args, lift_enabled, transform_enabled, collect_only);
 
 	const globalTime = globalTimer.get();
 	globalTimer.end();

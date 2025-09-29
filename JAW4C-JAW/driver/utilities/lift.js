@@ -5,7 +5,6 @@ const fs = require("fs");
 const path = require("path");
 const logger = require('./logger');
 const { features } = require("process");
-const splitSequence = require("./split-sequence")
 
 function acron_parse(code){
     const acron_config_obj = {ecmaVersion: 2022}    
@@ -635,8 +634,8 @@ function browserify_lift(code, func_node, ast){
     }
 }
 
-// return lifted code
-function lift(code, codeTransform=true){    
+// return lifted code (without transformation)
+function lift(code){
     require_func_name = "";
     res = ""
     let node = undefined;
@@ -662,26 +661,22 @@ function lift(code, codeTransform=true){
             else if(info?.["type"] === "type2"){
                 res = webpack_lift_type2(code, node, ast, info);
             }
-        }        
+        }
     }
     else {
-        logger.info("Not webpack bundle")        
+        logger.info("Not webpack bundle")
     }
 
     // try browserify
     if(func_node = is_browserify_bundle(code, ast)){
         logger.info("brwoserify bundle detected")
-        res = browserify_lift(code, func_node, ast);        
+        res = browserify_lift(code, func_node, ast);
     }
     else {
         // console.log("Not a browserify bundle")
     }
 
-    // console.log("Not matching any bundle")
-
-    if(codeTransform){
-        res = splitSequence(res)
-    }
+    // return lifted code only (transformation is handled separately)
     return res;
 }
 
@@ -715,7 +710,7 @@ if (require.main === module) {
             if (err || (data === undefined)) {
                 console.error(`Error reading ${inputfile}:`, err);
                 process.exit(1);
-            }         
+            }
             new_data = lift(data);
             if(new_data !== ""){
                 fs.writeFile(outputfile, new_data, (err) => {
@@ -723,8 +718,8 @@ if (require.main === module) {
                         logger.error(`Error writing ${outputfile}:`, err);
                         process.exit(1);
                     }
-                    logger.info("replacement written into " + outputfile);
-                });            
+                    logger.info("lifted code written into " + outputfile);
+                });
             }
             else {
                 console.error(`Unable to lift ${inputfile}`);

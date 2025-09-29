@@ -44,7 +44,7 @@ const graphExporter = require('./../../core/io/graphexporter');
  */
 const DEBUG = true;
 const WARNING_LOCS = false;
-const DEBUG_FOXHOUND_TAINT_LOGS = false;
+const DEBUG_FOXHOUND_TAINT_LOGS = true;
 const CALL_GRAPH_PARTIAL_ALIASING_CUTOFF = true;
 
 /**
@@ -692,32 +692,25 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
 
     function removeFileNameFromTaintFlowAndStripScriptName(array){
 
-        // 1. remove `location.filename` property
-        // this property may prevent uniqueness matching among taint flows,  
-        // e.g., because it may contain hash fragment information added to one of taint flows 
+        // remove `location.filename` property
+        // this property may prevent uniqueness matching among taint flows,
+        // e.g., because it may contain hash fragment information added to one of taint flows
         // or other random tokens in the url
 
-        // 2. make sure that the `script` property does not contain #
-        // if it does, then strip it
+        // Updated for new structure: array of arrays containing taint objects
+        // Each taint object has {begin, end, flow} where flow contains operation objects
 
-        for(let object of array){
-            if(object.script.includes('#')){
-                let idx = object.script.indexOf('#');
-                object.script = object.script.substring(0, idx);
-            }
-            for(let taint of object.taint){
-                for(let flow of taint.flow){
-                    if(flow.location && flow.location.filename){
-                        delete flow.location["filename"];
+        for(let taintflow_array of array){
+            for(let taint of taintflow_array){
+                for(let flow_operation of taint.flow){
+                    if(flow_operation.location && flow_operation.location.filename){
+                        delete flow_operation.location["filename"];
                     }
                 }
             }
         }
 
-
-        
-
-        return array  
+        return array
     }
     function removeDuplicateObjects(array){
 
@@ -731,14 +724,13 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
      * @return {list} cleaned taint flows
      */
     function preprocessTaintflows(taintflows){
-    
-        
-        // @note structure: 
-        // we have taint flows
-        // each taint flow has several taints
-        // each taint has several flows
-        // each flow has several operations
 
+
+        // @note NEW structure:
+        // we have taint flows as an array of arrays
+        // each inner array contains taint objects
+        // each taint object has begin, end, and flow properties
+        // each flow contains several operation objects
 
         taintflows = removeFileNameFromTaintFlowAndStripScriptName(taintflows);
         DEBUG && console.log('taint flows before de-duplication:', taintflows.length);
@@ -749,30 +741,20 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
 
         for(var i=0; i<taintflows.length; i++){
 
-            let taintflow = taintflows[i];
-            let taints = [...new Set(taintflow.taint)]
-
-
-            let noBeginEndTaints = [];
-            for(let t of taints){
-                noBeginEndTaints.push({"flow": t.flow});
-            }
-
-            taints = removeDuplicateObjects(noBeginEndTaints);
-
+            let taintflow_array = taintflows[i]; // This is now an array of taint objects
             let cleaned_taints = [];
 
-            for(let taint of taints){
+            for(let taint of taintflow_array){
 
                 let flow = taint.flow;
                 let cleaned_flow = [];
 
                 // TODO: iterate over the list of `flows`
-                // and remove `operations` that cannot be mapped to edges in the HPG 
+                // and remove `operations` that cannot be mapped to edges in the HPG
                 // complete this part incrementally
 
                 for(let j=0; j< flow.length; j++){
-                    
+
                     let operation_object = flow[j];
 
                     if(operation_object.operation === 'slice'){
@@ -786,13 +768,18 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
                     cleaned_flow.push(operation_object);
                 }
 
-
-                taint.flow = cleaned_flow;
-                cleaned_taints.push(taint);
+                // Create cleaned taint object with original structure
+                let cleaned_taint = {
+                    begin: taint.begin,
+                    end: taint.end,
+                    flow: cleaned_flow
+                };
+                cleaned_taints.push(cleaned_taint);
             }
 
-            taintflow.taint = cleaned_taints;
-            cleaned_taintflows.push(taintflow);
+            // Remove duplicates within this taint flow array
+            cleaned_taints = removeDuplicateObjects(cleaned_taints);
+            cleaned_taintflows.push(cleaned_taints);
 
         }
 
@@ -803,6 +790,7 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
 
     // validate inputs
     if(!taintflows || !scripts_mapping || (scripts_mapping && Object.keys(scripts_mapping).length === 0) || !sourcemaps){
+        console.log(`Foxhound mapping skipped: taintflows: ${taintflows}, scripts_mapping: ${scripts_mapping}, sourcemaps: ${sourcemaps}`)
         return false;
     }
 
@@ -824,27 +812,26 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
 
     // iterate over taintflows and identify the script file that has that flow
     for(var i=0; i< taintflows.length; i++){
-    
-        var taintflow = taintflows[i];  // exposes: taintflow.script, taintflow.line, taintflow.taint
-       
+
+        var taintflow_array = taintflows[i];  // This is now an array of taint objects
+
         //// find the exact script file (as saved by the crawler) corresponding to the taint taintflow (e.g., 1.js, 2.js, etc)
-        // let script_object = await getMatchingScriptName(scripts_mapping, taintflow.script, taintflow.line);
+        // Extract script hash from the first taint's first flow operation
 
         let script_hash = '';
         try{
-            script_hash = taintflow.taint[0].flow[0].location.scripthash;
+            script_hash = taintflow_array[0].flow[0].location.scripthash;
         }catch(e){
             console.error('[[error]] unable to unroll script hash from taint flows.', e)
             continue;
         }
-       
+
         let script_object = getMatchingScriptNameByScriptHash(scripts_mapping, script_hash)
 
         if(!script_object){
             WARNING_LOCS && console.log('[[warning]] script_hash:', script_hash);
             WARNING_LOCS && console.log('[[warning]] did not found a corresponding script for the foxhound taintflow.')
-            WARNING_LOCS && console.log('[[warning]] taintflow.script: ', taintflow.script);
-            WARNING_LOCS && console.log('[[warning]] taintflow.line:', taintflow.line);
+            // Note: taintflow.script and taintflow.line no longer exist in new structure
             continue;
         }
 
@@ -865,10 +852,10 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
 
         // iterate through each part of the taintflow, and map to an edge
         // note that each taintflow may have multiple data flows (e.g., with different string ranges)
-        
 
-        
-        let unique_taintflows = [...new Set(taintflow.taint)];
+
+
+        let unique_taintflows = [...new Set(taintflow_array)];
         for(let taint_object of unique_taintflows){
 
             let flow = taint_object.flow;
@@ -882,6 +869,7 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
 
             for(let ii =1; ii < flow.length - 1; ii ++){ // start ii at 1 to ignore `ReportTaintSink` item in the flow
 
+                console.log(`working on object flow[ii]: ${JSON.stringify(flow[ii])} and flow[i+1]: ${JSON.stringify(flow[ii+1])}`);
 
                 // find the AST node / code at `gen_position` in `script_name` and 
                 // connect it to the node of the next item of the loop
@@ -916,7 +904,7 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
                 // Q1. given the LoC positions, what AST node to pick?
                 // Q2. given the taint flows, what edge type to connect between the nodes? 
 
-                DEBUG && console.log('locations', JSON.stringify({
+                console.log('locations', JSON.stringify({
                     "script_name": script_name,
                     "script_type": script_type,
                     "generated": object_1_gen_position.line, 
@@ -1002,12 +990,6 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
                     }
 
                 }
-                if(object_2.operation === "PushSubscription.endpoint"){
-                    taintedCFGNodes.push({
-                        "object": object_2,
-                        "node": null,
-                    });          
-                }
             } 
 
             if(taintedCFGNodes.length > 0){
@@ -1034,6 +1016,7 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
                     
                     // find common variables between the two AST nodes 
                     // i.e., intersection of LHS of `fromNode` with all Identifiers of `toNode`
+                    console.log(`fromNode: ${fromNode}, toNode: ${toNode}`)
                     let dataflowVariables = getCommonTokensFromASTNodesForPDG(fromNode, toNode);
                     for(let dfVar of dataflowVariables){
                         
@@ -1048,11 +1031,11 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
                                 args: dfVar,  
                             });
                             DEBUG_FOXHOUND_TAINT_LOGS && console.log('PDG:', dfVar);
+                            console.log('PDG:', dfVar);
                         }
                     }
 
                     DEBUG_FOXHOUND_TAINT_LOGS &&  console.log('variables:', JSON.stringify(dataflowVariables));
-                    DEBUG_FOXHOUND_TAINT_LOGS &&  console.log('sink:', taintflow.sink);
                     DEBUG_FOXHOUND_TAINT_LOGS && console.log('from:', escodegen.generate(fromNode));
                     DEBUG_FOXHOUND_TAINT_LOGS && console.log('to:', escodegen.generate(toNode));
                     DEBUG_FOXHOUND_TAINT_LOGS && console.log('--------');

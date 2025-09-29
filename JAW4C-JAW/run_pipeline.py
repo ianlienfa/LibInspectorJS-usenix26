@@ -295,10 +295,10 @@ def main():
 	crawling_timeout = int(config["crawler"]["sitetimeout"])
 
 	# lib_detector config
-	lib_detector_enable = config["crawler"]["lib_detection"]["enable"]
-	lib_detector_post_cleanup = config["crawler"]["lib_detection"]["post_cleanup"]
-	lib_detector_lift = config["crawler"]["lib_detection"]["lift"]
-	if lib_detector_enable and lib_detector_lift:
+	lib_detector_enable = config["cve_vuln"]["passes"]["lib_detection"]
+	lib_detector_lift = config.get('cve_vuln', {}).get('passes', {}).get('lift', False)
+	transform_enabled = config.get('cve_vuln', {}).get('passes', {}).get('transform', False)
+	if lib_detector_lift:
 		crawling_command += " --lift=True"
 	else:
 		crawling_command += " --lift=False"
@@ -420,9 +420,50 @@ def main():
 					save_website_is_down(website_url)
 
 			LOGGER.info("crawling site %s."%(website_url))
-			cmd = crawling_command.replace('SEED_URL', website_url)
-			LOGGER.debug(cmd)
-			IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout)
+
+			# Two-pass crawling when foxhound is enabled
+			if config["crawler"]["browser"]["foxhound"]:
+				# Pass 1: Pure collection with Chrome
+				LOGGER.info("Pass 1: Pure collection with Chrome browser")
+				pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --pure=true".format(
+					crawler_node_memory,
+					os.path.join(crawler_command_cwd, 'crawler.js'),
+					config["crawler"]["maxurls"],
+					config["crawler"]["browser"]["headless"],
+					config["crawler"]["overwrite"]
+				)
+
+				# Add lift or transform option based on config
+				if lib_detector_lift:
+					pass1_command += " --lift=true"
+				if transform_enabled:
+					pass1_command += " --transform=true"
+
+				pass1_command += " --seedurl=" + website_url
+				LOGGER.debug(pass1_command)	
+				IOModule.run_os_command(pass1_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
+				LOGGER.info("Pass 1 completed: Pure collection")
+
+				# Pass 2: Taint analysis with Foxhound
+				LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
+				pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --foxhound=true --collect=true".format(
+					crawler_node_memory,
+					os.path.join(crawler_command_cwd, 'crawler-taint.js'),
+					config["crawler"]["maxurls"],
+					config["crawler"]["browser"]["headless"],
+				)
+				pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
+				pass2_command += " --seedurl=" + website_url
+				LOGGER.debug(pass2_command)	
+				IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
+				LOGGER.info("Pass 2 completed: Taint analysis")
+
+			else:
+				# Original single-pass crawling
+				cmd = crawling_command.replace('SEED_URL', website_url)
+				LOGGER.debug(cmd)
+				IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout)
+
 			LOGGER.info("successfully crawled %s."%(website_url)) 
 
 		if config['cve_vuln']['enabled']:
@@ -447,7 +488,7 @@ def main():
 					LOGGER.info("successfully detected libraries on %s."%(url)) 
 
 					# Detection result and DB querying
-					if config['cve_vuln']["passes"]["static_neo4j"]:
+					if config['cve_vuln']["passes"]["static"]:
 						LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 						try:
 							lib_det_res = DetectorReader.read_raw_result_with_url(url)
@@ -495,8 +536,14 @@ def main():
 											except Exception as e:
 												print('poc formatting problem from database', poc)
 
+							try:
+								cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+							except Exception as e:
+								LOGGER.error("Error building node/edges for %s."%(url)) 
+							LOGGER.info("static analysis for site %s."%(url))
+							LOGGER.info("successfully finished static analysis for site %s."%(url)) 
 							# Start static analysis, skip if no match on vulnerability
-							if not (config['cve_vuln']["passes"]["static"] and vuln_list):
+							if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
 								continue
 							else:
 								vuln_list = list(vuln_list)
@@ -504,14 +551,11 @@ def main():
 								database_name = 'neo4j'  
 								graphid = uuid.uuid4().hex
 								container_name = 'neo4j_container_' + graphid
-								LOGGER.info("static analysis for site %s."%(url))
-								cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-								LOGGER.info("successfully finished static analysis for site %s."%(url)) 
 								try:
 									container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
 									LOGGER.info("successfully built hpg for %s."%(url)) 
 								except Exception as e:
-									LOGGER.info("Error building hpg for %s."%(url), e) 
+									LOGGER.error("Error building hpg for %s."%(url), e) 
 									continue
 				
 								# query on vulnerabilities
@@ -523,7 +567,7 @@ def main():
 										except Exception as e:
 											print(f"neo4j exception {e}, retrying ... ")
 											time.sleep(5)		
-										breakpoint()									
+										# breakpoint()									
 									LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
 				
 								# Cleanup
@@ -642,9 +686,49 @@ def main():
 
 						# Archive analysis crawling
 						if (config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
-							LOGGER.info("crawling site at row %s - %s"%(i, website_url)) 
-							cmd = crawling_command.replace('SEED_URL', f"'{website_url}'")
-							IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
+							LOGGER.info("crawling site at row %s - %s"%(i, website_url))
+
+							# Two-pass crawling when foxhound is enabled
+							if config["crawler"]["browser"]["foxhound"]:
+								# Pass 1: Pure collection with Chrome
+								LOGGER.info("Pass 1: Pure collection with Chrome browser")
+								pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --pure=true".format(
+									crawler_node_memory,
+									os.path.join(crawler_command_cwd, 'crawler.js'),
+									config["crawler"]["maxurls"],
+									config["crawler"]["browser"]["headless"],
+									config["crawler"]["overwrite"]
+								)
+
+								# Add lift or transform option based on config
+								if lib_detector_lift:
+									pass1_command += " --lift=true"
+								elif transform_enabled:
+									pass1_command += " --transform=true"
+
+								pass1_command += f" --seedurl='{website_url}'"
+								IOModule.run_os_command(pass1_command, cwd=crawler_command_cwd, timeout=crawling_timeout, log_command=True)
+								LOGGER.info("Pass 1 completed: Pure collection")
+
+								# Pass 2: Taint analysis with Foxhound
+								LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
+								pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --overwrite={4} --foxhound=true --collect=true".format(
+									crawler_node_memory,
+									os.path.join(crawler_command_cwd, 'crawler-taint.js'),
+									config["crawler"]["maxurls"],
+									config["crawler"]["browser"]["headless"],
+									config["crawler"]["overwrite"]
+								)
+								pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
+								pass2_command += f" --seedurl='{website_url}'"
+								IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout, log_command=True)
+								LOGGER.info("Pass 2 completed: Taint analysis")
+
+							else:
+								# Original single-pass crawling
+								cmd = crawling_command.replace('SEED_URL', f"'{website_url}'")
+								IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
+
 							LOGGER.info("successfully crawled %s - %s"%(i, website_url)) 
 						
 						if config['cve_vuln']['enabled']:
@@ -678,7 +762,7 @@ def main():
 									LOGGER.info("successfully detected libraries on %s."%(url))
 
 									# Detection result and DB querying
-									if config['cve_vuln']["passes"]["static_neo4j"]:
+									if config['cve_vuln']["passes"]["static"]:
 										LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 										try:
 											lib_det_res = DetectorReader.read_raw_result_with_url(url)
@@ -727,25 +811,26 @@ def main():
 															except Exception as e:
 																print('poc formatting problem from database', poc)
 
+														try:
+															cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+														except Exception as e:
+															LOGGER.error("Error building node/edges for %s."%(url)) 
+															continue
+														LOGGER.info("static analysis for site %s."%(url))
+														LOGGER.info("successfully finished static analysis for site %s."%(url)) 
+														
 														# Start static analysis, skip if no match on vulnerability
-														if not (config['cve_vuln']["passes"]["static"] and vuln_list):
+														if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
 															continue
 														else:
 															database_name = 'neo4j'
 															graphid = uuid.uuid4().hex
-															container_name = 'neo4j_container_' + graphid
-															LOGGER.info("static analysis for site %s."%(url))
+															container_name = 'neo4j_container_' + graphid														
 															try:
-																cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-																LOGGER.info("successfully finished static analysis for site %s."%(url))
-																try:
-																	container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-																	LOGGER.info("successfully built hpg for %s."%(url))
-																except Exception as e:
-																	LOGGER.info("Error building hpg for %s."%(url), e)
-																	continue
+																container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+																LOGGER.info("successfully built hpg for %s."%(url))
 															except Exception as e:
-																LOGGER.error(f"Static analysis failed for {url}: {e}")
+																LOGGER.info("Error building hpg for %s."%(url), e)
 																continue
 
 															# query on vulnerabilities
@@ -757,7 +842,7 @@ def main():
 																	except Exception as e:
 																		print(f"neo4j exception {e}, retrying ... ")
 																		time.sleep(5)
-																	breakpoint()
+																	# breakpoint()
 																LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
 
 																# Cleanup

@@ -66,6 +66,8 @@
     // Event listener for Taintfox taint report
     window.addEventListener("__taintreport", (r) => {
         var finding = copyFinding(r.detail);
+        console.log(report.detail);
+        console.log(report.detail.str.taint);
         finding.domain = location.hostname;
 	__playwright_taint_report(finding);
     });

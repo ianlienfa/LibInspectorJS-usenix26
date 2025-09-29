@@ -87,7 +87,17 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
     if(fs.existsSync(dataDir)){
       await page.setRequestInterception(true);  
       const overrideMappingPath = path.join(dataDir, 'override_mapping.json')
-      overrideMapping = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'))
+      const overrideMappingData = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'))
+
+      // Library detection should only use lift mapping (not transform)
+      let overrideMapping = {};
+      if(overrideMappingData.lift) {
+        // New nested structure - use lift for library detection
+        overrideMapping = overrideMappingData.lift;
+      } else {
+        // Old flat structure (backward compatibility)
+        overrideMapping = overrideMappingData;
+      }
     
 
       // intercept request for file override: override all files from local directory to mitigate the effect of lazy loading

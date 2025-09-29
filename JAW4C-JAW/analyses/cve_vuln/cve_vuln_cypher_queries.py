@@ -1274,7 +1274,7 @@ def getSinkExpression(tx, vuln_info):
 			RETURN DISTINCT(node)
 		"""%(scope['Id'], code, code)
 		print(f"getCodeMatchInScope query: {query}")
-		breakpoint()
+		# breakpoint()
 		res = []
 		results = tx.run(query)			
 		res = [record['node'] for record in results]
