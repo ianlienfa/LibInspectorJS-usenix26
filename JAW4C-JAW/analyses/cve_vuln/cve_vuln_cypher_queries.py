@@ -1442,7 +1442,10 @@ def getSinkExpression(tx, vuln_info):
 		# poc flattened tree generation
 		if 'LIBOBJ' not in vuln_info['poc_str']:
 			raise RuntimeError("poc_str format error")
-		pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['location'] + ')')]
+		if vuln_info['mod']: # is a module detection
+			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['location'] + ')')]
+		else:
+			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', vuln_info['location'])]
 		print("pocStrArr", pocStrArr)
 		json_arg = json.dumps(pocStrArr)
 		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 

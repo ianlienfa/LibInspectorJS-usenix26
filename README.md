@@ -100,3 +100,9 @@ The ground truth collection is saved in groundtruth.json in each webpage's folde
     - could be previous container didn't stop gracefully and therefore some lock is helded by the operating system, the proper way to fix this is to remove the /var/lib/neo4j/data/databases/store_lock (now implemented into create_container)
 
     ```
+
+# Docker testing
+- When testing pipeline using docker_keep_alive option, manually clean up the instances with
+```
+docker ps -a | grep 'arm64v8/neo4j:4.4' | cut -f 1 -d ' ' | while read id; do python3 -c "import docker.neo4j.manage_container as c; c.stop_neo4j_container('${id}')" && docker rm $id done
+```

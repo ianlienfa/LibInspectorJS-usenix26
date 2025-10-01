@@ -868,9 +868,6 @@ GraphBuilder.prototype.mapFoxhoundTaintFlowsToGraph = async function(taintflows,
             // console.log('===============\n');
 
             for(let ii =1; ii < flow.length - 1; ii ++){ // start ii at 1 to ignore `ReportTaintSink` item in the flow
-
-                console.log(`working on object flow[ii]: ${JSON.stringify(flow[ii])} and flow[i+1]: ${JSON.stringify(flow[ii+1])}`);
-
                 // find the AST node / code at `gen_position` in `script_name` and 
                 // connect it to the node of the next item of the loop
                 let object_1 = flow[ii];

@@ -5,7 +5,7 @@
  * Separated from lifting functionality for clean architecture
  */
 
-const splitSequence = require("./split-sequence")
+const babelUtil = require("./babel-util")
 
 /**
  * Transform code by applying sequence expression splitting
@@ -16,13 +16,15 @@ function transform(code) {
     if (!code || code.trim() === "") {
         return "";
     }
+    res = code
 
     try {
-        return splitSequence(code);
+        res = babelUtil.splitSequence(res);
     } catch (error) {
-        console.error("Error in code transformation:", error);
-        return "";
+        console.error("Error in splitSequence code transformation:", error);            
     }
+
+    return res;
 }
 
 module.exports = transform;

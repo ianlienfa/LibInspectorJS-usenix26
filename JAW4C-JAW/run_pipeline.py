@@ -181,6 +181,286 @@ def cleanup_current_url_handlers():
 		current_url_handlers = None
 
 
+def perform_domain_health_check(website_url):
+	"""
+	Performs domain health check and returns whether the website is up
+
+	@param website_url: URL to check
+	@return: True if website is up, False otherwise
+	"""
+	LOGGER.info('checking if domain is up with python requests ...')
+	website_up = False
+
+	try:
+		website_up = is_website_up(website_url)
+	except:
+		save_website_is_down(website_url)
+
+	if not website_up:
+		LOGGER.warning('domain %s is not up, skipping!'%website_url)
+		save_website_is_down(website_url)
+		return False
+
+	return True
+
+def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory):
+	"""
+	Performs crawling for a given website URL using either single-pass or two-pass approach
+
+	@param website_url: URL to crawl
+	@param config: Configuration dictionary
+	@param crawler_command_cwd: Crawler command working directory
+	@param crawling_timeout: Timeout for crawling operations
+	@param lib_detector_lift: Whether lift mode is enabled
+	@param transform_enabled: Whether transform mode is enabled
+	@param crawler_node_memory: Memory allocation for node process
+	"""
+	LOGGER.info("crawling site %s."%(website_url))
+
+	# Two-pass crawling when foxhound is enabled
+	if config["crawler"]["browser"]["foxhound"]:
+		# Pass 1: Pure collection with Chrome
+		LOGGER.info("Pass 1: Pure collection with Chrome browser")
+		pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --pure=true".format(
+			crawler_node_memory,
+			os.path.join(crawler_command_cwd, 'crawler.js'),
+			config["crawler"]["maxurls"],
+			config["crawler"]["browser"]["headless"],
+			config["crawler"]["overwrite"]
+		)
+
+		# Add lift or transform option based on config
+		if lib_detector_lift:
+			pass1_command += " --lift=true"
+		if transform_enabled:
+			pass1_command += " --transform=true"
+
+		pass1_command += " --seedurl=" + website_url
+		LOGGER.debug(pass1_command)
+		IOModule.run_os_command(pass1_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
+		LOGGER.info("Pass 1 completed: Pure collection")
+
+		# Pass 2: Taint analysis with Foxhound
+		LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
+		pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --foxhound=true --collect=true".format(
+			crawler_node_memory,
+			os.path.join(crawler_command_cwd, 'crawler-taint.js'),
+			config["crawler"]["maxurls"],
+			config["crawler"]["browser"]["headless"],
+		)
+		pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
+		pass2_command += " --seedurl=" + website_url
+		LOGGER.debug(pass2_command)
+		IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
+		LOGGER.info("Pass 2 completed: Taint analysis")
+
+	else:
+		# Original single-pass crawling
+		browser_name = config["crawler"]["browser"]["name"]
+		if browser_name == 'chrome':
+			crawler_js_program = 'crawler.js'
+		else:
+			crawler_js_program = 'crawler-taint.js'
+
+		# Build crawling command dynamically
+		if config["testbed"]["archive"]["enable"]:
+			crawling_command = "node --max-old-space-size={5} {6} --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={7} --seedurl={8}".format(
+				config["crawler"]["maxurls"],
+				config["crawler"]["browser"]["name"],
+				config["crawler"]["browser"]["headless"],
+				config["crawler"]["overwrite"],
+				config["crawler"]["browser"]["foxhound"],
+				crawler_node_memory,
+				os.path.join(crawler_command_cwd, crawler_js_program),
+				parse_additional_args_to_posix_style(config["crawler"]["puppeteer"]),
+				website_url
+			)
+		else:
+			crawling_command = "node --max-old-space-size={5} {6} --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --seedurl={7}".format(
+				config["crawler"]["maxurls"],
+				config["crawler"]["browser"]["name"],
+				config["crawler"]["browser"]["headless"],
+				config["crawler"]["overwrite"],
+				config["crawler"]["browser"]["foxhound"],
+				crawler_node_memory,
+				os.path.join(crawler_command_cwd, crawler_js_program),
+				website_url
+			)
+
+		if browser_name != 'chrome':
+			crawling_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
+
+		if lib_detector_lift:
+			crawling_command += " --lift=True"
+		else:
+			crawling_command += " --lift=False"
+
+		LOGGER.debug(crawling_command)
+		IOModule.run_os_command(crawling_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
+
+	LOGGER.info("successfully crawled %s."%(website_url))
+
+def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg):
+	"""
+	Performs CVE vulnerability analysis for a given website URL
+
+	@param website_url: URL to analyze
+	@param config: Configuration dictionary
+	@param lib_detector_enable: Whether library detection is enabled
+	@param lib_detector_lift: Whether lift mode is enabled
+	@param vuln_db: Vulnerability database connection
+	@param iterative_output: Whether to use iterative output
+	@param static_analysis_memory: Memory allocation for static analysis
+	@param static_analysis_per_webpage_timeout: Timeout per webpage
+	@param static_analysis_compress_hpg: Whether to compress HPG
+	@param static_analysis_overwrite_hpg: Whether to overwrite HPG
+	"""
+	if not config['cve_vuln']['enabled']:
+		return
+
+	webapp_folder_name = get_name_from_url(website_url)
+	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
+	if not os.path.exists(webapp_data_directory):
+		LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
+		return
+
+	urls_file = os.path.join(webapp_data_directory, 'urls.out')
+	if not os.path.exists(urls_file):
+		LOGGER.error(f"urls.out file not found: {urls_file}")
+		return
+
+	with open(urls_file, 'r') as fd:
+		urls = fd.readlines()
+	urls = list(set(urls))
+
+	for url in urls:
+		url = url.strip().rstrip('\n').strip()
+		webpage_folder_name = utilityModule.sha256(url)
+		webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
+		if os.path.exists(webpage_folder):
+			# Add URL-specific logging handlers to capture all logs for this URL
+			add_url_logging_handlers(url, webpage_folder)
+
+			# Library detection
+			if lib_detector_enable and lib_detector_lift:
+				try:
+					lib_detection_api.lib_detection_single_url(url)
+				except Exception as e:
+					LOGGER.error(f"Library detection failed for {url}: {e}")
+					continue
+			LOGGER.info("successfully detected libraries on %s."%(url))
+
+			# Detection result and DB querying
+			if config['cve_vuln']["passes"]["static"]:
+				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
+				try:
+					lib_det_res = DetectorReader.read_raw_result_with_url(url)
+				except Exception as e:
+					LOGGER.error(e)
+					continue
+
+				for affiliatedurl, _ in lib_det_res.items():
+					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
+					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+
+					# Build vulnerability list
+					vuln_list = []
+					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
+						for detection_info in matching_obj_lst:
+							if detection_info['accurate']:
+								version = detection_info['version'].split(', ')
+								vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
+							else:
+								vuln = vuln_db.package_vuln_search(lib) # type: ignore
+
+							if not vuln:
+								LOGGER.info(f"No vulnerability matched for {lib}, continue...")
+								continue
+							else:
+								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+								vuln_list.append({
+									"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
+								})
+
+								# Setup ground truth for this particular site
+								for poc in vuln:
+									try:
+										poc_str = poc['poc']
+										cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
+									except Exception as e:
+										print('poc formatting problem from database', poc)
+
+					try:
+						cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+					except Exception as e:
+						LOGGER.error("Error building node/edges for %s."%(url))
+						continue
+					LOGGER.info("static analysis for site %s."%(url))
+					LOGGER.info("successfully finished static analysis for site %s."%(url))
+
+					# Start static analysis over neo4j, skip if no match on vulnerability
+					if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
+						continue
+					else:
+						database_name = 'neo4j'
+						graphid = uuid.uuid4().hex
+						container_name = 'neo4j_container_' + graphid
+						try:
+							container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+							LOGGER.info("successfully built hpg for %s."%(url))
+						except Exception as e:
+							LOGGER.error("Error building hpg for %s."%(url), e)
+							continue
+
+						# Query on vulnerabilities
+						if container_name:
+							for try_attempts in range(2):
+								try:
+									CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
+									break
+								except Exception as e:
+									print(f"neo4j exception {e}, retrying ... ")
+									time.sleep(5)
+							LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
+
+							# Cleanup
+							if not config['staticpass']['keep_docker_alive']:
+								dockerModule.stop_neo4j_container(container_name)
+								dockerModule.remove_neo4j_container(container_name)
+
+def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg):
+	"""
+	Processes a single website through the entire analysis pipeline
+
+	@param website_url: URL to process
+	@param config: Configuration dictionary
+	@param domain_health_check: Whether to perform domain health check
+	@param crawler_command_cwd: Crawler command working directory
+	@param crawling_timeout: Timeout for crawling operations
+	@param lib_detector_lift: Whether lift mode is enabled
+	@param transform_enabled: Whether transform mode is enabled
+	@param crawler_node_memory: Memory allocation for node process
+	@param lib_detector_enable: Whether library detection is enabled
+	@param vuln_db: Vulnerability database connection
+	@param iterative_output: Whether to use iterative output
+	@param static_analysis_memory: Memory allocation for static analysis
+	@param static_analysis_per_webpage_timeout: Timeout per webpage
+	@param static_analysis_compress_hpg: Whether to compress HPG
+	@param static_analysis_overwrite_hpg: Whether to overwrite HPG
+	"""
+	# Domain health check
+	if domain_health_check:
+		if not perform_domain_health_check(website_url):
+			return
+
+	# Crawling
+	if(config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
+
+		perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory)
+
+	# CVE vulnerability analysis
+	perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg)
+
 
 
 def main():
@@ -353,310 +633,29 @@ def main():
 		constantsModule.NEO4J_USE_DOCKER = config["staticpass"]["neo4j_use_docker"] 
 
 
-	# dom clobbering
-	domc_analyses_command_cwd = os.path.join(BASE_DIR, "analyses/domclobbering")
-	domc_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --seedurl=SEED_URL --iterativeoutput=%s"%(static_analysis_memory, iterative_output)
-	domc_static_analysis_driver_program = os.path.join(domc_analyses_command_cwd, "static_analysis.js")
-	domc_static_analysis_command = domc_static_analysis_command.replace("DRIVER_ENTRY", domc_static_analysis_driver_program)
-	
-	# client-side csrf
-	cs_csrf_analyses_command_cwd = os.path.join(BASE_DIR, "analyses/cs_csrf")
-	cs_csrf_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --seedurl=SEED_URL --iterativeoutput=%s"%(static_analysis_memory, iterative_output)
-	cs_csrf_static_analysis_driver_program = os.path.join(cs_csrf_analyses_command_cwd, "static_analysis.js")
-	cs_csrf_static_analysis_command = cs_csrf_static_analysis_command.replace("DRIVER_ENTRY", cs_csrf_static_analysis_driver_program)
-	
-
-	# dom clobbering dynamic verifier	
-	force_execution_timeout = int(config["dynamicpass"]["sitetimeout"])
-	node_force_execution_command = "node --max-old-space-size=4096 DRIVER_ENTRY --website=SITE_URL --browser={0} --use_browserstack={1}  --browserstack_username={2}  --browserstack_password={3} --browserstack_access_key={4}".format(
-		config["dynamicpass"]["browser"]["name"],
-		config["dynamicpass"]["browser"]["use_browserstack"],
-		config["dynamicpass"]["browser"]["browserstack_username"],
-		config["dynamicpass"]["browser"]["browserstack_password"],
-		config["dynamicpass"]["browser"]["browserstack_access_key"]
-	)
-	node_force_execution_driver_program = os.path.join(force_execution_command_cwd, 'force_execution.js')
-	node_force_execution = node_force_execution_command.replace("DRIVER_ENTRY", node_force_execution_driver_program)
-	
-
-	## request hijacking dynamic verifier	
-	verification_pass_timeout = int(config["verificationpass"]["sitetimeout"])
-	## TODO: add TMPDIR=/dev/shm to the beginning of the command below to reduce io
-	node_dynamic_verfier_command = "node --max-old-space-size=4096 DRIVER_ENTRY --datadir={0} --website=SITE_URL --webpage=PAGE_URL_HASH --webpagedir=PAGE_URL_DIR --type=DYNAMIC_OR_STATIC --browser={1} --service={2}".format(
-		constantsModule.DATA_DIR,
-		config["verificationpass"]["browser"]["name"],
-		config["verificationpass"]["endpoint"]
-
-	)
-	node_dynamic_verifier_driver_program = os.path.join(dynamic_verifier_command_cwd, "verify.js")
-	node_dynamic_verifier = node_dynamic_verfier_command.replace("DRIVER_ENTRY", node_dynamic_verifier_driver_program)
-
-
 	# ----------- Sigle Site Analysis Section -----------
 
 	# single site crawl/analysis
 	if "site" in config["testbed"]:
 		website_url = config["testbed"]["site"]
-
-		# single site crawling
-		if (config['domclobbering']['enabled'] and config['domclobbering']["passes"]["crawling"]) or \
-			(config['cs_csrf']['enabled'] and config['cs_csrf']["passes"]["crawling"]) or \
-			(config['open_redirect']['enabled'] and config['open_redirect']["passes"]["crawling"]) or \
-			(config['request_hijacking']['enabled'] and config['request_hijacking']["passes"]["crawling"]) or \
-			(config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
-			print("================ 1 ==================")
-
-			if domain_health_check:
-				LOGGER.info('checking if domain is up with python requests ...')
-				website_up = False
-
-				try:
-					website_up = is_website_up(website_url)
-				except:
-					save_website_is_down(website_url)
-
-				if not website_up:
-					LOGGER.warning('domain %s is not up, skipping!'%website_url)
-					save_website_is_down(website_url)
-
-			LOGGER.info("crawling site %s."%(website_url))
-
-			# Two-pass crawling when foxhound is enabled
-			if config["crawler"]["browser"]["foxhound"]:
-				# Pass 1: Pure collection with Chrome
-				LOGGER.info("Pass 1: Pure collection with Chrome browser")
-				pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --pure=true".format(
-					crawler_node_memory,
-					os.path.join(crawler_command_cwd, 'crawler.js'),
-					config["crawler"]["maxurls"],
-					config["crawler"]["browser"]["headless"],
-					config["crawler"]["overwrite"]
-				)
-
-				# Add lift or transform option based on config
-				if lib_detector_lift:
-					pass1_command += " --lift=true"
-				if transform_enabled:
-					pass1_command += " --transform=true"
-
-				pass1_command += " --seedurl=" + website_url
-				LOGGER.debug(pass1_command)	
-				IOModule.run_os_command(pass1_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
-				LOGGER.info("Pass 1 completed: Pure collection")
-
-				# Pass 2: Taint analysis with Foxhound
-				LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
-				pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --foxhound=true --collect=true".format(
-					crawler_node_memory,
-					os.path.join(crawler_command_cwd, 'crawler-taint.js'),
-					config["crawler"]["maxurls"],
-					config["crawler"]["browser"]["headless"],
-				)
-				pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
-				pass2_command += " --seedurl=" + website_url
-				LOGGER.debug(pass2_command)	
-				IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
-				LOGGER.info("Pass 2 completed: Taint analysis")
-
-			else:
-				# Original single-pass crawling
-				cmd = crawling_command.replace('SEED_URL', website_url)
-				LOGGER.debug(cmd)
-				IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout)
-
-			LOGGER.info("successfully crawled %s."%(website_url)) 
-
-		if config['cve_vuln']['enabled']:
-			webapp_folder_name = get_name_from_url(website_url)
-			webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
-			if not os.path.exists(webapp_data_directory):
-				LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
-			urls_file = os.path.join(webapp_data_directory, 'urls.out')
-			with open(urls_file, 'r') as fd:
-				urls = fd.readlines()
-			urls = list(set(urls))
-			for url in urls:
-				url = url.strip().rstrip('\n').strip()
-				webpage_folder_name = utilityModule.sha256(url)
-				webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
-				if os.path.exists(webpage_folder):
-					# Add URL-specific logging handlers to capture all logs for this URL
-					add_url_logging_handlers(url, webpage_folder)
-					# single site library detection
-					if lib_detector_enable and lib_detector_lift:
-						lib_detection_api.lib_detection_single_url(url)
-					LOGGER.info("successfully detected libraries on %s."%(url)) 
-
-					# Detection result and DB querying
-					if config['cve_vuln']["passes"]["static"]:
-						LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
-						try:
-							lib_det_res = DetectorReader.read_raw_result_with_url(url)
-						except Exception as e:
-							LOGGER.error(e)
-							exit(1)
-						
-						for affiliatedurl, _ in lib_det_res.items():
-							mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
-							LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
-							# vuln_list 
-							#  [{
-							#		"libname": str,
-							# 		"location": str,
-							# 		"version": str,
-							# 		"vuln": list
-							# 	}, ...
-							# ]							
-
-							# Iterate on the detected obj-lib mapping
-							vuln_list = []
-							for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-								for detection_info in matching_obj_lst:									
-									if detection_info['accurate']:								
-										version = detection_info['version'].split(', ')
-										vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
-									# Wide search across all versions otherwise
-									else:
-										vuln = vuln_db.package_vuln_search(lib) # type: ignore
-									if not vuln:
-										LOGGER.info(f"No vulnerability matched for {lib}, continue...")
-										continue
-									else:
-										# setup vuln_list for further static analysis
-										LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")														
-										
-										vuln_list.append({
-											"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
-										})
-										# setup ground truth for this particular site
-										for poc in vuln:
-											try:
-												poc_str = poc['poc']
-												cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
-											except Exception as e:
-												print('poc formatting problem from database', poc)
-
-							try:
-								cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-							except Exception as e:
-								LOGGER.error("Error building node/edges for %s."%(url)) 
-							LOGGER.info("static analysis for site %s."%(url))
-							LOGGER.info("successfully finished static analysis for site %s."%(url)) 
-							# Start static analysis, skip if no match on vulnerability
-							if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
-								continue
-							else:
-								vuln_list = list(vuln_list)
-								# breakpoint()
-								database_name = 'neo4j'  
-								graphid = uuid.uuid4().hex
-								container_name = 'neo4j_container_' + graphid
-								try:
-									container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-									LOGGER.info("successfully built hpg for %s."%(url)) 
-								except Exception as e:
-									LOGGER.error("Error building hpg for %s."%(url), e) 
-									continue
-				
-								# query on vulnerabilities
-								if container_name:
-									for try_attempts in range(2):
-										try:
-											CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
-											break									
-										except Exception as e:
-											print(f"neo4j exception {e}, retrying ... ")
-											time.sleep(5)		
-										# breakpoint()									
-									LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-				
-								# Cleanup
-								if not config['staticpass']['keep_docker_alive']:
-									dockerModule.stop_neo4j_container(container_name)
-									dockerModule.remove_neo4j_container(container_name)
-
-
-
-		# # single site dom clobbering
-		# if config['domclobbering']['enabled']:
-		# 	print("================ 2 ==================")
-		# 	# static analysis
-		# 	if config['domclobbering']["passes"]["static"]:
-		# 		LOGGER.info("static analysis for site %s."%(website_url))
-		# 		# cmd = domc_static_analysis_command.replace('SEED_URL', website_url)
-		# 		# IOModule.run_os_command(cmd, cwd=domc_analyses_command_cwd, timeout= static_analysis_timeout)
-		# 		domc_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-		# 	# static analysis over neo4j
-		# 	if config['domclobbering']["passes"]["static_neo4j"]:
-		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-		# 		DOMCTraversalsModule.build_and_analyze_hpg_local(website_url)
-		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-
-		# 	# dynamic verification
-		# 	if config['domclobbering']["passes"]["dynamic"]:
-		# 		LOGGER.info("Running dynamic verifier for site %s."%(website_url))
-		# 		cmd = node_force_execution.replace('SITE_URL', website_url)
-		# 		IOModule.run_os_command(cmd, cwd=force_execution_command_cwd, timeout= force_execution_timeout)
-		# 		LOGGER.info("Dynamic verification completed for site %s."%(website_url))
-			
-		# # single site client-side csrf
-		# if config['cs_csrf']['enabled']:
-		# 	# static analysis
-		# 	print("================ 3 ==================")
-		# 	if config['cs_csrf']["passes"]["static"]:
-		# 		LOGGER.info("static analysis for site %s."%(website_url))
-		# 		# cmd = cs_csrf_static_analysis_command.replace('SEED_URL', website_url)
-		# 		# IOModule.run_os_command(cmd, cwd=cs_csrf_analyses_command_cwd, timeout= static_analysis_timeout)
-		# 		csrf_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-		# 	# static analysis over neo4j
-		# 	if config['cs_csrf']["passes"]["static_neo4j"]:
-		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-		# 		CSRFTraversalsModule.build_and_analyze_hpg(website_url)
-		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))	
-
-		# # single site open redirects
-		# if config['open_redirect']['enabled']:
-		# 	print("================ 4 ==================")
-		# 	# static analysis
-		# 	if config['open_redirect']["passes"]["static"]:
-		# 		LOGGER.info("static analysis for site %s."%(website_url))
-		# 		or_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-		# 	# static analysis over neo4j
-		# 	if config['open_redirect']["passes"]["static_neo4j"]:
-		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-		# 		or_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite=static_analysis_overwrite_hpg)
-		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-
-		# # single site request hijacking
-		# if config['request_hijacking']['enabled']:
-		# 	print("================ 5 ==================")
-		# 	# static analysis
-		# 	if config['request_hijacking']["passes"]["static"]:
-		# 		LOGGER.info("static analysis for site %s."%(website_url))
-		# 		rh_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-		# 		LOGGER.info("successfully finished static analysis for site %s."%(website_url)) 
-
-		# 	# static analysis over neo4j
-		# 	if config['request_hijacking']["passes"]["static_neo4j"]:
-		# 		LOGGER.info("HPG construction and analysis over neo4j for site %s."%(website_url))
-		# 		request_hijacking_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite=static_analysis_overwrite_hpg)
-		# 		LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(website_url))
-
-		# 	# dynamic verification
-		# 	if config['request_hijacking']['passes']['verification']:
-		# 		LOGGER.info("dynamic data flow verification for site %s."%(website_url))
-		# 		cmd = node_dynamic_verifier.replace("SEED_URL", website_url)
-		# 		request_hijacking_verification_api.start_verification_for_site(cmd, website_url, cwd=dynamic_verifier_command_cwd, timeout=verification_pass_timeout, overwrite=False)
-		# 		LOGGER.info("sucessfully finished dynamic data flow verification for site %s."%(website_url))
-
+		process_single_website(
+			website_url=website_url,
+			config=config,
+			domain_health_check=domain_health_check,
+			crawler_command_cwd=crawler_command_cwd,
+			crawling_timeout=crawling_timeout,
+			lib_detector_lift=lib_detector_lift,
+			transform_enabled=transform_enabled,
+			crawler_node_memory=crawler_node_memory,
+			lib_detector_enable=lib_detector_enable,
+			vuln_db=vuln_db,
+			iterative_output=iterative_output,
+			static_analysis_memory=static_analysis_memory,
+			static_analysis_per_webpage_timeout=static_analysis_per_webpage_timeout,
+			static_analysis_compress_hpg=static_analysis_compress_hpg,
+			static_analysis_overwrite_hpg=static_analysis_overwrite_hpg
+		)
 	# ----------- Multiple-sites Analysis Section (Web Archive) -----------
-
 	else: 
 		from_row = int(config["testbed"]["from_row"])
 		to_row = int(config["testbed"]["to_row"]) if not (config["testbed"]["to_row"] == 'end') else config["testbed"]["to_row"]
@@ -666,323 +665,30 @@ def main():
 				if to_row == "end":
 					to_row = len(mapping.keys())
 				archive_urls = list(mapping.keys())
-				for i in range(from_row, to_row+1):	
+				for i in range(from_row, to_row+1):
 					try:
 						website_url = create_start_crawl_url(archive_urls[i])
 						LOGGER.info(f"Running on website: {website_url}")
-						if domain_health_check:
-							LOGGER.info('checking if domain is up with python requests ...')
-							website_up = False
-							try:
-								website_up = is_website_up(website_url)
-							except:
-								save_website_is_down(website_url)
-								continue
-
-							if not website_up:
-								LOGGER.warning('domain %s is not up, skipping!'%website_url)
-								save_website_is_down(website_url)
-								continue
-
-						# Archive analysis crawling
-						if (config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
-							LOGGER.info("crawling site at row %s - %s"%(i, website_url))
-
-							# Two-pass crawling when foxhound is enabled
-							if config["crawler"]["browser"]["foxhound"]:
-								# Pass 1: Pure collection with Chrome
-								LOGGER.info("Pass 1: Pure collection with Chrome browser")
-								pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --pure=true".format(
-									crawler_node_memory,
-									os.path.join(crawler_command_cwd, 'crawler.js'),
-									config["crawler"]["maxurls"],
-									config["crawler"]["browser"]["headless"],
-									config["crawler"]["overwrite"]
-								)
-
-								# Add lift or transform option based on config
-								if lib_detector_lift:
-									pass1_command += " --lift=true"
-								elif transform_enabled:
-									pass1_command += " --transform=true"
-
-								pass1_command += f" --seedurl='{website_url}'"
-								IOModule.run_os_command(pass1_command, cwd=crawler_command_cwd, timeout=crawling_timeout, log_command=True)
-								LOGGER.info("Pass 1 completed: Pure collection")
-
-								# Pass 2: Taint analysis with Foxhound
-								LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
-								pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --overwrite={4} --foxhound=true --collect=true".format(
-									crawler_node_memory,
-									os.path.join(crawler_command_cwd, 'crawler-taint.js'),
-									config["crawler"]["maxurls"],
-									config["crawler"]["browser"]["headless"],
-									config["crawler"]["overwrite"]
-								)
-								pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
-								pass2_command += f" --seedurl='{website_url}'"
-								IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout, log_command=True)
-								LOGGER.info("Pass 2 completed: Taint analysis")
-
-							else:
-								# Original single-pass crawling
-								cmd = crawling_command.replace('SEED_URL', f"'{website_url}'")
-								IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout, log_command=True)
-
-							LOGGER.info("successfully crawled %s - %s"%(i, website_url)) 
-						
-						if config['cve_vuln']['enabled']:
-							webapp_folder_name = get_name_from_url(website_url)
-							webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
-							if not os.path.exists(webapp_data_directory):
-								LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
-								continue
-							urls_file = os.path.join(webapp_data_directory, 'urls.out')
-							if not os.path.exists(urls_file):
-								LOGGER.error(f"urls.out file not found: {urls_file}")
-								continue
-							with open(urls_file, 'r') as fd:
-								urls = fd.readlines()
-							urls = list(set(urls))
-							for url in urls:
-								url = url.strip().rstrip('\n').strip()
-								webpage_folder_name = utilityModule.sha256(url)
-								webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
-								if os.path.exists(webpage_folder):
-									# Add URL-specific logging handlers to capture all logs for this URL
-									add_url_logging_handlers(url, webpage_folder)
-
-									# single site library detection
-									if lib_detector_enable and lib_detector_lift:
-										try:
-											lib_detection_api.lib_detection_single_url(url)
-										except Exception as e:
-											LOGGER.error(f"Library detection failed for {url}: {e}")
-											continue
-									LOGGER.info("successfully detected libraries on %s."%(url))
-
-									# Detection result and DB querying
-									if config['cve_vuln']["passes"]["static"]:
-										LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
-										try:
-											lib_det_res = DetectorReader.read_raw_result_with_url(url)
-										except Exception as e:
-											LOGGER.error(e)
-											continue
-
-										for affiliatedurl, _ in lib_det_res.items():
-											mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
-											LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
-											# vuln_list
-											#  [{
-											#		"mod": boolean,
-											#		"libname": str,
-											# 		"location": str,
-											# 		"version": str,
-											# 		"vuln": list
-											# 	}, ...
-											# ]
-											vuln_list = []
-
-											# Iterate on the detected obj-lib mapping
-											for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-												for detection_info in matching_obj_lst:
-													if detection_info['accurate']:
-														version = detection_info['version'].split(', ')
-														vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
-													# Wide search across all versions otherwise
-													else:
-														vuln = vuln_db.package_vuln_search(lib) # type: ignore
-													if not vuln:
-														LOGGER.info(f"No vulnerability matched for {lib}, continue...")
-														continue
-													else:
-														# setup vuln_list for further static analysis
-														LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
-
-														vuln_list.append({
-															"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
-														})
-														# setup ground truth for this particular site
-														for poc in vuln:
-															try:
-																poc_str = poc['poc']
-																cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
-															except Exception as e:
-																print('poc formatting problem from database', poc)
-
-														try:
-															cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-														except Exception as e:
-															LOGGER.error("Error building node/edges for %s."%(url)) 
-															continue
-														LOGGER.info("static analysis for site %s."%(url))
-														LOGGER.info("successfully finished static analysis for site %s."%(url)) 
-														
-														# Start static analysis, skip if no match on vulnerability
-														if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
-															continue
-														else:
-															database_name = 'neo4j'
-															graphid = uuid.uuid4().hex
-															container_name = 'neo4j_container_' + graphid														
-															try:
-																container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-																LOGGER.info("successfully built hpg for %s."%(url))
-															except Exception as e:
-																LOGGER.info("Error building hpg for %s."%(url), e)
-																continue
-
-															# query on vulnerabilities
-															if container_name:
-																for try_attempts in range(2):
-																	try:
-																		CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
-																		break
-																	except Exception as e:
-																		print(f"neo4j exception {e}, retrying ... ")
-																		time.sleep(5)
-																	# breakpoint()
-																LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
-
-																# Cleanup
-																if not config['staticpass']['keep_docker_alive']:
-																	dockerModule.stop_neo4j_container(container_name)
-																	dockerModule.remove_neo4j_container(container_name)
+						process_single_website(
+							website_url=website_url,
+							config=config,
+							domain_health_check=domain_health_check,
+							crawler_command_cwd=crawler_command_cwd,
+							crawling_timeout=crawling_timeout,
+							lib_detector_lift=lib_detector_lift,
+							transform_enabled=transform_enabled,
+							crawler_node_memory=crawler_node_memory,
+							lib_detector_enable=lib_detector_enable,
+							vuln_db=vuln_db,
+							iterative_output=iterative_output,
+							static_analysis_memory=static_analysis_memory,
+							static_analysis_per_webpage_timeout=static_analysis_per_webpage_timeout,
+							static_analysis_compress_hpg=static_analysis_compress_hpg,
+							static_analysis_overwrite_hpg=static_analysis_overwrite_hpg
+						)
 					except RuntimeError as r_e:
 						print(f"Runtime error catched for {website_url}: {r_e}, moving on to the next...")
 						continue
-
-		
-		# ----------- Multiple-sites Analysis Section (CSV) -----------
-
-		else: # config["testbed"]["archive"]["enable"] == false (search via csv)
-			testbed_filename = BASE_DIR.rstrip('/') + config["testbed"]["sitelist"].strip().strip('\n').strip()
-
-			chunksize = 10**5
-			iteration = 0
-			done = False
-			for chunk_df in pd.read_csv(testbed_filename, chunksize=chunksize, usecols=[0, 1], header=None, skip_blank_lines=True):
-				if done:
-					break
-
-				iteration = iteration + 1
-				LOGGER.info("starting to crawl chunk: %s -- %s"%((iteration-1)*chunksize, iteration*chunksize))
-				
-				reverse_chunk_df = chunk_df[::-1]
-
-				for (index, row) in reverse_chunk_df.iterrows():
-					g_index = iteration*index+1
-					if g_index >= from_row and g_index <= to_row:
-
-						website_rank = row[0]
-						website_url = 'http://' + row[1]
-						
-
-						if domain_health_check:
-							LOGGER.info('checking if domain is up with python requests ...')
-							website_up = False
-
-							try:
-								website_up = is_website_up(website_url)
-							except:
-								save_website_is_down(website_url)
-								continue
-
-							if not website_up:
-								LOGGER.warning('domain %s is not up, skipping!'%website_url)
-								save_website_is_down(website_url)
-								continue
-
-						# crawling
-						if (config['domclobbering']['enabled'] and config['domclobbering']["passes"]["crawling"]) or \
-							(config['cs_csrf']['enabled'] and config['cs_csrf']["passes"]["crawling"]) or \
-							(config['open_redirect']['enabled'] and config['open_redirect']["passes"]["crawling"]) or \
-							(config['request_hijacking']['enabled'] and config['request_hijacking']["passes"]["crawling"]):
-
-							LOGGER.info("crawling site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-							cmd = crawling_command.replace('SEED_URL', website_url)
-							IOModule.run_os_command(cmd, cwd=crawler_command_cwd, timeout= crawling_timeout)
-							LOGGER.info("successfully crawled %s - %s"%(website_rank, website_url)) 
-
-						# dom clobbering
-						if config['domclobbering']['enabled']:
-							# static analysis
-							if  config['domclobbering']["passes"]["static"]:
-								LOGGER.info("static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-								# cmd = domc_static_analysis_command.replace('SEED_URL', website_url)
-								# IOModule.run_os_command(cmd, print_stdout=False, cwd=domc_analyses_command_cwd, timeout= static_analysis_timeout)
-								domc_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-								LOGGER.info("successfully finished static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-							
-							if  config['domclobbering']["passes"]["static_neo4j"]:
-								LOGGER.info("HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-								DOMCTraversalsModule.build_and_analyze_hpg_local(website_url)
-								LOGGER.info("finished HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-
-							# dynamic verification
-							if  config['domclobbering']["passes"]["dynamic"]:
-								LOGGER.info("Running dynamic verifier for site %s - %s"%(website_rank, website_url)) 
-								cmd = node_force_execution.replace('SITE_URL', website_url)
-								IOModule.run_os_command(cmd, cwd=force_execution_command_cwd, timeout= force_execution_timeout)
-								LOGGER.info("Dynamic verification completed for site %s - %s"%(website_rank, website_url)) 
-
-
-						# client-side csrf
-						if config['cs_csrf']['enabled']:
-							# static analysis
-							if config['cs_csrf']["passes"]["static"]:
-								LOGGER.info("static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-								# cmd = cs_csrf_static_analysis_command.replace('SEED_URL', website_url)
-								# IOModule.run_os_command(cmd, print_stdout=False, cwd=cs_csrf_analyses_command_cwd, timeout= static_analysis_timeout)
-								csrf_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-								LOGGER.info("successfully finished static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-							
-							if config['cs_csrf']["passes"]["static_neo4j"]:
-								LOGGER.info("HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-								CSRFTraversalsModule.build_and_analyze_hpg(website_url)
-								LOGGER.info("finished HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-
-						# open redirect
-						if config['open_redirect']['enabled']:
-							# static analysis
-							if config['open_redirect']["passes"]["static"]:
-								LOGGER.info("static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-								or_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-								LOGGER.info("successfully finished static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-							
-							if config['open_redirect']["passes"]["static_neo4j"]:
-								LOGGER.info("HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-								or_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, overwrite=static_analysis_overwrite_hpg, compress_hpg=static_analysis_compress_hpg)
-								LOGGER.info("finished HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-
-
-						# request hijacking
-						if config['request_hijacking']['enabled']:
-							# static analysis
-							if config['request_hijacking']["passes"]["static"]:
-								LOGGER.info("static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-								rh_sast_model_construction_api.start_model_construction(website_url, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-								LOGGER.info("successfully finished static analysis for site at row %s - rank %s - %s"%(g_index, website_rank, website_url)) 
-							
-							if config['request_hijacking']["passes"]["static_neo4j"]:
-								LOGGER.info("HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-								request_hijacking_neo4j_analysis_api.build_and_analyze_hpg(website_url, timeout=static_analysis_per_webpage_timeout, overwrite=static_analysis_overwrite_hpg, compress_hpg=static_analysis_compress_hpg)
-								LOGGER.info("finished HPG construction and analysis over neo4j for site %s - %s"%(website_rank, website_url)) 
-
-							# dynamic verification
-							if config['request_hijacking']['passes']['verification']:
-								LOGGER.info("dynamic data flow verification for site %s - %s"%(website_rank, website_url))
-								cmd = node_dynamic_verifier.replace("SITE_URL", website_url)
-								request_hijacking_verification_api.start_verification_for_site(cmd, website_url, cwd=dynamic_verifier_command_cwd, timeout=verification_pass_timeout, overwrite=False)
-								LOGGER.info("sucessfully finished dynamic data flow verification for site %s - %s"%(website_rank, website_url))
-
-
-					# if g_index > to_row :
-					if g_index < from_row:
-						done = True
-						LOGGER.info("successfully tested sites, terminating!") 
-						break
 
 	# close db connection
 	if vuln_db:
