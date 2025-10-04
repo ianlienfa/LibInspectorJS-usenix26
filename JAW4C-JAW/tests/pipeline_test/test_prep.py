@@ -13,7 +13,6 @@ Usage:
     Otherwise, prepares all tests found under sites/
 """
 
-import os
 import sys
 import subprocess
 import argparse
@@ -26,7 +25,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 def find_test_dirs(base_path='sites'):
     """
-    Find all test directories that contain an ans.txt file.
+    Find all test directories with names starting with test_*.
 
     Args:
         base_path: Base directory to search for tests
@@ -41,9 +40,9 @@ def find_test_dirs(base_path='sites'):
         print(f"Warning: Base path {base} does not exist")
         return test_dirs
 
-    # Find all directories under base site with names starting with test_*
+    # Find all directories under base with names starting with test_*
     for dir in base.rglob('*'):
-        if dir.is_dir() and dir.name.startswith('test_'):                    
+        if dir.is_dir() and dir.name.startswith('test_'):
             test_dirs.append(dir)
 
     return test_dirs
@@ -74,7 +73,7 @@ def prepare_test(test_dir):
     print(f"Building test: {test_path}")
 
     try:
-        # Run npm install first
+        # Run npm install
         print(f"  Running npm install...")
         try:
             subprocess.run(
@@ -85,11 +84,11 @@ def prepare_test(test_dir):
                 text=True
             )
         except Exception as e:
-            print(f"npm run install failed: ", e)
+            print(f"  npm install failed: {e}")
 
         # Run npm run build
         print(f"  Running npm run build...")
-        result = subprocess.run(
+        subprocess.run(
             ['npm', 'run', 'build'],
             cwd=test_path,
             check=True,
@@ -135,7 +134,7 @@ def main():
         test_dirs = find_test_dirs()
 
         if not test_dirs:
-            print("No tests found (searched for directories containing ans.txt)")
+            print("No tests found (searched for directories starting with test_)")
             sys.exit(1)
 
         print(f"Found {len(test_dirs)} test(s)\n")
@@ -146,11 +145,13 @@ def main():
             if prepare_test(test_dir):
                 success_count += 1
             else:
-                failed_tests.append(test_dir)
+                failed_tests.append(str(test_dir.name))
             print()  # Empty line between tests
 
-        print(f"Prepared {success_count}/{len(test_dirs)} test(s)")
-        print(f"Failed preparation at [{', '.join(failed_tests)}]")
+        if len(failed_tests):
+            print(f"❌ Failed preparation at [{', '.join(failed_tests)}]")
+        else:
+            print(f"✅ Prepared {success_count}/{len(test_dirs)} test(s)")
         sys.exit(0 if success_count == len(test_dirs) else 1)
 
 

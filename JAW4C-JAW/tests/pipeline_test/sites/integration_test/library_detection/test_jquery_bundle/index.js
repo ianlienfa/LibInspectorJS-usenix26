@@ -1,0 +1,3 @@
+const $ = require('jquery');
+
+$("#div").html('<style><style /><img src=x onerror=alert(1)>');

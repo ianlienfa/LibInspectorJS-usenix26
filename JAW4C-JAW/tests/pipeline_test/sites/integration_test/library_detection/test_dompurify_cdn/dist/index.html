@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DOMPurify CDN Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.0.12/purify.min.js"></script>
+</head>
+<body>
+    <h1>DOMPurify CDN Test</h1>
+    <div id="div"></div>
+    <script>
+        const dirty = '<img src=x onerror=alert(1)>';
+        const clean = DOMPurify.sanitize(dirty);
+        document.getElementById('div').innerHTML = clean;
+    </script>
+</body>
+</html>

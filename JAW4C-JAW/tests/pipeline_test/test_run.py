@@ -26,18 +26,16 @@ Examples:
     python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss
 """
 
-import os
 import sys
+import json
 import yaml
 import argparse
 import subprocess
-import shutil
 import time
 import threading
-import http.server
-import socketserver
 from pathlib import Path
 from contextlib import contextmanager
+from flask import Flask, send_from_directory
 
 # Add parent directory to path for imports
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -54,64 +52,58 @@ ACTIONS = {
     'analysis': ['crawling', 'lib_detection', 'static', 'static_neo4j']
 }
 
+# Phase to test function mapping
+PHASE_TESTS = {
+    'lib_detection': 'test_detection',
+    'vuln_db': 'test_vuln_db',
+    'static': 'test_graph_gen',
+    'static_neo4j': 'test_analysis'
+}
+
 
 class TestWebServer:
-    """Simple HTTP server for hosting test files at a specific URL path"""
+    """Flask-based HTTP server for hosting test files at a specific URL path"""
 
-    def __init__(self, directory, port=3000, url_path=''):
+    def __init__(self, directory, port=3000):
         self.directory = Path(directory).resolve()
         self.port = port
-        self.url_path = '/' + url_path.strip('/')
-        self.httpd = None
+        self.app = Flask(__name__)
         self.thread = None
 
+        # Extract URL path from directory structure        
+        self.url_path = get_url_path_from_test_dir(self.directory)
+
+        # Set up routes
+        @self.app.route(f'{self.url_path}/<path:filename>')
+        def serve_file(filename):
+            return send_from_directory(self.directory, filename)
+
+        @self.app.route(f'{self.url_path}/')
+        @self.app.route(f'{self.url_path}')
+        def serve_index():
+            return send_from_directory(self.directory, 'index.html')
+
     def start(self):
-        """Start the web server in a background thread"""
-        directory = self.directory
-        url_path = self.url_path
-
-        class CustomHandler(http.server.SimpleHTTPRequestHandler):
-            def translate_path(self, path):
-                """Override to handle custom URL paths"""
-                # Check if the request path starts with our url_path
-                if path.startswith(url_path):
-                    # Strip the url_path prefix
-                    path = path[len(url_path):]
-                    if not path or path == '/':
-                        path = '/index.html'
-                    # Serve from our directory
-                    path = path.lstrip('/')
-                    return str(directory / path)
-                else:
-                    # Return a path that doesn't exist to trigger 404
-                    return str(directory / '__nonexistent__')
-
-            def log_message(self, format, *args):
-                """Suppress log messages"""
-                pass
-
-        # Create server
-        self.httpd = socketserver.TCPServer(("", self.port), CustomHandler)
-
-        # Start in background thread
-        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        """Start the Flask server in a background thread"""
+        self.thread = threading.Thread(
+            target=lambda: self.app.run(host='0.0.0.0', port=self.port, debug=False, use_reloader=False),
+            daemon=True
+        )
         self.thread.start()
-
-        print(f"  Test server started at http://localhost:{self.port}{self.url_path}")
+        print(f"Test server started at http://localhost:{self.port}{self.url_path}")
         time.sleep(1)  # Give server time to start
 
     def stop(self):
         """Stop the web server"""
-        if self.httpd:
-            self.httpd.shutdown()
-            self.httpd.server_close()
-            print(f"  Test server stopped")
+        # Flask's development server doesn't have a clean shutdown mechanism
+        # The daemon thread will terminate when the main program exits
+        print(f"  Test server stopped")
 
 
 @contextmanager
-def test_server(directory, port=3000, url_path=''):
+def test_server(directory, port=3000):
     """Context manager for test web server"""
-    server = TestWebServer(directory, port, url_path)
+    server = TestWebServer(directory, port)
     try:
         server.start()
         yield server
@@ -119,18 +111,28 @@ def test_server(directory, port=3000, url_path=''):
         server.stop()
 
 
-def get_test_config_path(test_name):
+def get_url_path_from_test_dir(test_dir):
+    parts = test_dir.parts
+    st_idx = parts.index('sites')
+    end_idx = parts.index('dist')
+    url_path = '/' + '/'.join(parts[st_idx+1:end_idx])
+    return url_path
+
+
+
+def get_test_config_path(dist_dir):
     """Get path for test-specific config file"""
-    test_safe_name = test_name.replace('/', '_').replace('\\', '_')
-    return Path(__file__).parent / f'config_{test_safe_name}.yaml'
+    parts = dist_dir.parts
+    parent = Path(*parts[:parts.index('dist')])
+    return parent / 'config.yaml'
 
 
-def generate_test_config(test_dir, test_name, action, port=3000, url_path='', config_path='config.yaml'):
+def generate_test_config(test_dir, action, port=3000, config_path='config.yaml'):
     """
     Generate test-specific config.yaml file by loading an existing config and updating it.
 
     Args:
-        test_dir: Path to test directory
+        test_dir: Path to the test dist directory
         test_name: Name of the test (for config file naming)
         action: Action to test (crawl, detection, graph_gen, analysis)
         port: Port number for test server
@@ -140,7 +142,7 @@ def generate_test_config(test_dir, test_name, action, port=3000, url_path='', co
     Returns:
         Path to generated config file
     """
-    output_config_path = get_test_config_path(test_name)
+    output_config_path = get_test_config_path(test_dir)
 
     # Load existing config
     base_config_file = BASE_DIR / config_path
@@ -150,6 +152,9 @@ def generate_test_config(test_dir, test_name, action, port=3000, url_path='', co
     else:
         print(f"Warning: Base config not found at {base_config_file}, using defaults")
         config = {}
+
+    # get url path for config
+    url_path = get_url_path_from_test_dir(test_dir)
 
     # Determine which phases to enable based on action
     phases_to_run = ACTIONS.get(action, [])
@@ -199,6 +204,156 @@ def should_skip_phase(test_dir, phase):
     return False
 
 
+def load_expected_answers(test_dir):
+    """
+    Load expected answers from ans.json file.
+
+    Args:
+        test_dir: Path to test directory
+
+    Returns:
+        Dictionary with expected answers for each phase, or None if file not found
+    """
+    ans_file = test_dir.parent / 'ans.json'
+
+    if not ans_file.exists():
+        print(f"Warning: ans.json not found at {ans_file}")
+        return None
+
+    try:
+        with open(ans_file, 'r') as f:
+            answers = json.load(f)
+        return answers
+    except json.JSONDecodeError as e:
+        print(f"Error: Failed to parse ans.json: {e}")
+        return None
+
+
+def test_detection(expected, actual_data_dir):
+    """
+    Test library detection phase results.
+
+    Args:
+        expected: Expected results from ans.json['detection']
+        actual_data_dir: Path to pipeline output data directory
+
+    Returns:
+        (success: bool, message: str)
+    """
+    # TODO: Implement detection comparison logic
+    # This should compare detected libraries from the pipeline output
+    # with the expected libraries in ans.json
+    return True, "Detection test not implemented yet"
+
+
+def test_vuln_db(expected, actual_data_dir):
+    """
+    Test vulnerability database query phase results.
+
+    Args:
+        expected: Expected results from ans.json['vuln_db']
+        actual_data_dir: Path to pipeline output data directory
+
+    Returns:
+        (success: bool, message: str)
+    """
+    # TODO: Implement vuln_db comparison logic
+    # This should compare vulnerability findings from the database
+    # with expected vulnerabilities in ans.json
+    return True, "Vuln DB test not implemented yet"
+
+
+def test_graph_gen(expected, actual_data_dir):
+    """
+    Test graph generation (static analysis) phase results.
+
+    Args:
+        expected: Expected results from ans.json['graph_gen']
+        actual_data_dir: Path to pipeline output data directory
+
+    Returns:
+        (success: bool, message: str)
+    """
+    # TODO: Implement graph generation comparison logic
+    # This should compare generated graphs/CFG
+    # with expected graph properties in ans.json
+    return True, "Graph generation test not implemented yet"
+
+
+def test_analysis(expected, actual_data_dir):
+    """
+    Test static analysis (Neo4j) phase results.
+
+    Args:
+        expected: Expected results from ans.json['analysis']
+        actual_data_dir: Path to pipeline output data directory
+
+    Returns:
+        (success: bool, message: str)
+    """
+    # TODO: Implement analysis comparison logic
+    # This should compare final analysis results from Neo4j
+    # with expected analysis results in ans.json
+    return True, "Analysis test not implemented yet"
+
+
+def compare_results(test_dir, action):
+    """
+    Compare pipeline results against expected answers.
+
+    Args:
+        test_dir: Path to test directory
+        action: Action that was run (determines which tests to execute)
+
+    Returns:
+        True if all applicable tests pass, False otherwise
+    """
+    # Load expected answers
+    expected_answers = load_expected_answers(test_dir)
+    if expected_answers is None:
+        print("  Skipping result comparison (no ans.json found)")
+        return True
+
+    # Get actual pipeline output directory
+    # TODO: Determine actual data directory from config/output
+    actual_data_dir = None  # Placeholder
+
+    # Determine which test functions to run based on action
+    phases_to_test = ACTIONS.get(action, [])
+
+    all_passed = True
+    test_results = []
+
+    # Run applicable test functions
+    if 'lib_detection' in phases_to_test and 'detection' in expected_answers:
+        success, msg = test_detection(expected_answers['detection'], actual_data_dir)
+        test_results.append(('detection', success, msg))
+        all_passed = all_passed and success
+
+    if 'lib_detection' in phases_to_test and 'vuln_db' in expected_answers:
+        success, msg = test_vuln_db(expected_answers['vuln_db'], actual_data_dir)
+        test_results.append(('vuln_db', success, msg))
+        all_passed = all_passed and success
+
+    if 'static' in phases_to_test and 'graph_gen' in expected_answers:
+        success, msg = test_graph_gen(expected_answers['graph_gen'], actual_data_dir)
+        test_results.append(('graph_gen', success, msg))
+        all_passed = all_passed and success
+
+    if 'static_neo4j' in phases_to_test and 'analysis' in expected_answers:
+        success, msg = test_analysis(expected_answers['analysis'], actual_data_dir)
+        test_results.append(('analysis', success, msg))
+        all_passed = all_passed and success
+
+    # Print test results
+    print("\n  Test Results:")
+    for phase, success, msg in test_results:
+        status = "✓ PASS" if success else "✗ FAIL"
+        print(f"    {status} - {phase}: {msg}")
+
+    return all_passed
+
+
 def run_pipeline(config_path, timeout=600):
     """
     Run the pipeline with given config.
@@ -214,11 +369,12 @@ def run_pipeline(config_path, timeout=600):
 
     try:
         print(f"  Running pipeline...")
+        command = ' '.join(['python3', str(pipeline_script), f'--conf={config_path}'])
+        print("command: ", command)
         result = subprocess.run(
             ['python3', str(pipeline_script), f'--conf={config_path}'],
             cwd=BASE_DIR,
-            timeout=timeout,
-            capture_output=True,
+            timeout=timeout,            
             text=True
         )
 
@@ -239,6 +395,40 @@ def run_pipeline(config_path, timeout=600):
         return False
 
 
+def get_test_dir(test_path: str) -> Path | None:
+    """
+    Returns the path to dist/ given parital path to the test directory
+
+    Args:
+        test_path: Path to test directory (could be abosolute path or relative to sites/)
+
+    Returns:
+        Path object if successful, Path("") otherwise
+    """
+
+    test_path_split = Path(test_path).parts
+    relative_path = Path(test_path)
+    try:
+        start_idx = test_path_split.index('sites')
+        try:
+            end_idx = test_path_split.index('dist')
+        except Exception:
+            end_idx = None
+
+        relative_path = Path(*test_path_split[start_idx+1:]) if end_idx is None else Path(*test_path_split[start_idx+1:end_idx])
+    except Exception:
+        pass  # no 'sites' in the path
+
+    test_dir = Path(__file__).parent / 'sites' / relative_path / 'dist'
+    print("test_dir", test_dir)
+
+    if not test_dir.exists():
+        print(f"Error: Test directory not found: {test_dir}")
+        return Path("")
+    
+    return test_dir
+
+
 def run_test(test_path, action, port=3000, base_config='config.yaml'):
     """
     Run a single test through the pipeline.
@@ -252,45 +442,44 @@ def run_test(test_path, action, port=3000, base_config='config.yaml'):
     Returns:
         True if successful, False otherwise
     """
-    test_dir = Path(__file__).parent / 'sites' / test_path
 
-    if not test_dir.exists():
-        print(f"Error: Test directory not found: {test_dir}")
+    if not (test_dir := get_test_dir(test_path)):
         return False
 
-    dist_dir = test_dir / 'dist'
+    dist_dir = test_dir
     if not dist_dir.exists():
         print(f"Error: dist/ directory not found in {test_dir}")
         print(f"  Run test_prep.py first to build distribution files")
         return False
 
-    ans_file = test_dir / 'ans.txt'
-    if not ans_file.exists():
-        print(f"Warning: ans.txt not found in {test_dir}")
-
     print(f"\nRunning test: {test_path}")
     print(f"  Testing action: {action}")
     print(f"  Phases to run: {ACTIONS.get(action, [])}")
 
-    # Generate URL path from test path
-    # e.g., integration_test/lib_detection/test_lodash -> /tests/pipeline_test/sites/integration_test/lib_detection/test_lodash
-    url_path = f"/tests/pipeline_test/sites/{test_path}"
-
     # Generate test config
-    config_path = generate_test_config(test_dir, test_path, action, port, url_path, base_config)
+    config_path = generate_test_config(test_dir, action, port, base_config)
 
     # Start test server and run pipeline
-    with test_server(dist_dir, port, url_path):
-        success = run_pipeline(config_path, timeout=600)
+    with test_server(dist_dir, port):
+        pipeline_success = run_pipeline(config_path, timeout=600)
 
-    if not success:
+    if not pipeline_success:
+        print("  Pipeline execution failed")
         return False
 
-    # TODO: Compare results against ans.txt
-    print(f"  Test completed (result comparison not implemented yet)")
+    # Compare results against expected answers
+    comparison_success = compare_results(test_dir, action)
 
-    return True
+    return pipeline_success and comparison_success
 
+def host_server(test_path, port=3000):
+    """Host test server indefinitely for manual testing."""
+    if not (test_dir := get_test_dir(test_path)):
+        exit(1)
+
+    with test_server(test_dir, port):
+        while True:
+            pass  # let server work
 
 def main():
     parser = argparse.ArgumentParser(
@@ -322,11 +511,20 @@ def main():
         default='config.yaml',
         help='Base config file to load (default: config.yaml)'
     )
+    parser.add_argument(
+        '--server-only',
+        type=str,
+        default=False,
+        help='Only hosts the server corresponds to this test'
+    )
+
 
     args = parser.parse_args()
-
-    success = run_test(args.test, args.action, args.port, args.config)
-    sys.exit(0 if success else 1)
+    if args.server_only:
+        host_server(args.test, args.port)
+    else:
+        success = run_test(args.test, args.action, args.port, args.config)
+        sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':

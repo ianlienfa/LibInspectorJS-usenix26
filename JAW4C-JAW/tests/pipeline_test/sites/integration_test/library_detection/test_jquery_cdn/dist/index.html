@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>jQuery CDN Test</title>
+    <script src="https://code.jquery.com/jquery-3.4.0.min.js"></script>
+</head>
+<body>
+    <h1>jQuery CDN Test</h1>
+    <div id="div"></div>
+    <script>
+        $("#div").html('<style><style /><img src=x onerror=alert(1)>');
+    </script>
+</body>
+</html>
