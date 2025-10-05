@@ -18,6 +18,8 @@ const { URL } = require('url');
 
 const lift = require('../driver/utilities/lift');
 const transform = require('../driver/utilities/transform');
+const logger = require('../driver/utilities/logger');
+const { debug } = require('console');
 
 /**
  * ------------------------------------------------
@@ -200,7 +202,8 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 	fs.writeFileSync(pathModule.join(dataDirectory, "urls.out"), [...urlSet].join('\n'));
 	let override_mapping = {
 		'lift': {},
-		'transform': {}
+		'transform': {},
+		'original': {}
 	}
 
 	if(!fs.existsSync(webpageFolder)){
@@ -220,7 +223,6 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 			fs.mkdirSync(transformedFolder);
 		}
 	}
-	debugger;
 	// collect the webpage data
 	if(COLLECT_AND_CREATE_PAGE){
 
@@ -243,48 +245,53 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 		COLLECT_DOM_SNAPSHOT && fs.writeFileSync(pathModule.join(webpageFolder, "index.html"), '' + html);		
 
 		if(COLLECT_SCRIPTS){
-			console.log(`[savePageData]: scripts: ${scripts}`)
 			scripts.forEach((s, i)=> {
 				const pathToWrite = pathModule.join(webpageFolder, `${i}.js`)
 				writeContent = s.source
 				if(s.url && s.url.endsWith('.js')){
-					override_mapping.lift[s.url] = pathToWrite
-					override_mapping.transform[s.url] = pathToWrite
-
 					// Save processed version if lifting or transformation is enabled
-					if((lift_enabled || transform_enabled) && s.source){
-						const originalpathToWrite = pathModule.join(originalFolder, `${i}.js`)
-						fs.writeFileSync(originalpathToWrite, s.source, 'utf8')
-
-						if(lift_enabled){
-							let lifted = lift(s.source);
-							if(lifted !== ""){
-								const liftedpathToWrite = pathModule.join(liftedFolder, `${i}.js`)
-								fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
-								// Override original file with lifted version for analysis
-								writeContent = lifted
-								override_mapping.lift[s.url] = liftedpathToWrite
+					if(s.source){
+						if(lift_enabled || transform_enabled){
+							const originalpathToWrite = pathModule.join(originalFolder, `${i}.js`)
+							fs.writeFileSync(originalpathToWrite, s.source, 'utf8')						
+							try {
+								if(lift_enabled){
+								let lifted = lift(s.source);
+								if(lifted !== ""){
+									const liftedpathToWrite = pathModule.join(liftedFolder, `${i}.js`)
+									fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
+									// Override original file with lifted version for analysis
+									writeContent = lifted
+									override_mapping.lift[s.url] = liftedpathToWrite
+								}
+								else{
+									logger.warn(`Unable to lift ${i}.js, passing`)
+								}
+								} 
+								if(transform_enabled){
+									let transformed = transform(s.source);
+									if(transformed !== ""){
+										const transformedpathToWrite = pathModule.join(transformedFolder, `${i}.js`)
+										const transformedpathToWriteParent = pathModule.join(webpageFolder, `${i}.js`)
+										fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
+										fs.writeFileSync(transformedpathToWriteParent, transformed, 'utf8')
+										// Override original file with transformed version for analysis
+										writeContent = transformed
+										override_mapping.transform[s.url] = transformedpathToWriteParent
+									}
+								}
+							} catch (error) {
+								console.error(s.url, error)
 							}
-						} 
-						if(transform_enabled){
-							let transformed = transform(s.source);
-							if(transformed !== ""){
-								const transformedpathToWrite = pathModule.join(transformedFolder, `${i}.js`)
-								const transformedpathToWriteParent = pathModule.join(webpageFolder, `${i}.js`)
-								fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
-								fs.writeFileSync(transformedpathToWriteParent, transformed, 'utf8')
-								// Override original file with transformed version for analysis
-								writeContent = transformed
-								override_mapping.transform[s.url] = transformedpathToWriteParent
-							}
-						}
-					}
+						}						
+						override_mapping.original[s.url] = pathToWrite						
+					}					
 				}
 				fs.writeFileSync(pathToWrite, '' + writeContent);
 			});
 		}
 
-			// write override_mapping
+		// write override_mapping
 		fs.writeFileSync(pathModule.join(webpageFolder, "override_mapping.json"), JSON.stringify(override_mapping));	
 		COLLECT_COOKIES     && fs.writeFileSync(pathModule.join(webpageFolder, "cookies.json"), JSON.stringify(cookies, null, 4));
 		COLLECT_WEB_STORAGE && fs.writeFileSync(pathModule.join(webpageFolder, "webstorage.json"), JSON.stringify(webStorageData, null, 4));

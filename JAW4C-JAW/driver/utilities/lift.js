@@ -93,7 +93,7 @@ function get_webpack_require(code, ast){
     webpack_found = false;
     info = {}
     walk.full(ast, (node)  => {
-        if(node.type === "FunctionDeclaration"){  
+        if(node.type === "FunctionDeclaration" || node.type === "FunctionExpression"){  
             structuralCheck = true                    
             if(node.params.length !== 1){
                 structuralCheck = false
@@ -114,11 +114,11 @@ function get_webpack_require(code, ast){
                         walk.simple(objexpr, {
                             Property(prop){
                                 if(require_object_fingerprint.hasOwnProperty(prop.key.name)){
-                                    // console.log(`${prop.key.name} found.`)
+                                    console.log(`${prop.key.name} found.`)
                                     require_object_fingerprint[prop.key.name] = true;                                
                                 }
                             }
-                        })
+                        })                        
                         if(Object.values(require_object_fingerprint).every(val => val === true)){
                             webpack_found = true;       
                             require_func_name = node.id.name; // function name
@@ -164,7 +164,7 @@ function get_webpack_require(code, ast){
                                 }
                             }
                             if(expected_type_pointer !== 3){
-                                feature_pass = false                                
+                                feature_pass = false        
                             }// only if all expected type matches in order
                             else{
                                 // feature 1 test

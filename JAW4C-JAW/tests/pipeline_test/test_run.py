@@ -35,7 +35,7 @@ import time
 import threading
 from pathlib import Path
 from contextlib import contextmanager
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, redirect, request       
 
 # Add parent directory to path for imports
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -72,16 +72,35 @@ class TestWebServer:
 
         # Extract URL path from directory structure        
         self.url_path = get_url_path_from_test_dir(self.directory)
+        print("self.url_path", self.url_path, "self.directory", self.directory)
 
         # Set up routes
-        @self.app.route(f'{self.url_path}/<path:filename>')
-        def serve_file(filename):
-            return send_from_directory(self.directory, filename)
-
         @self.app.route(f'{self.url_path}/')
         @self.app.route(f'{self.url_path}')
         def serve_index():
-            return send_from_directory(self.directory, 'index.html')
+            return redirect(str(Path(self.url_path, 'index.html')), code=301)           
+
+
+        @self.app.route(f'{self.url_path}/<path:suffix>')
+        def serve_file(suffix):
+            if suffix:            
+                print("serve_file", self.directory / suffix)
+                return send_from_directory(self.directory, suffix)
+            else:
+                return send_from_directory(self.directory, 'index.html')
+        
+
+        # # Set up routes
+        # @self.app.route(f'{self.directory}/<path:filename>')
+        # def serve_file(filename):
+        #     print("serve_file", self.directory / filename)
+        #     return send_from_directory(self.directory, filename)
+
+        # @self.app.route(f'{self.url_path}/')
+        # @self.app.route(f'{self.url_path}')
+        # def redirect_to_slash():
+        #     # return send_from_directory(self.directory, 'index.html')                                                                 
+        #     return redirect(str(Path(request.path, 'dist', 'index.html')), code=301)           
 
     def start(self):
         """Start the Flask server in a background thread"""
@@ -229,21 +248,193 @@ def load_expected_answers(test_dir):
         return None
 
 
+def version_matches(expected_version, actual_version):
+    """
+    Check if expected version matches actual detected version(s).
+
+    Args:
+        expected_version: Ground truth version string (e.g., '3.4.0')
+        actual_version: Detected version - can be:
+            - String: 'unknown' or '3.4.0'
+            - List: ['1.1', '1.3 ~ 1.5', '2.0']
+
+    Returns:
+        True if versions match, False otherwise
+    """
+    # If either is unknown, it's a match
+    if expected_version == 'unknown' or actual_version == 'unknown':
+        return True
+
+    # Normalize actual_version to list
+    if isinstance(actual_version, str):
+        actual_versions = [actual_version]
+    else:
+        actual_versions = actual_version
+
+    # Check each possible version pattern
+    for version_pattern in actual_versions:
+        try:
+            st_end = list(map(str.strip, version_pattern.split('~')))
+        except Exception:
+            # If split fails, treat as exact version
+            if version_pattern == expected_version:
+                return True
+            continue
+
+        if len(st_end) == 1:
+            # Exact version match
+            if st_end[0] == expected_version:
+                return True
+        elif len(st_end) == 2:
+            # Version range: check if expected version is within range
+            st, end = st_end[0], st_end[1]
+            # Simple string comparison - works for semver if properly formatted
+            # For more robust comparison, would need semver parsing
+            if st <= expected_version <= end or expected_version == st or expected_version == end:
+                return True
+
+    return False
+
+
 def test_detection(expected, actual_data_dir):
     """
     Test library detection phase results.
 
     Args:
         expected: Expected results from ans.json['detection']
+            Expected format: {
+                "PTV": {
+                    "detection": [
+                        {"libname": "jquery", "version": "3.4.0"},
+                        {"libname": "lodash", "version": "unknown"}
+                    ]
+                },
+                "PTV-Original": {
+                    "detection": [
+                        {"libname": "jquery", "version": "3.4.0"}
+                    ]
+                }
+            }
         actual_data_dir: Path to pipeline output data directory
 
     Returns:
         (success: bool, message: str)
     """
-    # TODO: Implement detection comparison logic
-    # This should compare detected libraries from the pipeline output
-    # with the expected libraries in ans.json
-    return True, "Detection test not implemented yet"
+    if not actual_data_dir or not actual_data_dir.exists():
+        return False, "Data directory not found"
+
+    # Find lib.detection.json file
+    lib_detection_files = list(actual_data_dir.rglob('lib.detection.json'))
+    if not lib_detection_files:
+        return False, "lib.detection.json not found in data directory"
+
+    lib_detection_file = lib_detection_files[0]
+
+    try:
+        with open(lib_detection_file, 'r') as f:
+            detection_data = json.load(f)
+    except json.JSONDecodeError as e:
+        return False, f"Failed to parse lib.detection.json: {e}"
+
+    # Extract actual detected libraries from PTV and PTV-Original
+    actual_ptv_libs = {}
+    actual_ptv_original_libs = {}
+
+    for url_data in detection_data.values():
+        # Check PTV detection
+        if 'PTV' in url_data and 'detection' in url_data['PTV']:
+            for detection_array in url_data['PTV']['detection']:
+                for lib in detection_array:
+                    libname = lib.get('libname')
+                    actual_ptv_libs[libname] = {
+                        'version': lib.get('version', 'unknown'),
+                        'accurate': lib.get('accurate', False)
+                    }
+
+        # Check PTV-Original detection
+        if 'PTV-Original' in url_data and 'detection' in url_data['PTV-Original']:
+            for detection_array in url_data['PTV-Original']['detection']:
+                for lib in detection_array:
+                    libname = lib.get('libname')
+                    actual_ptv_original_libs[libname] = {
+                        'version': lib.get('version', 'unknown'),
+                        'accurate': lib.get('accurate', False)
+                    }
+
+    # Compare against expected libraries
+    results = []
+    total_expected = 0
+    perfect_matches = 0
+    warnings = 0
+    failures = 0
+
+    # Check PTV expectations
+    if 'PTV' in expected and 'detection' in expected['PTV']:
+        expected_ptv_libs = expected['PTV']['detection']
+        total_expected += len(expected_ptv_libs)
+
+        for expected_lib in expected_ptv_libs:
+            libname = expected_lib.get('libname')
+            expected_version = expected_lib.get('version', 'unknown')
+
+            if libname not in actual_ptv_libs:
+                results.append(f"❌ PTV: '{libname}' not found")
+                failures += 1
+            else:
+                actual_lib = actual_ptv_libs[libname]
+                actual_version = actual_lib['version']
+
+                # Check version match using version_matches function
+                version_match = version_matches(expected_version, actual_version)
+
+                if version_match and actual_lib['accurate']:
+                    results.append(f"✅ PTV: '{libname}' v{actual_version}")
+                    perfect_matches += 1
+                elif version_match and not actual_lib['accurate']:
+                    results.append(f"⚠️  PTV: '{libname}' v{actual_version} (not accurate)")
+                    warnings += 1
+                else:
+                    results.append(f"❌ PTV: '{libname}' version mismatch (expected {expected_version}, got {actual_version})")
+                    failures += 1
+
+    # Check PTV-Original expectations
+    if 'PTV-Original' in expected and 'detection' in expected['PTV-Original']:
+        expected_ptv_original_libs = expected['PTV-Original']['detection']
+        total_expected += len(expected_ptv_original_libs)
+
+        for expected_lib in expected_ptv_original_libs:
+            libname = expected_lib.get('libname')
+            expected_version = expected_lib.get('version', 'unknown')
+
+            if libname not in actual_ptv_original_libs:
+                results.append(f"❌ PTV-Original: '{libname}' not found")
+                failures += 1
+            else:
+                actual_lib = actual_ptv_original_libs[libname]
+                actual_version = actual_lib['version']
+
+                # Check version match using version_matches function
+                version_match = version_matches(expected_version, actual_version)
+
+                if version_match and actual_lib['accurate']:
+                    results.append(f"✅ PTV-Original: '{libname}' v{actual_version}")
+                    perfect_matches += 1
+                elif version_match and not actual_lib['accurate']:
+                    results.append(f"⚠️  PTV-Original: '{libname}' v{actual_version} (not accurate)")
+                    warnings += 1
+                else:
+                    results.append(f"❌ PTV-Original: '{libname}' version mismatch (expected {expected_version}, got {actual_version})")
+                    failures += 1
+
+    if total_expected == 0:
+        return True, "No expected libraries to verify"
+
+    # Build summary message
+    summary = f"{perfect_matches}✅ {warnings}⚠️  {failures}❌ / {total_expected} total"
+    full_message = summary + "\n    " + "\n    ".join(results)
+
+    # Test passes if there are no failures (warnings are acceptable)
+    return failures == 0, full_message
 
 
 def test_vuln_db(expected, actual_data_dir):
@@ -297,6 +488,30 @@ def test_analysis(expected, actual_data_dir):
     return True, "Analysis test not implemented yet"
 
 
+def get_data_dir_from_test(test_dir):
+    """
+    Get the pipeline data directory for a test.
+
+    Args:
+        test_dir: Path to test dist directory
+
+    Returns:
+        Path to data directory or None
+    """
+    # Construct URL path from test directory
+    url_path = get_url_path_from_test_dir(test_dir)
+    # Remove leading slash and replace slashes with empty string to match data dir naming
+    url_dir_name = f"http-localhost-3000{url_path.replace('/', '')}"
+
+    # Data directory is at BASE_DIR/data/
+    data_base = BASE_DIR / 'data' / url_dir_name
+
+    if not data_base.exists():
+        return None
+
+    return data_base
+
+
 def compare_results(test_dir, action):
     """
     Compare pipeline results against expected answers.
@@ -315,8 +530,10 @@ def compare_results(test_dir, action):
         return True
 
     # Get actual pipeline output directory
-    # TODO: Determine actual data directory from config/output
-    actual_data_dir = None  # Placeholder
+    actual_data_dir = get_data_dir_from_test(test_dir)
+    if not actual_data_dir:
+        print("  Warning: Could not find pipeline data directory")
+        return True
 
     # Determine which test functions to run based on action
     phases_to_test = ACTIONS.get(action, [])
@@ -420,7 +637,6 @@ def get_test_dir(test_path: str) -> Path | None:
         pass  # no 'sites' in the path
 
     test_dir = Path(__file__).parent / 'sites' / relative_path / 'dist'
-    print("test_dir", test_dir)
 
     if not test_dir.exists():
         print(f"Error: Test directory not found: {test_dir}")

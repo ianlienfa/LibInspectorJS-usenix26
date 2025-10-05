@@ -717,6 +717,23 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 									return;
 								}
 							}
+							else if(override_mapping.original && override_mapping.original[requestUrl]){
+								// avoid crawling again if already crawled
+								const originalFilePath = override_mapping.original[requestUrl];
+
+								if(fs.existsSync(originalFilePath)){
+									console.log(`[RequestInterception] Intercepting ${requestUrl} -> ${originalFilePath}`);
+									const originalFileContent = fs.readFileSync(originalFilePath, 'utf8');
+
+									await route.fulfill({
+										status: 200,
+										contentType: 'application/javascript',
+										body: originalFileContent
+									});
+									return;
+								}
+							}
+							else{}
 
 							// Default: continue with original request
 							await route.continue();

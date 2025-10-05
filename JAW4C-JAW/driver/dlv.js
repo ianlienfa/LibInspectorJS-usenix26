@@ -98,8 +98,12 @@ const PTV = async (url, PTVPuppeteerLaunchConfig, crawlJs=true, do_lift=true, da
         // Old flat structure (backward compatibility)
         overrideMapping = overrideMappingData;
       }
-    
-
+      for(key of Object.keys(overrideMappingData.original)){
+        if(overrideMapping[key] === undefined){
+          overrideMapping[key] = overrideMappingData.original[key]
+        }
+      }
+      
       // intercept request for file override: override all files from local directory to mitigate the effect of lazy loading
       page.on('request', interceptedRequest => {   
         if(typeof overrideMapping !== "undefined"){

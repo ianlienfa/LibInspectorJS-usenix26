@@ -1,0 +1,9 @@
+{
+  "detection": {
+    "PTV": {
+      "detection": [
+        {"libname": "lodash", "version": "4.17.19"}
+      ]
+    }
+  }
+}

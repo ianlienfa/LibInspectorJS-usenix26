@@ -74,17 +74,6 @@ class PostgresDB:
             self._conn.close()
             self._conn = None
 
-    ## Deprecated
-    # def package_vuln_search(self, package_name, version=None):
-    #     all = self.query(
-    #         "SELECT * FROM public.vulns WHERE package_name = %s LIMIT 1;",
-    #         params=(package_name,),
-    #         fetch="all"
-    #     )
-    #     res = [dict(i) for i in all]
-    #     print("package_vuln_search on ", package_name, "res: ", res, all)  
-    #     return res if all else None
-
     """
     version can be a list of versions ["3.1", "3.1 ~ 3.4"]
     return: None if nothing found, else an list of vulnerability objects
