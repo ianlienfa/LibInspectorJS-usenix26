@@ -351,7 +351,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			LOGGER.info("successfully detected libraries on %s."%(url))
 
 			# Detection result and DB querying
-			if config['cve_vuln']["passes"]["static"]:
+			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 				try:
 					lib_det_res = DetectorReader.read_raw_result_with_url(url)
@@ -390,6 +390,13 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 									except Exception as e:
 										print('poc formatting problem from database', poc)
 
+					vuln_info_pathname = os.path.join(webpage_folder, "vuln.out")
+					with open(vuln_info_pathname, 'a') as vuln_fd:
+						json.dump({affiliatedurl: vuln_list}, vuln_fd)
+						vuln_fd.write('\n')			
+
+	
+				if config['cve_vuln']["passes"]["static"]:
 					try:
 						cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
 					except Exception as e:

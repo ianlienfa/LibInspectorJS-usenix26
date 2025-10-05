@@ -11,7 +11,7 @@ Orchestrates pipeline testing by:
 4. Comparing results against expected answers
 
 Usage:
-    python test_run.py --action=<detection|graph_gen|analysis> --test=<path>
+    python test_run.py --action=<detection|vulndb|graph_gen|analysis> --test=<path>
 
 The script automatically runs all prerequisite phases before the specified action.
 
@@ -19,10 +19,13 @@ Examples:
     # Test library detection (runs: crawl + detection)
     python test_run.py --action=detection --test=integration_test/lib_detection/test_lodash
 
-    # Test static analysis (runs: crawl + detection + graph_gen)
+    # Test vulnerability database query (runs: crawl + detection + vulndb)
+    python test_run.py --action=vulndb --test=integration_test/vulndb_query/test_jquery_vuln
+
+    # Test static analysis (runs: crawl + detection + vulndb + graph_gen)
     python test_run.py --action=graph_gen --test=unit_test/static_query/test_get_parent
 
-    # Test full analysis pipeline (runs: crawl + detection + graph_gen + analysis)
+    # Test full analysis pipeline (runs: crawl + detection + vulndb + graph_gen + analysis)
     python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss
 """
 
@@ -48,8 +51,9 @@ import utils.io as IOModule
 ACTIONS = {
     'crawl': ['crawling'],
     'detection': ['crawling', 'lib_detection'],
-    'graph_gen': ['crawling', 'lib_detection', 'static'],
-    'analysis': ['crawling', 'lib_detection', 'static', 'static_neo4j']
+    'vulndb': ['crawling', 'lib_detection', 'vuln_db'],
+    'graph_gen': ['crawling', 'lib_detection', 'vuln_db', 'static'],
+    'analysis': ['crawling', 'lib_detection', 'vuln_db', 'static', 'static_neo4j']
 }
 
 # Phase to test function mapping
@@ -67,40 +71,20 @@ class TestWebServer:
     def __init__(self, directory, port=3000):
         self.directory = Path(directory).resolve()
         self.port = port
-        self.app = Flask(__name__)
-        self.thread = None
-
         # Extract URL path from directory structure        
         self.url_path = get_url_path_from_test_dir(self.directory)
         print("self.url_path", self.url_path, "self.directory", self.directory)
 
-        # Set up routes
+        self.app = Flask(
+            __name__,
+            static_folder=self.directory,
+            static_url_path=self.url_path
+        )
+
         @self.app.route(f'{self.url_path}/')
         @self.app.route(f'{self.url_path}')
         def serve_index():
-            return redirect(str(Path(self.url_path, 'index.html')), code=301)           
-
-
-        @self.app.route(f'{self.url_path}/<path:suffix>')
-        def serve_file(suffix):
-            if suffix:            
-                print("serve_file", self.directory / suffix)
-                return send_from_directory(self.directory, suffix)
-            else:
-                return send_from_directory(self.directory, 'index.html')
-        
-
-        # # Set up routes
-        # @self.app.route(f'{self.directory}/<path:filename>')
-        # def serve_file(filename):
-        #     print("serve_file", self.directory / filename)
-        #     return send_from_directory(self.directory, filename)
-
-        # @self.app.route(f'{self.url_path}/')
-        # @self.app.route(f'{self.url_path}')
-        # def redirect_to_slash():
-        #     # return send_from_directory(self.directory, 'index.html')                                                                 
-        #     return redirect(str(Path(request.path, 'dist', 'index.html')), code=301)           
+            return redirect(f'{self.url_path}/index.html')
 
     def start(self):
         """Start the Flask server in a background thread"""
@@ -190,6 +174,7 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml')
 
     config['cve_vuln']['passes']['crawling'] = 'crawling' in phases_to_run
     config['cve_vuln']['passes']['lib_detection'] = 'lib_detection' in phases_to_run
+    config['cve_vuln']['passes']['vuln_db'] = 'vuln_db' in phases_to_run
     config['cve_vuln']['passes']['static'] = 'static' in phases_to_run
     config['cve_vuln']['passes']['static_neo4j'] = 'static_neo4j' in phases_to_run
 
@@ -547,7 +532,7 @@ def compare_results(test_dir, action):
         test_results.append(('detection', success, msg))
         all_passed = all_passed and success
 
-    if 'lib_detection' in phases_to_test and 'vuln_db' in expected_answers:
+    if 'vuln_db' in phases_to_test and 'vuln_db' in expected_answers:
         success, msg = test_vuln_db(expected_answers['vuln_db'], actual_data_dir)
         test_results.append(('vuln_db', success, msg))
         all_passed = all_passed and success
@@ -706,7 +691,7 @@ def main():
         '--action',
         type=str,
         required=True,
-        choices=['crawl', 'detection', 'graph_gen', 'analysis'],
+        choices=['crawl', 'detection', 'vulndb', 'graph_gen', 'analysis'],
         help='Action to test (automatically runs all prerequisite phases)'
     )
     parser.add_argument(

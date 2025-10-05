@@ -249,6 +249,16 @@ const PTVOriginal = async (url, PTVPuppeteerLaunchConfig, crawlJs=true) => {
 };
 
 const PTV = async (url, launchConfig, dataDir = "") => {
+  /*
+	override_mapping should be in form
+  {
+		'lift': {},
+		'transform': {},
+		'original': {}
+	} 
+  */
+
+
   let result = {}
 
   try {
@@ -401,6 +411,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
 
   } catch (error) {
     logger.error(`error visiting ${url}`, error)
+    console.error('Stack trace:', error.stack);
     return {};
   }
 };
@@ -491,10 +502,8 @@ if (require.main === module) {
       for(const url of urlList){
         LOGGER(`url: ${url}`)
         res[url] = {}        
-        // res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, crawlJs=false)
-        // if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
-        // const resPTVPlaywright = await PTV(url, PTVPuppeteerLaunchConfig, dataDir=hashdirPath);
-        // console.log("PTV result:", JSON.stringify(resPTVPlaywright, null, 2));
+        res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, crawlJs=false)
+        if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))        
         res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, dataDir=hashdirPath);
         if(res[url]['PTV']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV']['detection']))
       }

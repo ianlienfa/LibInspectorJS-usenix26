@@ -1804,11 +1804,6 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 
 		# path to store all templates of the current URL
 		template_output_pathname = os.path.join(webpage_directory, "sink.flows.out")
-		vuln_info_pathname = os.path.join(webpage_directory, "vuln.out")
-				
-		with open(vuln_info_pathname, 'a') as vuln_fd:
-			json.dump({navigation_url: vuln_info}, vuln_fd)
-			vuln_fd.write('\n')			
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "w+") as fd:
 				timestamp = _get_current_timestamp()

@@ -104,6 +104,7 @@ cve_vuln:
   passes:
     crawling: true
     lib_detection: true  
+    vulndb: true
     static: true
     static_neo4j: true  
     lift: true  # enable lifting functionality

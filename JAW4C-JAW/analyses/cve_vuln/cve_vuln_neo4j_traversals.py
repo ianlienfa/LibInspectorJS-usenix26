@@ -219,7 +219,6 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)						
 						logger.info(f"analysis out: {out}")
 				except Exception as e:
-					traceback.print_exc()
 					raise RuntimeError(f"Error executing query: {entry}, {e}")
 					
 	except Exception as e:
