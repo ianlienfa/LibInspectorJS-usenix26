@@ -242,10 +242,11 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 		fs.writeFileSync(pathModule.join(webpageFolder, "url.out"), url);
 
 
-		COLLECT_DOM_SNAPSHOT && fs.writeFileSync(pathModule.join(webpageFolder, "index.html"), '' + html);		
+		COLLECT_DOM_SNAPSHOT && html && fs.writeFileSync(pathModule.join(webpageFolder, "index.html"), '' + html);		
 
 		if(COLLECT_SCRIPTS){
 			scripts.forEach((s, i)=> {
+				console.log(`[Collect Script] saving ${s.url}`)
 				const pathToWrite = pathModule.join(webpageFolder, `${i}.js`)
 				writeContent = s.source
 				if(s.url && s.url.endsWith('.js')){
@@ -293,8 +294,8 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 
 		// write override_mapping
 		fs.writeFileSync(pathModule.join(webpageFolder, "override_mapping.json"), JSON.stringify(override_mapping));	
-		COLLECT_COOKIES     && fs.writeFileSync(pathModule.join(webpageFolder, "cookies.json"), JSON.stringify(cookies, null, 4));
-		COLLECT_WEB_STORAGE && fs.writeFileSync(pathModule.join(webpageFolder, "webstorage.json"), JSON.stringify(webStorageData, null, 4));
+		COLLECT_COOKIES && cookies && fs.writeFileSync(pathModule.join(webpageFolder, "cookies.json"), JSON.stringify(cookies, null, 4));
+		COLLECT_WEB_STORAGE && webStorageData && fs.writeFileSync(pathModule.join(webpageFolder, "webstorage.json"), JSON.stringify(webStorageData, null, 4));
 		COLLECT_REQUESTS && fs.writeFileSync(pathModule.join(webpageFolder, "requests.json"), JSON.stringify(httpRequests, null, 4));
 		COLLECT_RESPONSE_HEADERS  && fs.writeFileSync(pathModule.join(webpageFolder, "responses.json"), JSON.stringify(httpResponses, null, 4));
 		DEBUG && console.log("[IO] finished saving webpage.");
@@ -355,7 +356,7 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 	await CDPsession.send('Runtime.enable');
 
 	await CDPsession.on('Debugger.scriptParsed', async (event) => {
-
+		console.log("Debugger.scriptParsed at", event.url)
 		if(!finished && event.url !== '__puppeteer_evaluation_script__' && (!event.url.startsWith('chrome-extension'))){
 			scripts.push({
 				scriptId: event.scriptId,
@@ -392,10 +393,11 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 		request.continue();
 	});
 
+	let html = undefined, cookies = undefined, webStorageData = undefined
 	try{
 		DEBUG && console.log('[pageLoad] loading new URL: ' + url);
 		await page.goto(url, {waitUntil: 'load'}); // or waitUntil: load
-		// await page.waitForTimeout(10000); 
+		// await page.waitForTimeout(15000); 
 		DEBUG && console.log('[pageLoadCompleted] new page loaded successfully (networkidle0)');
 
 		// redirect puppeteer console log in the browser to node js log
@@ -420,12 +422,12 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 		*/
 
 
-		let html = await page.content();
+		html = await page.content();
 		finished = true; // lock scripts for saving
 
 
 		// web storage data
-		let webStorageData = await page.evaluate( () => {
+		webStorageData = await page.evaluate( () => {
 			
 			function getWebStorageData() {
 			    let storage = {};
@@ -443,7 +445,7 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 		DEBUG && console.log("webStorageData", webStorageData);
 
 		// cookies, list of JS objects
-		let cookies = await page.cookies(); 
+		cookies = await page.cookies(); 
 
 
 		// save the collected data, populate the override_mapping too
@@ -493,13 +495,16 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 
 			}
 		}
-	} catch{
+	} catch (e) {
+		if(scripts.length){
+			const webpageFolder = await savePageData(url, html, scripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled, transform_enabled, pure_crawl);
+		}
 		try{
 			// close the previous browser
 			await browser.close()
 		}catch{
-			// PASS
-		}
+			// PASS			
+		}		
 		browser = await launch_puppeteer(true);
 		closePage = false
 	}

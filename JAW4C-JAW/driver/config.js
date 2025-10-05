@@ -11,8 +11,7 @@ const PTVPuppeteerLaunchConfig = {
       `--disable-extensions-except=${PTVExtensionPath}`,
       `--load-extension=${PTVExtensionPath}`,
       `--proxy-server=${ProxyServerPath}`,
-      `--ignore-certificate-errors`,
-      `--disk-cache-dir=/dev/null`, 
+      `--ignore-certificate-errors`,      
       `--disk-cache-size=1`
   ]
 }
