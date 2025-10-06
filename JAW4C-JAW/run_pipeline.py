@@ -405,35 +405,35 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					LOGGER.info("static analysis for site %s."%(url))
 					LOGGER.info("successfully finished static analysis for site %s."%(url))
 
-					# Start static analysis over neo4j, skip if no match on vulnerability
-					if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
+				# Start static analysis over neo4j, skip if no match on vulnerability
+				if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
+					continue
+				else:
+					database_name = 'neo4j'
+					graphid = uuid.uuid4().hex
+					container_name = 'neo4j_container_' + graphid
+					try:
+						container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+						LOGGER.info("successfully built hpg for %s."%(url))
+					except Exception as e:
+						LOGGER.error("Error building hpg for %s."%(url), e)
 						continue
-					else:
-						database_name = 'neo4j'
-						graphid = uuid.uuid4().hex
-						container_name = 'neo4j_container_' + graphid
-						try:
-							container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-							LOGGER.info("successfully built hpg for %s."%(url))
-						except Exception as e:
-							LOGGER.error("Error building hpg for %s."%(url), e)
-							continue
 
-						# Query on vulnerabilities
-						if container_name:
-							for try_attempts in range(2):
-								try:
-									CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
-									break
-								except Exception as e:
-									print(f"neo4j exception {e}, retrying ... ")
-									time.sleep(5)
-							LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
+					# Query on vulnerabilities
+					if container_name:
+						for try_attempts in range(2):
+							try:
+								CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
+								break
+							except Exception as e:
+								print(f"neo4j exception {e}, retrying ... ")
+								time.sleep(5)
+						LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
 
-							# Cleanup
-							if not config['staticpass']['keep_docker_alive']:
-								dockerModule.stop_neo4j_container(container_name)
-								dockerModule.remove_neo4j_container(container_name)
+						# Cleanup
+						if not config['staticpass']['keep_docker_alive']:
+							dockerModule.stop_neo4j_container(container_name)
+							dockerModule.remove_neo4j_container(container_name)
 
 def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg):
 	"""

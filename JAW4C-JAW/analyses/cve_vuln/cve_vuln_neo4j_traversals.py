@@ -215,7 +215,7 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 							continue
 						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
 						logger.info(f"executing vuln: {vuln_info}")
-						# breakpoint()
+						breakpoint()
 						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)						
 						logger.info(f"analysis out: {out}")
 				except Exception as e:

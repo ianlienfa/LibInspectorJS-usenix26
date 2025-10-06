@@ -1,18 +1,13 @@
 {
-  "name": "test_no_vuln_version",
+  "name": "test_initial_decl_cfg",
   "version": "1.0.0",
   "private": true,
-  "mode": "development",
+  "mode": "production",
   "scripts": {
     "webpack": "webpack",
     "build": "webpack --mode production"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "jquery": "3.7.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "html-webpack-plugin": "^5.6.3",
     "webpack": "^5.96.1",

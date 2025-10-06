@@ -548,6 +548,90 @@ def getChildsOf(tx, node, relation_type=''):
 	return outNode
 
 
+def _get_initial_decl_via_cfg(tx, use_id, name):
+	query = """
+	WITH "%s" AS useId, "%s" AS name
+	MATCH p1 = (topMostExprNode {Id: useId})<-[:AST_parentOf*0..]-(topMostCfgNode:CFGNode)
+	WITH topMostExprNode, topMostCfgNode, length(p1) AS hops, name
+	ORDER BY hops ASC
+	LIMIT 1
+
+	MATCH p2 = shortestPath((topMostCfgNode)<-[:CFG_parentOf*0..]-(declarationNode))
+	WHERE declarationNode.Type IN [
+			'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
+			'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
+			'ExportAllDeclaration','CatchClause'
+	]
+	MATCH p3 = (declarationNode)-[:AST_parentOf*]->(med)
+			,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Code: name, Type: 'Identifier'})
+	RETURN declarationNode, initialDeclarationIdentifierNode, length(p2) + length(p3) as depth
+	"""%(use_id, name)
+	print("[CFG] initial declaration query:", query)
+	results = tx.run(query)
+	for record in results:
+		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
+	return None
+
+
+def _get_initial_decl_via_callgraph(tx, use_id, name):
+	query = """
+	WITH "%s" AS useId, "%s" AS name
+	MATCH p2 = (topMostExprNode {Id: useId})-[:AST_parentOf]->(CallExpression {Type: 'CallExpression'})
+				-[:CG_parentOf*]->(declarationNode)
+	WHERE declarationNode.Type IN [
+		'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
+		'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
+		'ExportAllDeclaration','CatchClause'
+	]
+	MATCH (declarationNode)-[:AST_parentOf*0..8]->(med)
+	MATCH (med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
+	WHERE initialDeclarationIdentifierNode.Code = name
+	RETURN declarationNode, initialDeclarationIdentifierNode, length(p2) AS depth
+	ORDER BY depth ASC
+	LIMIT 1
+	"""%(use_id, name)
+	print("[CallGraph] initial declaration query:", query)
+	results = tx.run(query)
+	for record in results:
+		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
+	return None
+
+
+def _get_initial_decl_via_params(tx, use_id, name):
+	query = """
+	WITH "%s" AS useId, "%s" AS name
+	MATCH p3 = (topMostExprNode {Id: useId})<-[:AST_parentOf*0..]-(declarationNode)
+	WHERE declarationNode.Type IN ['ArrowFunctionExpression','FunctionDeclaration','MethodDefinition']
+	MATCH (declarationNode)-[:AST_parentOf {RelationType:'params'}]->(initialDeclarationIdentifierNode {Code: name, Type: 'Identifier'})
+	RETURN declarationNode, initialDeclarationIdentifierNode, length(p3) AS depth
+	ORDER BY depth ASC
+	LIMIT 1
+	"""%(use_id, name)
+	print("[Params] initial declaration query:", query)
+	results = tx.run(query)
+	for record in results:
+		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
+	return None
+
+
+def _get_initial_decl_via_assignment(tx, use_id, name):
+	query = """
+	WITH "%s" AS useId, "%s" AS name
+	MATCH p4 = (topMostExprNode {Id: useId})<-[:CFG_parentOf*0..]-(declarationNode:ExpressionStatement)
+	MATCH (declarationNode)-[:AST_parentOf*]->(med)
+				-[:AST_parentOf {RelationType:'left'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
+	WHERE initialDeclarationIdentifierNode.Code = name
+	RETURN declarationNode, initialDeclarationIdentifierNode, length(p4) AS depth
+	ORDER BY depth ASC
+	LIMIT 1
+	"""%(use_id, name)
+	print("[Assignment] initial declaration query:", query)
+	results = tx.run(query)
+	for record in results:
+		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
+	return None
+
+
 def getInitialDeclaration(tx, node, cache = {}):
 	"""
 	@param {pointer} tx
@@ -558,79 +642,33 @@ def getInitialDeclaration(tx, node, cache = {}):
 	if node['Id'] in cache:
 		return cache[node['Id']]
 	top_most_expr = get_ast_topmost(tx, node)
-	print("topmostexpr: ", top_most_expr)		
-	# Having assumption that topMostExprNode should be CFG node
-	query = """
-	// anchor once (id and name)
-	WITH "%s" AS useId, "%s" AS name
+	print("topmostexpr: ", top_most_expr)
 
-	CALL {
-	WITH useId, name
-	// Branch 1 declarations via CFG, then AST
-	MATCH p1 = (topMostExprNode {Id: useId})<-[:CFG_parentOf*0..]-(declarationNode)
-	WHERE declarationNode.Type IN [
-		'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
-		'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
-		'ExportAllDeclaration','CatchClause'
-	]
-	WITH DISTINCT declarationNode, useId, name
-	MATCH p2 = (declarationNode)-[:AST_parentOf*]->(med)
-	MATCH (med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode:Identifier {Code: name})  
-	RETURN declarationNode, initialDeclarationIdentifierNode, length(p2) AS depth
+	query_functions = (
+		_get_initial_decl_via_cfg,
+		_get_initial_decl_via_callgraph,
+		_get_initial_decl_via_params,
+		_get_initial_decl_via_assignment,
+	)
 
-	UNION ALL
+	candidates = []
+	for query_fn in query_functions:
+		result = query_fn(tx, top_most_expr['Id'], node['Code'])		
+		if result:
+			candidates.append(result)
 
-	// Branch 2 callgraph path
-	WITH useId, name
-	MATCH p2 = (topMostExprNode {Id: useId})-[:AST_parentOf]->(:CallExpression)
-				-[:CG_parentOf*]->(declarationNode)
-	WHERE declarationNode.Type IN [
-		'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
-		'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
-		'ExportAllDeclaration','CatchClause'
-	]
-	MATCH (declarationNode)-[:AST_parentOf*0..8]->(med)
-	MATCH (med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode:Identifier)
-	WHERE initialDeclarationIdentifierNode.Code = name
-	RETURN declarationNode, initialDeclarationIdentifierNode, length(p2) AS depth
-
-	UNION ALL
-
-	// Branch 3 params
-	WITH useId, name
-	MATCH p3 = (topMostExprNode {Id: useId})<-[:AST_parentOf*0..]-(declarationNode)
-	WHERE declarationNode.Type IN ['ArrowFunctionExpression','FunctionDeclaration','MethodDefinition']
-	MATCH (declarationNode)-[:AST_parentOf {RelationType:'params'}]->(initialDeclarationIdentifierNode:Identifier {Code: name})
-	RETURN declarationNode, initialDeclarationIdentifierNode, length(p3) AS depth
-
-	UNION ALL
-
-	// Branch 4 assignment in ExpressionStatement (not a declaration)
-	WITH useId, name
-	MATCH p4 = (topMostExprNode {Id: useId})<-[:CFG_parentOf*0..]-(declarationNode:ExpressionStatement)
-	MATCH (declarationNode)-[:AST_parentOf*]->(med)
-			-[:AST_parentOf {RelationType:'left'}]->(initialDeclarationIdentifierNode:Identifier)
-	WHERE initialDeclarationIdentifierNode.Code = name
-	RETURN declarationNode, initialDeclarationIdentifierNode, length(p4) AS depth
-	}
-	RETURN declarationNode, initialDeclarationIdentifierNode
-	ORDER BY depth ASC
-	LIMIT 1;
-	"""%(top_most_expr['Id'], node['Code'])
-	print("query", query)
-	results = tx.run(query)	
-	
-	ans = []
-	for record in results:				
-		declarationNode = record['declarationNode']
-		initialDeclarationIdentifierNode = record['initialDeclarationIdentifierNode']		
+	if candidates:
+		declarationNode, initialDeclarationIdentifierNode, _ = min(
+			candidates,
+			key=lambda item: item[2] if item[2] is not None else float('inf')
+		)
 		ans = [declarationNode, initialDeclarationIdentifierNode]
-		break
-	if not ans:
+	else:
 		ans = [top_most_expr, node] # if not found, return the top most expression as initial seen scope
+
 	cache[node['Id']] = ans
 	return ans
-	
+
 
 
 def getIdentifierLiteralScopeOf(tx, node):
@@ -794,10 +832,10 @@ def getNodeFromRange(tx, rangeStr):
 	query = """
 		MATCH (node {Range: '%s'})
 		RETURN node
-	"""%(rangeStr)		
+	"""%(rangeStr)
 	res = []
-	results = tx.run(query)			
-	res = [record['idNode'] for record in results]
+	results = tx.run(query)
+	res = [record['node'] for record in results]
 	return res
 
 

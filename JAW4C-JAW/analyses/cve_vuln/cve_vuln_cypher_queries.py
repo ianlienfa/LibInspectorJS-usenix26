@@ -1104,6 +1104,7 @@ def getSinkExpression(tx, vuln_info):
 		MATCH (node {Id: '%s'})<-[:AST_parentOf{RelationType: 'value'}]-(propNode {Type: 'Property'})
 		RETURN propNode
 		"""%(node['Id'])
+		print("query", query)
 		q_res = tx.run(query)
 		iterator = iter(q_res)
 		try:
@@ -1120,7 +1121,8 @@ def getSinkExpression(tx, vuln_info):
 		if initDeclRes:
 			[declarationNode, initialDeclarationIdentifierNode] = initDeclRes
 			print("declarationNode-", declarationNode)
-			return isValueOfProperty(tx, declarationNode)
+			isValue = isValueOfProperty(tx, declarationNode)
+			return isValue
 		return False
 
 	def getTargetCallExpressionAndArg(tx, topExpressionNode, targetIdentifierCode):
@@ -1485,7 +1487,7 @@ def getSinkExpression(tx, vuln_info):
 					libIdentNode = pair[1] # libObj node
 				else:
 					libObj = pair
-				libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
+				libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)				
 				libkeys = set(poc['libkeys'])
 
 				# From this scope, follow the search order

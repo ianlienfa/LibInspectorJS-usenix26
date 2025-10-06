@@ -94,6 +94,69 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
 	logger.info('%s: Docker container removing lock.'%str(container_name))
 
 
+def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data_import_path, volume_home=VOLUME_HOME):
+	"""
+	Unit test version of create_neo4j_container
+
+	Args:
+		container_name: Name for the Docker container
+		weburl_suffix: Parent directory name (e.g., 'static_query')
+		webapp_name: Test directory name (e.g., 'test_initial_decl_cfg')
+		data_import_path: Absolute path to the test directory containing nodes.csv/rels.csv
+		volume_home: Docker volume home directory (default: VOLUME_HOME)
+
+	Note: For unit tests, data_import_path should be the full path to the test directory
+		  (e.g., /home/ian/JAW4C/JAW4C-JAW/tests/pipeline_test/sites/unit_test/static_query/test_name)
+	"""
+	if not os.path.exists(volume_home):
+		os.makedirs(volume_home)
+	container_data_path = os.path.join(volume_home, container_name, 'neo4j')
+	print("container_data_path", container_data_path)
+	if not os.path.exists(container_data_path):
+		# os.makedirs(container_data_path)
+		data_dir = os.path.join(container_data_path, 'data')
+		logs_dir = os.path.join(container_data_path, 'logs')
+		plugins_dir = os.path.join(container_data_path, 'plugins')
+		conf_dir = os.path.join(container_data_path, 'conf')
+		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
+			os.makedirs(p)
+			os.chown(p, -1, 7474)
+		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
+
+	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
+	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
+	# other options:
+	# 	-e NEO4J_dbms_security_procedures_whitelist=apoc.coll.\\\*,apoc.load.\\\* \
+	command="""docker run \
+    --name {0} \
+    -p{5}:7474 -p{6}:7687 \
+    -d \
+    -v {1}/{0}/neo4j/data:/data \
+    -v {1}/{0}/neo4j/logs:/logs \
+    -v {4}:/var/lib/neo4j/import/{7} \
+    -v {1}/{0}/neo4j/plugins:/plugins \
+	-v {1}/{0}/neo4j/conf:/conf \
+    -u neo4j:neo4j \
+    -e NEO4J_apoc_export_file_enabled=true \
+    -e NEO4J_apoc_import_file_enabled=true \
+    -e NEO4J_apoc_import_file_use__neo4j__config=true \
+    -e NEO4JLABS_PLUGINS='["apoc"]' \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
+    -e PYTHONUNBUFFERED=1 \
+    --env NEO4J_AUTH={2}/{3} \
+    arm64v8/neo4j:4.4
+	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, webapp_name)
+	# Note: For unit tests, data_import_path is the full path to the test directory
+
+	utilityModule.run_os_command(command, print_stdout=False)
+	logger.info('Docker container %s is starting.'%str(container_name))
+
+	command	= "docker exec %s 'rm -f /var/lib/neo4j/data/databases/store_lock'"%(container_name)
+	utilityModule.run_os_command(command, print_stdout=False)
+	logger.info('%s: Docker container removing lock.'%str(container_name))
+
+
+
 def remove_neo4j_database(database_name, container_name, all=False):
 	path_db = os.path.join(VOLUME_HOME, container_name)
 	if os.path.exists(path_db):

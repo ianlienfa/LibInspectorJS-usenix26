@@ -11,7 +11,7 @@ Orchestrates pipeline testing by:
 4. Comparing results against expected answers
 
 Usage:
-    python test_run.py --action=<detection|vulndb|graph_gen|analysis> --test=<path>
+    python test_run.py --action=<detection|vuln_db|graph_gen|analysis> --test=<path>
 
 The script automatically runs all prerequisite phases before the specified action.
 
@@ -19,13 +19,13 @@ Examples:
     # Test library detection (runs: crawl + detection)
     python test_run.py --action=detection --test=integration_test/lib_detection/test_lodash
 
-    # Test vulnerability database query (runs: crawl + detection + vulndb)
-    python test_run.py --action=vulndb --test=integration_test/vulndb_query/test_jquery_vuln
+    # Test vulnerability database query (runs: crawl + detection + vuln_db)
+    python test_run.py --action=vuln_db --test=integration_test/vuln_db_query/test_jquery_vuln
 
-    # Test static analysis (runs: crawl + detection + vulndb + graph_gen)
+    # Test static analysis (runs: crawl + detection + vuln_db + graph_gen)
     python test_run.py --action=graph_gen --test=unit_test/static_query/test_get_parent
 
-    # Test full analysis pipeline (runs: crawl + detection + vulndb + graph_gen + analysis)
+    # Test full analysis pipeline (runs: crawl + detection + vuln_db + graph_gen + analysis)
     python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss
 """
 
@@ -44,14 +44,14 @@ from flask import Flask, send_from_directory, redirect, request
 BASE_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-import utils.io as IOModule
+from test_phases import test_detection, test_vuln_db, test_graph_gen, test_analysis
 
 
 # Action definitions - maps action to required phases
 ACTIONS = {
     'crawl': ['crawling'],
     'detection': ['crawling', 'lib_detection'],
-    'vulndb': ['crawling', 'lib_detection', 'vuln_db'],
+    'vuln_db': ['crawling', 'lib_detection', 'vuln_db'],
     'graph_gen': ['crawling', 'lib_detection', 'vuln_db', 'static'],
     'analysis': ['crawling', 'lib_detection', 'vuln_db', 'static', 'static_neo4j']
 }
@@ -130,7 +130,7 @@ def get_test_config_path(dist_dir):
     return parent / 'config.yaml'
 
 
-def generate_test_config(test_dir, action, port=3000, config_path='config.yaml'):
+def generate_test_config(test_dir, action, port=3000, config_path='config.yaml', skip_setup=False):
     """
     Generate test-specific config.yaml file by loading an existing config and updating it.
 
@@ -141,6 +141,7 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml')
         port: Port number for test server
         url_path: URL path for the test (e.g., /tests/pipeline_test/sites/...)
         config_path: Path to base config.yaml to load
+        skip_setup: If True, skip ACTIONS.get and use empty phases list
 
     Returns:
         Path to generated config file
@@ -161,6 +162,8 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml')
 
     # Determine which phases to enable based on action
     phases_to_run = ACTIONS.get(action, [])
+    phases_to_run = phases_to_run[-1:] if skip_setup else phases_to_run
+    print("Phases to run: ", phases_to_run)
 
     # Update only the fields related to input arguments
     if 'testbed' not in config:
@@ -231,246 +234,6 @@ def load_expected_answers(test_dir):
     except json.JSONDecodeError as e:
         print(f"Error: Failed to parse ans.json: {e}")
         return None
-
-
-def version_matches(expected_version, actual_version):
-    """
-    Check if expected version matches actual detected version(s).
-
-    Args:
-        expected_version: Ground truth version string (e.g., '3.4.0')
-        actual_version: Detected version - can be:
-            - String: 'unknown' or '3.4.0'
-            - List: ['1.1', '1.3 ~ 1.5', '2.0']
-
-    Returns:
-        True if versions match, False otherwise
-    """
-    # If either is unknown, it's a match
-    if expected_version == 'unknown' or actual_version == 'unknown':
-        return True
-
-    # Normalize actual_version to list
-    if isinstance(actual_version, str):
-        actual_versions = [actual_version]
-    else:
-        actual_versions = actual_version
-
-    # Check each possible version pattern
-    for version_pattern in actual_versions:
-        try:
-            st_end = list(map(str.strip, version_pattern.split('~')))
-        except Exception:
-            # If split fails, treat as exact version
-            if version_pattern == expected_version:
-                return True
-            continue
-
-        if len(st_end) == 1:
-            # Exact version match
-            if st_end[0] == expected_version:
-                return True
-        elif len(st_end) == 2:
-            # Version range: check if expected version is within range
-            st, end = st_end[0], st_end[1]
-            # Simple string comparison - works for semver if properly formatted
-            # For more robust comparison, would need semver parsing
-            if st <= expected_version <= end or expected_version == st or expected_version == end:
-                return True
-
-    return False
-
-
-def test_detection(expected, actual_data_dir):
-    """
-    Test library detection phase results.
-
-    Args:
-        expected: Expected results from ans.json['detection']
-            Expected format: {
-                "PTV": {
-                    "detection": [
-                        {"libname": "jquery", "version": "3.4.0"},
-                        {"libname": "lodash", "version": "unknown"}
-                    ]
-                },
-                "PTV-Original": {
-                    "detection": [
-                        {"libname": "jquery", "version": "3.4.0"}
-                    ]
-                }
-            }
-        actual_data_dir: Path to pipeline output data directory
-
-    Returns:
-        (success: bool, message: str)
-    """
-    if not actual_data_dir or not actual_data_dir.exists():
-        return False, "Data directory not found"
-
-    # Find lib.detection.json file
-    lib_detection_files = list(actual_data_dir.rglob('lib.detection.json'))
-    if not lib_detection_files:
-        return False, "lib.detection.json not found in data directory"
-
-    lib_detection_file = lib_detection_files[0]
-
-    try:
-        with open(lib_detection_file, 'r') as f:
-            detection_data = json.load(f)
-    except json.JSONDecodeError as e:
-        return False, f"Failed to parse lib.detection.json: {e}"
-
-    # Extract actual detected libraries from PTV and PTV-Original
-    actual_ptv_libs = {}
-    actual_ptv_original_libs = {}
-
-    for url_data in detection_data.values():
-        # Check PTV detection
-        if 'PTV' in url_data and 'detection' in url_data['PTV']:
-            for detection_array in url_data['PTV']['detection']:
-                for lib in detection_array:
-                    libname = lib.get('libname')
-                    actual_ptv_libs[libname] = {
-                        'version': lib.get('version', 'unknown'),
-                        'accurate': lib.get('accurate', False)
-                    }
-
-        # Check PTV-Original detection
-        if 'PTV-Original' in url_data and 'detection' in url_data['PTV-Original']:
-            for detection_array in url_data['PTV-Original']['detection']:
-                for lib in detection_array:
-                    libname = lib.get('libname')
-                    actual_ptv_original_libs[libname] = {
-                        'version': lib.get('version', 'unknown'),
-                        'accurate': lib.get('accurate', False)
-                    }
-
-    # Compare against expected libraries
-    results = []
-    total_expected = 0
-    perfect_matches = 0
-    warnings = 0
-    failures = 0
-
-    # Check PTV expectations
-    if 'PTV' in expected and 'detection' in expected['PTV']:
-        expected_ptv_libs = expected['PTV']['detection']
-        total_expected += len(expected_ptv_libs)
-
-        for expected_lib in expected_ptv_libs:
-            libname = expected_lib.get('libname')
-            expected_version = expected_lib.get('version', 'unknown')
-
-            if libname not in actual_ptv_libs:
-                results.append(f"❌ PTV: '{libname}' not found")
-                failures += 1
-            else:
-                actual_lib = actual_ptv_libs[libname]
-                actual_version = actual_lib['version']
-
-                # Check version match using version_matches function
-                version_match = version_matches(expected_version, actual_version)
-
-                if version_match and actual_lib['accurate']:
-                    results.append(f"✅ PTV: '{libname}' v{actual_version}")
-                    perfect_matches += 1
-                elif version_match and not actual_lib['accurate']:
-                    results.append(f"⚠️  PTV: '{libname}' v{actual_version} (not accurate)")
-                    warnings += 1
-                else:
-                    results.append(f"❌ PTV: '{libname}' version mismatch (expected {expected_version}, got {actual_version})")
-                    failures += 1
-
-    # Check PTV-Original expectations
-    if 'PTV-Original' in expected and 'detection' in expected['PTV-Original']:
-        expected_ptv_original_libs = expected['PTV-Original']['detection']
-        total_expected += len(expected_ptv_original_libs)
-
-        for expected_lib in expected_ptv_original_libs:
-            libname = expected_lib.get('libname')
-            expected_version = expected_lib.get('version', 'unknown')
-
-            if libname not in actual_ptv_original_libs:
-                results.append(f"❌ PTV-Original: '{libname}' not found")
-                failures += 1
-            else:
-                actual_lib = actual_ptv_original_libs[libname]
-                actual_version = actual_lib['version']
-
-                # Check version match using version_matches function
-                version_match = version_matches(expected_version, actual_version)
-
-                if version_match and actual_lib['accurate']:
-                    results.append(f"✅ PTV-Original: '{libname}' v{actual_version}")
-                    perfect_matches += 1
-                elif version_match and not actual_lib['accurate']:
-                    results.append(f"⚠️  PTV-Original: '{libname}' v{actual_version} (not accurate)")
-                    warnings += 1
-                else:
-                    results.append(f"❌ PTV-Original: '{libname}' version mismatch (expected {expected_version}, got {actual_version})")
-                    failures += 1
-
-    if total_expected == 0:
-        return True, "No expected libraries to verify"
-
-    # Build summary message
-    summary = f"{perfect_matches}✅ {warnings}⚠️  {failures}❌ / {total_expected} total"
-    full_message = summary + "\n    " + "\n    ".join(results)
-
-    # Test passes if there are no failures (warnings are acceptable)
-    return failures == 0, full_message
-
-
-def test_vuln_db(expected, actual_data_dir):
-    """
-    Test vulnerability database query phase results.
-
-    Args:
-        expected: Expected results from ans.json['vuln_db']
-        actual_data_dir: Path to pipeline output data directory
-
-    Returns:
-        (success: bool, message: str)
-    """
-    # TODO: Implement vuln_db comparison logic
-    # This should compare vulnerability findings from the database
-    # with expected vulnerabilities in ans.json
-    return True, "Vuln DB test not implemented yet"
-
-
-def test_graph_gen(expected, actual_data_dir):
-    """
-    Test graph generation (static analysis) phase results.
-
-    Args:
-        expected: Expected results from ans.json['graph_gen']
-        actual_data_dir: Path to pipeline output data directory
-
-    Returns:
-        (success: bool, message: str)
-    """
-    # TODO: Implement graph generation comparison logic
-    # This should compare generated graphs/CFG
-    # with expected graph properties in ans.json
-    return True, "Graph generation test not implemented yet"
-
-
-def test_analysis(expected, actual_data_dir):
-    """
-    Test static analysis (Neo4j) phase results.
-
-    Args:
-        expected: Expected results from ans.json['analysis']
-        actual_data_dir: Path to pipeline output data directory
-
-    Returns:
-        (success: bool, message: str)
-    """
-    # TODO: Implement analysis comparison logic
-    # This should compare final analysis results from Neo4j
-    # with expected analysis results in ans.json
-    return True, "Analysis test not implemented yet"
 
 
 def get_data_dir_from_test(test_dir):
@@ -630,7 +393,7 @@ def get_test_dir(test_path: str) -> Path | None:
     return test_dir
 
 
-def run_test(test_path, action, port=3000, base_config='config.yaml'):
+def run_test(test_path, action, port=3000, base_config='config.yaml', skip_setup=False):
     """
     Run a single test through the pipeline.
 
@@ -639,6 +402,7 @@ def run_test(test_path, action, port=3000, base_config='config.yaml'):
         action: Action to test (crawl, detection, graph_gen, analysis)
         port: Port for test server
         base_config: Base config file to load
+        skip_setup: If True, skip ACTIONS.get and use empty phases list
 
     Returns:
         True if successful, False otherwise
@@ -655,10 +419,9 @@ def run_test(test_path, action, port=3000, base_config='config.yaml'):
 
     print(f"\nRunning test: {test_path}")
     print(f"  Testing action: {action}")
-    print(f"  Phases to run: {ACTIONS.get(action, [])}")
 
     # Generate test config
-    config_path = generate_test_config(test_dir, action, port, base_config)
+    config_path = generate_test_config(test_dir, action, port, base_config, skip_setup)
 
     # Start test server and run pipeline
     with test_server(dist_dir, port):
@@ -691,7 +454,7 @@ def main():
         '--action',
         type=str,
         required=True,
-        choices=['crawl', 'detection', 'vulndb', 'graph_gen', 'analysis'],
+        choices=['crawl', 'detection', 'vuln_db', 'graph_gen', 'analysis'],
         help='Action to test (automatically runs all prerequisite phases)'
     )
     parser.add_argument(
@@ -714,9 +477,14 @@ def main():
     )
     parser.add_argument(
         '--server-only',
-        type=str,
         default=False,
         help='Only hosts the server corresponds to this test'
+    )
+    parser.add_argument(
+        '--skip-setup',
+        action='store_true',
+        default=False,
+        help='Skip ACTIONS.get and use empty phases list (only runs if False)'
     )
 
 
@@ -724,7 +492,7 @@ def main():
     if args.server_only:
         host_server(args.test, args.port)
     else:
-        success = run_test(args.test, args.action, args.port, args.config)
+        success = run_test(args.test, args.action, args.port, args.config, args.skip_setup)
         sys.exit(0 if success else 1)
 
 

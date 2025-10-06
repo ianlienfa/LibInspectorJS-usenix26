@@ -125,10 +125,10 @@ def grep_matching_pattern(website_url: str, poc_str: str) -> bool:
 	try:
 		matching_strs = {}
 		for poc_pattern in patterns:
-			matching_strs[poc_str] = []  # Initialize as empty list
+			matching_strs[f"{poc_str} |||| {poc_pattern}"] = []  # Initialize as empty list
 			for f in Path(website_folder).rglob("*.js"):
 				matches = [f"{f}:{i}:{line.strip()}" for i, line in enumerate(open(f, 'r', encoding='utf-8'), 1) if poc_pattern in line]
-				matching_strs[poc_str].extend(matches)  # Append to list			
+				matching_strs[f"{poc_str} |||| {poc_pattern}"].extend(matches)  # Append to list			
 	except Exception as e:
 		LOGGER.error(f"Error during ground truth grep: {e}")
 		return False
