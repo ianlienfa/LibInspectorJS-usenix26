@@ -1,0 +1,74 @@
+{
+  "description": "Comprehensive test for all initial declaration query functions",
+  "test_function": "test_initial_decl_comprehensive",
+  "test_cases": [
+    {
+      "name": "test_cfg_based_decl",
+      "description": "Test _get_initial_decl_via_cfg with dummy code in between",
+      "query_function": "_get_initial_decl_via_cfg",
+      "node_range": "[329,336]",
+      "expected": {
+        "declaration_node_type": "VariableDeclaration",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[217,233]",
+        "identifier_node_range": "[221,228]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "var cfgTest = 3;",
+        "identifier_code": "cfgTest"
+      }
+    },
+    {
+      "name": "test_params_based_decl",
+      "description": "Test _get_initial_decl_via_params with multiple dummy parameters",
+      "query_function": "_get_initial_decl_via_params",
+      "node_range": "[696,704]",
+      "expected": {
+        "declaration_node_type": "FunctionDeclaration",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[605,734]",
+        "identifier_node_range": "[650,658]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "function paramTest(dummyParam1, dummyParam2, paramObj, dummyParam3) {\n    var paramUsage = paramObj + 1;\n    return paramUsage;\n}",
+        "identifier_code": "paramObj"
+      }
+    },
+    {
+      "name": "test_assignment_based_decl",
+      "description": "Test _get_initial_decl_via_assignment with const usage",
+      "query_function": "_get_initial_decl_via_assignment",
+      "node_range": "[877,887]",
+      "expected": {
+        "declaration_node_type": "ExpressionStatement",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[793,808]",
+        "identifier_node_range": "[793,803]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "assignTest = 7;",
+        "identifier_code": "assignTest"
+      }
+    },
+    {
+      "name": "test_complete_getInitialDeclaration",
+      "description": "Test complete getInitialDeclaration - should prefer parameter over assignment",
+      "query_function": "getInitialDeclaration",
+      "node_range": "[1126,1127]",
+      "expected": {
+        "declaration_node_type": "ArrowFunctionExpression",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[1107,1196]",
+        "identifier_node_range": "[1114,1115]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "(r, e, t) => {\n    t(692)(\"#div\").html(\"<style><style /><img src=x onerror=alert(1)>\");\n}",
+        "identifier_code": "t"
+      }
+    }
+  ]
+}

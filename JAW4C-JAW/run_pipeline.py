@@ -359,6 +359,14 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					LOGGER.error(e)
 					continue
 
+				# Clean up vuln.out from previous runs
+				vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
+				ground_truth_pathname = os.path.join(webpage_folder, 'groundtruth.json')
+				if os.path.exists(vuln_info_pathname):
+					os.remove(vuln_info_pathname)
+				if os.path.exists(ground_truth_pathname):
+					os.remove(ground_truth_pathname)
+
 				for affiliatedurl, _ in lib_det_res.items():
 					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
 					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
@@ -378,19 +386,24 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 								continue
 							else:
 								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
-								vuln_list.append({
-									"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
-								})
 
 								# Setup ground truth for this particular site
 								for poc in vuln:
 									try:
 										poc_str = poc['poc']
-										cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
+										# grep for the poc fragments existence in the files
+										grep_found = cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str) 
+										poc['grep_found'] = True if grep_found else False
+
 									except Exception as e:
 										print('poc formatting problem from database', poc)
 
-					vuln_info_pathname = os.path.join(webpage_folder, "vuln.out")
+								vuln_list.append({
+									"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
+								})
+					
+					# Some vulnerabilities is similar, leading to duplicate vuln_info, remove them for better performance
+					vuln_list = utilityModule.get_unique_nested_list(vuln_list)
 					with open(vuln_info_pathname, 'a') as vuln_fd:
 						json.dump({affiliatedurl: vuln_list}, vuln_fd)
 						vuln_fd.write('\n')			

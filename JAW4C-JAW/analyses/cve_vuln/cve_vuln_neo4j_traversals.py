@@ -212,11 +212,16 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 					location, vuln, mod = entry['location'], entry['vuln'], entry['mod']
 					for v in vuln:
 						if 'LIBOBJ' not in v['poc']:
+							logger.info(f'Skipping {v['poc']} due to unsupported form: no LIBOBJ')
+							continue
+						if not v['grep_found']:
+							logger.info(f'Skipping {v['poc']} due to grep found not finding poc fragments')
 							continue
 						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
 						logger.info(f"executing vuln: {vuln_info}")
-						breakpoint()
+						breakpoint()						
 						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)						
+						breakpoint()
 						logger.info(f"analysis out: {out}")
 				except Exception as e:
 					raise RuntimeError(f"Error executing query: {entry}, {e}")

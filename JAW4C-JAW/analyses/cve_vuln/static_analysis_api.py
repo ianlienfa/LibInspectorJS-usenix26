@@ -135,12 +135,22 @@ def grep_matching_pattern(website_url: str, poc_str: str) -> bool:
 	grep_dict = {}
 	try:
 		with open(os.path.join(website_folder, 'urls.hashes.out'), 'r') as f_r:
-			grep_dict = json.load(f_r)
-			website_folder = os.path.join(website_folder, grep_dict[website_url])
+			url_hash_mapping = json.load(f_r)
+			website_folder = os.path.join(website_folder, url_hash_mapping[website_url])
 	except Exception as e:
 		pass
-	with open(os.path.join(website_folder, 'groundtruth.json'), 'w') as f_w:
+
+	# Load existing groundtruth.json to avoid overwriting previous content
+	groundtruth_file = os.path.join(website_folder, 'groundtruth.json')
+	try:
+		with open(groundtruth_file, 'r') as f_r:
+			grep_dict = json.load(f_r)
+	except Exception as e:
+		pass
+
+	with open(groundtruth_file, 'w') as f_w:
 		grep_dict[website_url] = matching_strs
-		json.dump(grep_dict, f_w, indent=4)		
-	return True
+		json.dump(grep_dict, f_w, indent=4)
+	
+	return True if matching_strs else False
 

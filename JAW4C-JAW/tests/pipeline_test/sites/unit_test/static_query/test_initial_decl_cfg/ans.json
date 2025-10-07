@@ -1,0 +1,38 @@
+{
+  "description": "Tests test_initial_decl_cfg for variable declaration with 'var' keyword",
+  "test_function": "test_initial_decl_cfg",
+  "test_cases": [
+    {
+      "name": "test_initial_decl_cfg_testObj",
+      "description": "Find initial declaration of testObj variable",
+      "node_range": "[134,141]",
+      "expected": {
+        "declaration_node_type": "VariableDeclaration",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[130,146]",
+        "identifier_node_range": "[134,141]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "var testObj = 3",
+        "identifier_code": "testObj"
+      }
+    },
+    {
+      "name": "test_initial_decl_cfg_temp",
+      "description": "Find initial declaration of temp variable",
+      "node_range": "[151,155]",
+      "expected": {
+        "declaration_node_type": "VariableDeclaration",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[147,171]",
+        "identifier_node_range": "[151,155]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "var temp = testObj + 3",
+        "identifier_code": "temp"
+      }
+    }
+  ]
+}

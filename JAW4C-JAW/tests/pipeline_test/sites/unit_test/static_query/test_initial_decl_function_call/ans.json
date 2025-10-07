@@ -1,0 +1,22 @@
+{
+  "description": "Tests get_initial_declaration for function call tracing to function declaration via CG_parentOf",
+  "test_function": "test_get_initial_declaration",
+  "test_cases": [
+    {
+      "name": "get_initial_declaration_testObj_call",
+      "description": "Trace testObj() CallExpression back to function declaration",
+      "node_range": "[198,205]",
+      "expected": {
+        "declaration_node_type": "FunctionDeclaration",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[149,188]",
+        "identifier_node_range": "[158,165]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "function testObj() {\n    return 3;\n}",
+        "identifier_code": "testObj"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "description": "Tests get_initial_declaration for function parameter",
+  "test_function": "test_get_initial_declaration",
+  "test_cases": [
+    {
+      "name": "get_initial_decl_testObj_usage",
+      "description": "Find initial declaration of testObj usage in function body",
+      "node_range": "[150,157]",
+      "expected": {
+        "declaration_node_type": "FunctionDeclaration",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[111,182]",
+        "identifier_node_range": "[124,131]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "function foo(testObj) {\n    var temp = testObj + 3;\n    return temp;\n}",
+        "identifier_code": "testObj"
+      }
+    }
+  ]
+}

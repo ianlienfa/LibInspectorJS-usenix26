@@ -27,6 +27,9 @@ Examples:
 
     # Test full analysis pipeline (runs: crawl + detection + vuln_db + graph_gen + analysis)
     python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss
+
+    # Skip setup if previous phase has been executed (runs: analysis)
+    python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss --skip-setup
 """
 
 import sys

@@ -1,0 +1,38 @@
+{
+  "description": "Tests get_initial_declaration for variable assignment without declaration keyword",
+  "test_function": "test_get_initial_declaration",
+  "test_cases": [
+    {
+      "name": "get_initial_declaration_testObj",
+      "description": "Find initial declaration of testObj (assignment expression)",
+      "node_range": "[175,182]",
+      "expected": {
+        "declaration_node_type": "ExpressionStatement",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[155,167]",
+        "identifier_node_range": "[155,162]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "testObj = 3",
+        "identifier_code": "testObj"
+      }
+    },
+    {
+      "name": "get_initial_declaration_temp",
+      "description": "Find initial declaration of temp (assignment expression)",
+      "node_range": "[168,172]",
+      "expected": {
+        "declaration_node_type": "ExpressionStatement",
+        "identifier_node_type": "Identifier",
+        "declaration_node_range": "[168,191]",
+        "identifier_node_range": "[168,172]"
+      },
+      "verify": {
+        "source_file": "0.js",
+        "declaration_code": "temp = testObj + 3",
+        "identifier_code": "temp"
+      }
+    }
+  ]
+}

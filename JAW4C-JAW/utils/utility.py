@@ -32,6 +32,7 @@ from datetime import datetime
 import signal
 import hashlib
 from utils.logging import logger
+import json
 
 
 # -------------------------------------------------------------------------- #
@@ -138,6 +139,11 @@ def _get_last_subpath(s):
 	return os.path.basename(os.path.normpath(s))
 
 	
+		
+# -------------------------------------------------------------------------- #
+#  		Other Utils
+# -------------------------------------------------------------------------- #
+
 
 def getDirectoryNameFromURL(url):
 	"""
@@ -166,12 +172,21 @@ def get_name_from_url(url):
            .replace("?", "%3F")
     )
 
+def get_unique_nested_list(l):
+	"""
+	Resolve [{...}, {..., {...}}] kind of unique list requirements
+	@param l: list of dicts
+	@return unique list of dicts
+	"""
 
-
-		
-# -------------------------------------------------------------------------- #
-#  		Other Utils
-# -------------------------------------------------------------------------- #
+	seen = set()
+	unique_list = []
+	for item in l:
+		key = json.dumps(item, sort_keys=True)
+		if key not in seen:
+			seen.add(key)
+			unique_list.append(item)
+	return unique_list
 
 
 def get_output_header_sep():
@@ -224,6 +239,9 @@ def _hash(s):
 
 def sha256(string):
 	return _hash(string)
+
+
+
 
 # -------------------------------------------------------------------------- #
 #  		Uitlity Classes
