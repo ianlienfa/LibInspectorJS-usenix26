@@ -409,7 +409,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 						vuln_fd.write('\n')			
 
 	
-				if config['cve_vuln']["passes"]["static"]:
+				if config['cve_vuln']["passes"]["static"]:					
 					try:
 						cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
 					except Exception as e:
@@ -419,8 +419,11 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					LOGGER.info("successfully finished static analysis for site %s."%(url))
 
 				# Start static analysis over neo4j, skip if no match on vulnerability
-				if not (config['cve_vuln']["passes"]["static_neo4j"] and vuln_list):
+				if not (config['cve_vuln']["passes"]["static_neo4j"]):
 					continue
+				if not vuln_list:					
+					with open(vuln_info_pathname, 'r') as vuln_fd:
+						vuln_list = json.load(vuln_fd)[url]
 				else:
 					database_name = 'neo4j'
 					graphid = uuid.uuid4().hex

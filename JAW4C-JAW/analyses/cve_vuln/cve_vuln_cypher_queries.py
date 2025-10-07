@@ -1055,6 +1055,7 @@ def getIdentifierAndExprFromArgCode(tx, argCode):
 		RETURN callExprNode, calleeNode
 	"""%(argCode)
 	results = tx.run(query)
+	print("argCode: ", argCode, "query: ", query)
 	res = []
 	for record in results:
 		callExprNode = record['callExprNode']
@@ -1539,14 +1540,15 @@ def getSinkExpression(tx, vuln_info):
 		if root:
 			print('root here')		
 			argNodes = getNodeFromTagName(tx, poc['payloads'][0]) # temporary testing purpose, not accounting for multiple situations
-			print("argNodes", argNodes)
+			print("argNodes", argNodes)			
 			for argNode in argNodes:
+				t = get_ast_topmost(tx, argNode)
 				res.append({
 					"t": get_ast_topmost(tx, argNode),
 					"n": get_ast_parent(tx, argNode),
 					"a": argNode
 				})
-			print("res", [[getCodeOf(tx, n)] for n in res[0].values()])
+			print("res", [[(n, getCodeOf(tx, n))] for n in res[0].values()])
 	except Exception as e:
 		print(f"Exception threw at getSinkExpression", e)
 		raise e
@@ -1694,7 +1696,7 @@ def run_traversals_simple(tx, vuln_info):
 					print_buffer = _get_orderd_unique_list(print_buffer) # remove duplicates, if any
 					tag_set = _get_semantic_type_set(request_tags)
 					logger.info(f"tag_set: {tag_set}")
-					if not ( len(tag_set) == 1 and CSRFSemanticTypes.SEM_TYPE_NON_REACHABLE in tag_set ):
+					if not ( CSRFSemanticTypes.SEM_TYPE_NON_REACHABLE in tag_set ):
 						fd.write(sep_templates)
 						fd.write('[*] Tags: %s\n'%(str(tag_set)))
 						fd.write('[*] NodeId: %s\n'%str(id_set))

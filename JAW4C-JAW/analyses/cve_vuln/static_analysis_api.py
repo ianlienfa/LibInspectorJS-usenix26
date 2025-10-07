@@ -149,7 +149,10 @@ def grep_matching_pattern(website_url: str, poc_str: str) -> bool:
 		pass
 
 	with open(groundtruth_file, 'w') as f_w:
-		grep_dict[website_url] = matching_strs
+		if website_url in grep_dict:
+			grep_dict[website_url].update(matching_strs)
+		else:
+			grep_dict[website_url] = matching_strs
 		json.dump(grep_dict, f_w, indent=4)
 	
 	return True if matching_strs else False

@@ -74,7 +74,6 @@ def get_cfg_level_nodes_for_statements():
 	    "FunctionDeclaration", # I need this to get the initial declaration
 		'FunctionExpression', # I need this to get the initial declaration
 		'ArrowFunctionExpression', # I need this to get the initial declaration
-		# 'SequenceExpression' # For bundler support
 	]
 
 	return esprimaCFGLevelNodeTypes
@@ -575,7 +574,7 @@ def _get_initial_decl_via_callgraph(tx, use_id, name):
 	WITH "%s" AS useId, "%s" AS name
 	// Find the closest CallExpression within topMostExpr and above currIdentifier with name matched
 	MATCH p1 = ((callExpression {Type: 'CallExpression'})-[:AST_parentOf*]->(currIdentifierNode {Type: 'Identifier', Code: name}))
-	MATCH (topMostExprNode {Id: useId})-[:AST_parentOf*]->(CallExpression)
+	MATCH (topMostExprNode {Id: useId})-[:AST_parentOf*]->(callExpression)
 	WITH callExpression, length(p1) AS depth, name
 	ORDER BY depth ASC
 	LIMIT 1

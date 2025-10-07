@@ -253,19 +253,33 @@ function getScriptLineRanges(html){
  * @param script_content: javascript code
  * @return returns the script sourcemapping object output by `js-beautify-sourcemap` library
 **/
-async function getScriptSourceMappingObject(script_content) {
+async function getScriptSourceMappingObject(script_content, apply_transform = false) {
 
 	try{
 		if(script_content && script_content.length){
 
+			// Keep the original code
+			let original_code = script_content;
+
+			// Apply babel transformation for static analysis purpose
+			transform_success = false
+			if(apply_transform){
+				let transformed = transform(script_content);
+				if(transformed !== ""){
+					script_content = transformed;
+					transform_success = true
+				}
+			}
+
 			// define an offset for the sourcemap
 			let mapping_offset =  {line: 1, column: 0};
 
-			// get the transformed code + sourcemap
+			// get the beautified code + sourcemap (from transformed or original)
 			let beautified_script_obj = await js_beautify_sourcemap(script_content, { indent_size: 2, space_in_empty_paren: true }, mapping_offset);
 
-			// keep the original code
-			beautified_script_obj.original_code = script_content;
+			// keep the original code (before transformation)
+			beautified_script_obj.original_code = original_code;
+			beautified_script_obj.transformed = (transform_success) ? true : false;
 
 			return beautified_script_obj;
 
@@ -362,10 +376,10 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 							sourcemap.sources = [ `${sid}.js` ]; // original filename
 				}
 
-				if(scriptSourceMappingObject.original_code && scriptSourceMappingObject.original_code.length > 0){
+				if(scriptSourceMappingObject.code && scriptSourceMappingObject.code.length > 0){
 
-					// calculate the script MD5 hash of the original code (for taint analysis compatibility)
-					let scriptHash = getMD5Hash(scriptSourceMappingObject.original_code);
+					// calculate the script MD5 hash of the 'transformed' code (for taint analysis compatibility)
+					let scriptHash = getMD5Hash(scriptSourceMappingObject.code);
 
 					// save the script
 					if(scriptKind === TYPE_SCRIPT_INTERNAL){
@@ -378,24 +392,23 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 						};
 
 						// Save processed version if lifting or transformation is enabled
-						if((lift_enabled || transform_enabled) && scriptSourceMappingObject.original_code){
+						if((lift_enabled || transform_enabled) && scriptSourceMappingObject.code){
 							const originalpathToWrite = pathModule.join(originalFolder, `${sid}.js`)
-							fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.original_code, 'utf8')
+							fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.code, 'utf8')
 
-							if(lift_enabled){
+							// We want to directly apply lift on the original code before babel transform 
+							if(lift_enabled && scriptSourceMappingObject.original_code){
 								let lifted = lift(scriptSourceMappingObject.original_code);
 								if(lifted !== ""){
 									const liftedpathToWrite = pathModule.join(liftedFolder, `${sid}.js`)
-									fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
+									fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')									
 								}
-							} else if(transform_enabled){
-								let transformed = transform(scriptSourceMappingObject.original_code);
-								if(transformed !== ""){
-									const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
-									const transformedpathToWriteParent = pathModule.join(webpageFolder, `${sid}.js`)
-									fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
-									fs.writeFileSync(transformedpathToWriteParent, transformed, 'utf8')
-								}
+							} 
+							if(scriptSourceMappingObject.transformed){
+								const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
+								const transformedpathToWriteParent = pathModule.join(webpageFolder, `${sid}.js`)
+								fs.writeFileSync(transformedpathToWrite, scriptSourceMappingObject.code, 'utf8')
+								fs.writeFileSync(transformedpathToWriteParent, scriptSourceMappingObject.code, 'utf8')							
 							}
 						}
 
@@ -417,12 +430,11 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 							};
 
 							// Add to override_mapping for external scripts with .js URLs
-							if(scriptSrc && scriptSrc.endsWith('.js')){							
+							if(scriptSrc && scriptSrc.endsWith('.js')){			
 								// Save processed version if lifting or transformation is enabled
-								if((lift_enabled || transform_enabled) && scriptSourceMappingObject.original_code){
+								if((lift_enabled || transform_enabled) && scriptSourceMappingObject.original_code){										
 									const originalpathToWrite = pathModule.join(originalFolder, `${sid}.js`)
-									fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.original_code, 'utf8')
-
+									fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.original_code, 'utf8')	// backup
 									if(lift_enabled){
 										let lifted = lift(scriptSourceMappingObject.original_code);
 										if(lifted !== ""){
@@ -431,16 +443,17 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 											// Update override_mapping to point to lifted version for .js URLs
 											override_mapping.lift[scriptSrc] = liftedpathToWrite;											
 										}
-									} else if(transform_enabled){
-										let transformed = transform(scriptSourceMappingObject.original_code);
-										if(transformed !== ""){
-											const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
-											fs.writeFileSync(transformedpathToWrite, transformed, 'utf8')
-											// Update override_mapping to point to transformed version for .js URLs
-											override_mapping.transform[scriptSrc] = transformedpathToWrite;
-										}
+									} 
+
+									// If transferrable, place transferred file under the website hash directory, else write original
+									if(transform_enabled && scriptSourceMappingObject.transformed){
+										const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
+										fs.writeFileSync(transformedpathToWrite, scriptSourceMappingObject.code, 'utf8')
+										// Update override_mapping to point to transformed version for .js URLs
+										override_mapping.transform[scriptSrc] = transformedpathToWrite;										
 									}
-								}
+								}																		
+							
 							}
 
 							// Main files use beautified code (not lifted) for taint analysis
@@ -792,7 +805,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		console.log("response.url():", response.url())
 		if (response.request().resourceType() === 'script') {
 			const scriptPromise = response.text().then(async (script_content) => {
-				let scriptSourceMappingObject = await getScriptSourceMappingObject(script_content);
+				let scriptSourceMappingObject = await getScriptSourceMappingObject(script_content, transform_enabled);
 				externalScripts[url] = scriptSourceMappingObject;
 			}).catch( e => {
 				// Response body is unavailable for redirect responses
@@ -913,7 +926,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 
 			if(scriptKind === TYPE_SCRIPT_INTERNAL){
 				let scriptContent = scriptItem[1];
-				allScripts[index][1] = await getScriptSourceMappingObject(scriptContent);
+				allScripts[index][1] = await getScriptSourceMappingObject(scriptContent, transform_enabled);
 			}else{
 
 				let scriptSrc = scriptItem[1];
