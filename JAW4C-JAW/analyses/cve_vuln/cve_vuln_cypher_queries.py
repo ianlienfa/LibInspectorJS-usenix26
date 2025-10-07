@@ -73,6 +73,7 @@ MAIN_QUERY_ACTIVE = True
 #				Utility Functions
 # ----------------------------------------------------------------------- #
 
+
 class EarlyHaltException(Exception):
     def __init__(self, args=""):
         self.args = args
@@ -1085,6 +1086,33 @@ def getObjectMatch(tx, objCode):
 			memExprNode = record['memExprNode']
 			res.append(memExprNode)
 	return res	
+
+
+def create_neo4j_indexes(tx):
+	"""
+	@param {pointer} tx: neo4j transaction pointer
+	@description Creates necessary Neo4j indexes for optimized queries
+	"""
+	create_ast_id_query = "CREATE INDEX ast_id IF NOT EXISTS FOR (n:ASTNode) ON (n.Id)"
+	tx.run(create_ast_id_query)
+
+	# await_ast_id_index = 'CALL db.awaitIndex("ast_id")'
+	# tx.run(await_ast_id_index)
+
+	# Check and create ast_code fulltext index
+	create_ast_code_query = "CREATE FULLTEXT INDEX ast_code IF NOT EXISTS FOR (n:ASTNode) ON EACH [n.Code]"
+	tx.run(create_ast_code_query)
+
+	# await_ast_code_index = 'CALL db.awaitIndex("ast_code")'
+	# tx.run(await_ast_code_index)
+
+	show_indexes = "SHOW INDEXES"
+	results = tx.run(show_indexes)
+	res = None
+	for record in results:
+		res = [] if res is None else res
+		res.append((record['name'], record['state']))
+	return res
 
 
 

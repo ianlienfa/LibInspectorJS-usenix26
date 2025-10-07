@@ -30,6 +30,9 @@ Examples:
 
     # Skip setup if previous phase has been executed (runs: analysis)
     python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss --skip-setup
+
+    # Keep Neo4j docker container alive for debugging
+    python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss --keep-alive
 """
 
 import sys
@@ -133,7 +136,7 @@ def get_test_config_path(dist_dir):
     return parent / 'config.yaml'
 
 
-def generate_test_config(test_dir, action, port=3000, config_path='config.yaml', skip_setup=False):
+def generate_test_config(test_dir, action, port=3000, config_path='config.yaml', skip_setup=False, keep_alive=False):
     """
     Generate test-specific config.yaml file by loading an existing config and updating it.
 
@@ -145,6 +148,7 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
         url_path: URL path for the test (e.g., /tests/pipeline_test/sites/...)
         config_path: Path to base config.yaml to load
         skip_setup: If True, skip ACTIONS.get and use empty phases list
+        keep_alive: If True, keep Neo4j docker container alive after run
 
     Returns:
         Path to generated config file
@@ -189,6 +193,11 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
     if 'lib_detection' not in config['crawler']:
         config['crawler']['lib_detection'] = {}
     config['crawler']['lib_detection']['enable'] = 'lib_detection' in phases_to_run
+
+    # Set keep_docker_alive option
+    if 'staticpass' not in config:
+        config['staticpass'] = {}
+    config['staticpass']['keep_docker_alive'] = keep_alive
 
     # Write config file
     with open(output_config_path, 'w') as f:
@@ -396,7 +405,7 @@ def get_test_dir(test_path: str) -> Path | None:
     return test_dir
 
 
-def run_test(test_path, action, port=3000, base_config='config.yaml', skip_setup=False):
+def run_test(test_path, action, port=3000, base_config='config.yaml', skip_setup=False, keep_alive=False):
     """
     Run a single test through the pipeline.
 
@@ -406,6 +415,7 @@ def run_test(test_path, action, port=3000, base_config='config.yaml', skip_setup
         port: Port for test server
         base_config: Base config file to load
         skip_setup: If True, skip ACTIONS.get and use empty phases list
+        keep_alive: If True, keep Neo4j docker container alive after run
 
     Returns:
         True if successful, False otherwise
@@ -424,7 +434,7 @@ def run_test(test_path, action, port=3000, base_config='config.yaml', skip_setup
     print(f"  Testing action: {action}")
 
     # Generate test config
-    config_path = generate_test_config(test_dir, action, port, base_config, skip_setup)
+    config_path = generate_test_config(test_dir, action, port, base_config, skip_setup, keep_alive)
 
     # Start test server and run pipeline
     with test_server(dist_dir, port):
@@ -489,13 +499,19 @@ def main():
         default=False,
         help='Skip ACTIONS.get and use empty phases list (only runs if False)'
     )
+    parser.add_argument(
+        '--keep-alive',
+        action='store_true',
+        default=False,
+        help='Keep Neo4j docker container alive after run (default: cleanup)'
+    )
 
 
     args = parser.parse_args()
     if args.server_only:
         host_server(args.test, args.port)
     else:
-        success = run_test(args.test, args.action, args.port, args.config, args.skip_setup)
+        success = run_test(args.test, args.action, args.port, args.config, args.skip_setup, args.keep_alive)
         sys.exit(0 if success else 1)
 
 

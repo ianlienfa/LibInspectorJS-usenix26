@@ -164,8 +164,9 @@ def build_hpg(container_name, webpage):
 
 		#### To avoid the neo4j admin <-> neo4j user racing for the same lock, recreate the whole stuff on the same volume
 		dockerModule.stop_neo4j_container(container_name, cleanup=False)
-		dockerModule.remove_neo4j_container(container_name)
-		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
+		dockerModule.restart_neo4j_container(container_name)
+		# dockerModule.remove_neo4j_container(container_name)
+		# dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
 		####
 
 		# Wait for the data to be stable
@@ -196,6 +197,11 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 	# the name of each webpage folder is a hex digest of a SHA256 hash (as stored by the crawler)
 	webapp_pages = [item for item in webapp_pages if len(item) == 64]
 
+	# setting index to increase performance
+	logger.info(f"Creating indexes...")
+	create_neo4j_indexes_out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.create_neo4j_indexes, conn_timeout=50)						
+	logger.info(f"Index creation out: {create_neo4j_indexes_out}")
+	# breakpoint()
 
 	try:
 		for each_webpage in webapp_pages:

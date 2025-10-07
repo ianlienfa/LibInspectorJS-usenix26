@@ -181,6 +181,12 @@ def stop_neo4j_container(container_name, cleanup=True):
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.warning('Docker container %s is being stopped.'%str(container_name))
 
+def restart_neo4j_container(container_name, cleanup=True):
+	command = "docker restart %s"%(container_name)
+	logger.warning('Restarting neo4j %s.'%str(container_name))	
+	utilityModule.run_os_command(command, print_stdout=False)
+	logger.warning('Docker container %s restarted.'%str(container_name))	
+
 
 def remove_neo4j_container(container_name):
 
