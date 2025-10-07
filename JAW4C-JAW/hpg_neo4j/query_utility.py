@@ -561,7 +561,7 @@ def _get_initial_decl_via_cfg(tx, use_id, name):
 		'ExportAllDeclaration','CatchClause'
 	]
 	MATCH p3 = (declarationNode)-[:AST_parentOf*]->(med)
-		,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Code: name, Type: 'Identifier'})
+		,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
 	RETURN declarationNode, initialDeclarationIdentifierNode, length(p1) + length(p2) + length(p3) as depth
 	"""%(use_id, name)
 	print("[CFG] initial declaration query:", query)
@@ -816,11 +816,12 @@ def getIdenticalIdentifierObjectInScope(tx, node, scope = None):
 		raise Exception()
 	def _rec(tx, node, scope = None):
 		if scope == None:
-			scope = getScopeOf(tx, node)			
+			scope = getScopeOf(tx, node)
 		query = """
-			MATCH (idNode {Type: 'Identifier'})<-[:AST_parentOf|CFG_parentOf*]-(scope)
-			WHERE scope.Id = "%s"
-			AND idNode.Code = "%s"
+			WITH  "%s" as useId, "%s" as name
+			MATCH (scope:ASTNode {Id: useId})
+			CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as idNode, score			
+			AND (scope)-[:AST_parentOf|CFG_parentOf*]->(idNode {Type: 'Identifier'})
 			RETURN DISTINCT idNode
 		"""%(scope['Id'], node['Code'])
 		res = []

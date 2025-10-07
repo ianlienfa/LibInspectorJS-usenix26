@@ -1075,9 +1075,9 @@ def getObjectMatch(tx, objCode):
 	res = []
 	if len(components):
 		query = """
-			MATCH		
-			(ident0 {Type: 'Identifier', Code: '%s'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode {Type: 'MemberExpression'})
-			// get the callee id too		
+			WITH "%s" AS code
+			CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node as ident0, score
+			MATCH (ident0 {Type: 'Identifier'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode:ASTNode {Type: 'MemberExpression'})
 			RETURN memExprNode
 		"""%(components[0])
 		print("[getObjectMatch]: %s"%(query))
@@ -1102,6 +1102,10 @@ def create_neo4j_indexes(tx):
 	# Check and create ast_code fulltext index
 	create_ast_code_query = "CREATE FULLTEXT INDEX ast_code IF NOT EXISTS FOR (n:ASTNode) ON EACH [n.Code]"
 	tx.run(create_ast_code_query)
+
+	# Check and create ast_value fulltext index
+	create_ast_value_query = "CREATE FULLTEXT INDEX ast_value IF NOT EXISTS FOR (n:ASTNode) ON EACH [n.Value]"
+	tx.run(create_ast_value_query)
 
 	# await_ast_code_index = 'CALL db.awaitIndex("ast_code")'
 	# tx.run(await_ast_code_index)
@@ -1205,7 +1209,7 @@ def getSinkExpression(tx, vuln_info):
 		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")
 		# breakpoint()		
 		query = """
-			MATCH (node {Id: '%s'})
+			MATCH (node:ASTNode {Id: '%s'})
 			SET node.%s = '%s'
 			RETURN node
 		"""%(node['Id'], constructKey, json.dumps(tag))
@@ -1300,10 +1304,23 @@ def getSinkExpression(tx, vuln_info):
 	
 	def getCodeMatchInScope(tx, code, scope):
 		query = """
-			MATCH (node)<-[:AST_parentOf*]-(scope {Id:'%s'})
-			WHERE node.Code = '%s' OR node.Value = '%s'
+			WITH "%s" AS scopeId, "%s" AS code
+			MATCH (scope:ASTNode {Id: scopeId})
+			CALL {
+				WITH scopeId, code
+				MATCH (scope:ASTNode {Id: scopeId})
+				CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node, score
+				WHERE (scope)-[:AST_parentOf*]->(node)
+				RETURN node
+				UNION
+				WITH scopeId, code
+				MATCH (scope:ASTNode {Id: scopeId})
+				CALL db.index.fulltext.queryNodes("ast_value", code) YIELD node, score
+				WHERE (scope)-[:AST_parentOf*]->(node)
+				RETURN node
+			}
 			RETURN DISTINCT(node)
-		"""%(scope['Id'], code, code)
+		"""%(scope['Id'], code)
 		print(f"getCodeMatchInScope query: {query}")
 		# breakpoint()
 		res = []
