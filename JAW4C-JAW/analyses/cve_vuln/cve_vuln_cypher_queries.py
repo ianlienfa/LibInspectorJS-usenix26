@@ -1809,7 +1809,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		# path to store all templates of the current URL
 		template_output_pathname = os.path.join(webpage_directory, "sink.flows.out")
 		with open(general_template_output_pathname, 'a+') as gt_fd:
-			with open(template_output_pathname, "w+") as fd:
+			with open(template_output_pathname, "a+") as fd:
 				timestamp = _get_current_timestamp()
 				sep = utilityModule.get_output_header_sep()
 				sep_templates = utilityModule.get_output_subheader_sep()
