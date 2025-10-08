@@ -548,55 +548,30 @@ def getChildsOf(tx, node, relation_type=''):
 
 
 def _get_initial_decl_via_cfg(tx, use_id, name):
-	# query = """
-	# WITH "%s" AS useId, "%s" AS name
-	# MATCH (topMostExprNode:ASTNode {Id: useId})
-	# CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as initialDeclarationIdentifierNode, score
-	# MATCH p1 = (topMostExprNode {Id: useId})<-[:AST_parentOf*0..]-(topMostCfgNode:CFGNode)
-
-	# MATCH p2 = ((topMostCfgNode)<-[:CFG_parentOf*0..]-(declarationNode))
-	# WHERE declarationNode.Type IN [
-	# 	'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
-	# 	'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
-	# 	'ExportAllDeclaration','CatchClause'
-	# ]
-	# MATCH p3 = (declarationNode)-[:AST_parentOf*]->(med)
-	# 	,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
-	# WITH declarationNode, initialDeclarationIdentifierNode, length(p3) as depth, length(p1) + length(p2) as depth_pre
-	# // Find the closest declaration
-	# ORDER BY depth ASC LIMIT 1
-	# RETURN declarationNode, initialDeclarationIdentifierNode, depth_pre + depth as depth
-	# """%(use_id, name)
-
 	query = """
 	WITH "%s" AS useId, "%s" AS name
-	MATCH (topMostExprNode:ASTNode {Id: useId})
-	MATCH (topMostExprNode)<-[:AST_parentOf*0..]-(topMostCfgNode:CFGNode)
 
+	// Get identifier matching the same name
 	CALL db.index.fulltext.queryNodes("ast_code", name)
-	YIELD node AS initialDeclarationIdentifierNode
+			YIELD node AS initialDeclarationIdentifierNode
 
-	// 1) Find the node that owns this identifier via the 'id' edge
-	MATCH (med:ASTNode)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode:ASTNode {Type:'Identifier'})
+	// From current Expression Node, find the dependency parent nodes that is declaration
+	MATCH (topMostExprNode:ASTNode {Id: useId})
 
-	// 2) From that node, climb up to the declarations
-	CALL {
-	WITH med
-	MATCH p = (decl)-[:AST_parentOf*1..10]->(med)
-	WHERE decl.Type IN [
-		'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
-		'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
-		'ExportAllDeclaration','CatchClause'
+	// RETURN topMostExprNode
+	MATCH p = (topMostExprNode)<-[:PDG_parentOf*0..]-(declarationNode)
+	WHERE declarationNode.Type IN [
+			'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
+			'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
+			'ExportAllDeclaration','CatchClause'
 	]
-	RETURN decl AS declarationNode, length(p) AS ast_depth
-	ORDER BY ast_depth ASC
-	}
 
-	// 3) (Optional) keep only declarations within the relevant CFG region
-	MATCH p2 = (topMostCfgNode)<-[:CFG_parentOf*0..10]-(declarationNode)
-	WITH declarationNode, length(p2) as cfg_depth, ast_depth, initialDeclarationIdentifierNode
-	ORDER BY cfg_depth ASC, ast_depth ASC LIMIT 1
-	RETURN declarationNode, initialDeclarationIdentifierNode, cfg_depth + ast_depth as depth
+	WITH p, declarationNode, initialDeclarationIdentifierNode
+	MATCH (declarationNode)-[:AST_parentOf*0..]->(med:ASTNode)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode:ASTNode {Type:'Identifier'})
+	WITH length(p) as depth, declarationNode, initialDeclarationIdentifierNode
+	ORDER BY length(p) ASC LIMIT 1
+
+	RETURN declarationNode, initialDeclarationIdentifierNode, depth
 	"""%(use_id, name)
 
 	print("[CFG] initial declaration query:", query)
@@ -662,11 +637,11 @@ def _get_initial_decl_via_assignment(tx, use_id, name):
 	WITH "%s" AS useId, "%s" AS name
 	MATCH (topMostExprNode:ASTNode {Id: useId})
 	CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as initialDeclarationIdentifierNode, score
-	MATCH p3 = (declarationNode {Type: 'ExpressionStatement'})-[:AST_parentOf*]->(med {Type: 'AssignmentExpression'})
-		-[:AST_parentOf {RelationType:'left'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
-	WHERE initialDeclarationIdentifierNode.Code = name
+	MATCH p3 = ((topMostExprNode)<-[:PDG_parentOf*0..]-(declarationNode {Type: 'ExpressionStatement'}))
 
-	MATCH p4 = ((topMostExprNode {Id: useId})<-[:CFG_parentOf*0..]-(declarationNode {Type: 'ExpressionStatement'}))
+	WITH topMostExprNode, declarationNode, initialDeclarationIdentifierNode, p3
+	MATCH p4 = (declarationNode)-[:AST_parentOf*]->(med {Type: 'AssignmentExpression'})
+			-[:AST_parentOf {RelationType:'left'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
 	RETURN declarationNode, initialDeclarationIdentifierNode, length(p4) + length(p3) AS depth
 	ORDER BY depth ASC
 	LIMIT 1
