@@ -351,6 +351,9 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			LOGGER.info("successfully detected libraries on %s."%(url))
 
 			# Detection result and DB querying
+			vuln_list = [] # we often time only do query once
+			vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
+			
 			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 				try:
@@ -360,19 +363,19 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					continue
 
 				# Clean up vuln.out from previous runs
-				vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
 				ground_truth_pathname = os.path.join(webpage_folder, 'groundtruth.json')
 				if os.path.exists(vuln_info_pathname):
 					os.remove(vuln_info_pathname)
 				if os.path.exists(ground_truth_pathname):
 					os.remove(ground_truth_pathname)
 
+				
 				for affiliatedurl, _ in lib_det_res.items():
 					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
 					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
 
 					# Build vulnerability list
-					vuln_list = []
+					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
 							if detection_info['accurate']:
@@ -407,51 +410,50 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					if not vuln_list:
 						LOGGER.error("No vuln found, early quitting")
 					with open(vuln_info_pathname, 'a') as vuln_fd:
+						LOGGER.info(f"Wring vuln to: {vuln_info_pathname}")
 						json.dump({affiliatedurl: vuln_list}, vuln_fd)
 						vuln_fd.write('\n')			
 
 	
-				if config['cve_vuln']["passes"]["static"]:					
-					try:
-						cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
-					except Exception as e:
-						LOGGER.error("Error building node/edges for %s."%(url))
-						continue
-					LOGGER.info("static analysis for site %s."%(url))
-					LOGGER.info("successfully finished static analysis for site %s."%(url))
-
-				# Start static analysis over neo4j, skip if no match on vulnerability
-				if not (config['cve_vuln']["passes"]["static_neo4j"]):
+			if config['cve_vuln']["passes"]["static"]:					
+				try:
+					cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+				except Exception as e:
+					LOGGER.error("Error building node/edges for %s."%(url))
 					continue
+				LOGGER.info("static analysis for site %s."%(url))
+				LOGGER.info("successfully finished static analysis for site %s."%(url))
+
+			# Start static analysis over neo4j, skip if no match on vulnerability
+			if (config['cve_vuln']["passes"]["static_neo4j"]):				
 				if not vuln_list:					
 					with open(vuln_info_pathname, 'r') as vuln_fd:
-						vuln_list = json.load(vuln_fd)[url]
-				else:
-					database_name = 'neo4j'
-					graphid = uuid.uuid4().hex
-					container_name = 'neo4j_container_' + graphid
-					try:
-						container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-						LOGGER.info("successfully built hpg for %s."%(url))
-					except Exception as e:
-						LOGGER.error("Error building hpg for %s."%(url), e)
-						continue
+						vuln_list = json.load(vuln_fd)[url]		
+				database_name = 'neo4j'
+				graphid = uuid.uuid4().hex
+				container_name = 'neo4j_container_' + graphid
+				try:
+					container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+					LOGGER.info("successfully built hpg for %s."%(url))
+				except Exception as e:
+					LOGGER.error("Error building hpg for %s."%(url), e)
+					continue
 
-					# Query on vulnerabilities
-					if container_name:
-						for try_attempts in range(2):
-							try:
-								CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
-								break
-							except Exception as e:
-								print(f"neo4j exception {e}, retrying ... ")
-								time.sleep(5)
-						LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
+				# Query on vulnerabilities
+				if container_name:
+					for try_attempts in range(2):
+						try:
+							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
+							break
+						except Exception as e:
+							print(f"neo4j exception {e}, retrying ... ")
+							time.sleep(5)
+					LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
 
-						# Cleanup
-						if not config['staticpass']['keep_docker_alive']:
-							dockerModule.stop_neo4j_container(container_name)
-							dockerModule.remove_neo4j_container(container_name)
+					# Cleanup
+					if not config['staticpass']['keep_docker_alive']:
+						dockerModule.stop_neo4j_container(container_name)
+						dockerModule.remove_neo4j_container(container_name)
 
 def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg):
 	"""

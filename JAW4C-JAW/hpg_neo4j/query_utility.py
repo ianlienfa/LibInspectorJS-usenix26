@@ -548,25 +548,57 @@ def getChildsOf(tx, node, relation_type=''):
 
 
 def _get_initial_decl_via_cfg(tx, use_id, name):
+	# query = """
+	# WITH "%s" AS useId, "%s" AS name
+	# MATCH (topMostExprNode:ASTNode {Id: useId})
+	# CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as initialDeclarationIdentifierNode, score
+	# MATCH p1 = (topMostExprNode {Id: useId})<-[:AST_parentOf*0..]-(topMostCfgNode:CFGNode)
+
+	# MATCH p2 = ((topMostCfgNode)<-[:CFG_parentOf*0..]-(declarationNode))
+	# WHERE declarationNode.Type IN [
+	# 	'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
+	# 	'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
+	# 	'ExportAllDeclaration','CatchClause'
+	# ]
+	# MATCH p3 = (declarationNode)-[:AST_parentOf*]->(med)
+	# 	,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
+	# WITH declarationNode, initialDeclarationIdentifierNode, length(p3) as depth, length(p1) + length(p2) as depth_pre
+	# // Find the closest declaration
+	# ORDER BY depth ASC LIMIT 1
+	# RETURN declarationNode, initialDeclarationIdentifierNode, depth_pre + depth as depth
+	# """%(use_id, name)
+
 	query = """
 	WITH "%s" AS useId, "%s" AS name
 	MATCH (topMostExprNode:ASTNode {Id: useId})
-	CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as initialDeclarationIdentifierNode, score
-	MATCH p1 = (topMostExprNode {Id: useId})<-[:AST_parentOf*0..]-(topMostCfgNode:CFGNode)
+	MATCH (topMostExprNode)<-[:AST_parentOf*0..]-(topMostCfgNode:CFGNode)
 
-	MATCH p2 = ((topMostCfgNode)<-[:CFG_parentOf*0..]-(declarationNode))
-	WHERE declarationNode.Type IN [
+	CALL db.index.fulltext.queryNodes("ast_code", name)
+	YIELD node AS initialDeclarationIdentifierNode
+
+	// 1) Find the node that owns this identifier via the 'id' edge
+	MATCH (med:ASTNode)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode:ASTNode {Type:'Identifier'})
+
+	// 2) From that node, climb up to the declarations
+	CALL {
+	WITH med
+	MATCH p = (decl)-[:AST_parentOf*1..10]->(med)
+	WHERE decl.Type IN [
 		'VariableDeclaration','FunctionDeclaration','ClassDeclaration',
 		'ImportDeclaration','ExportNamedDeclaration','ExportDefaultDeclaration',
 		'ExportAllDeclaration','CatchClause'
 	]
-	MATCH p3 = (declarationNode)-[:AST_parentOf*]->(med)
-		,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
-	WITH declarationNode, initialDeclarationIdentifierNode, length(p3) as depth, length(p1) + length(p2) as depth_pre
-	// Find the closest declaration
-	ORDER BY depth ASC LIMIT 1
-	RETURN declarationNode, initialDeclarationIdentifierNode, depth_pre + depth as depth
+	RETURN decl AS declarationNode, length(p) AS ast_depth
+	ORDER BY ast_depth ASC
+	}
+
+	// 3) (Optional) keep only declarations within the relevant CFG region
+	MATCH p2 = (topMostCfgNode)<-[:CFG_parentOf*0..10]-(declarationNode)
+	WITH declarationNode, length(p2) as cfg_depth, ast_depth, initialDeclarationIdentifierNode
+	ORDER BY cfg_depth ASC, ast_depth ASC LIMIT 1
+	RETURN declarationNode, initialDeclarationIdentifierNode, cfg_depth + ast_depth as depth
 	"""%(use_id, name)
+
 	print("[CFG] initial declaration query:", query)
 	results = tx.run(query)
 	for record in results:
@@ -682,8 +714,6 @@ def getInitialDeclaration(tx, node, cache = {}):
 
 	cache[node['Id']] = ans
 	return ans
-
-
 
 def getIdentifierLiteralScopeOf(tx, node):
 	"""

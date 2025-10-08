@@ -22,6 +22,7 @@ UNIT_TEST_DIR = TEST_DIR.parent.parent
 sys.path.insert(0, str(UNIT_TEST_DIR))
 
 import hpg_neo4j.query_utility as neo4jQueryUtilityModule
+import analyses.cve_vuln.cve_vuln_cypher_queries as CVETraversalsModule
 from test_utils import compare_get_identical_res
 
 

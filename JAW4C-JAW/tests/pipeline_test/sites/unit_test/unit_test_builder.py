@@ -43,6 +43,7 @@ import utils.io as IOModule
 import docker.neo4j.manage_container as dockerModule
 import hpg_neo4j.db_utility as neo4jDatabaseUtilityModule
 import hpg_neo4j.query_utility as neo4jQueryUtilityModule
+import analyses.cve_vuln.cve_vuln_cypher_queries as CVETraversalsModule
 from utils.logging import logger
 
 # Paths
@@ -340,6 +341,11 @@ def run_query_test(container_name, test_dir) -> bool:
         if not connection_success:
             logger.error("Failed to connect to neo4j for query")
             return False
+        
+        # build index
+        logger.info(f"Creating indexes...")
+        create_neo4j_indexes_out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.create_neo4j_indexes, conn_timeout=50)						
+        logger.info(f"Index creation out: {create_neo4j_indexes_out}")
 
         # Execute test function within transaction
         logger.info(f"Running test function: {test_function_name}")
@@ -555,7 +561,7 @@ def main():
                 if test_results:
                     # Tests were run successfully, clean up container
                     logger.info(f"\nCleaning up container {container_name}")            
-                    cleanup_container(container_name)
+                    # cleanup_container(container_name)
                 else:
                     # No test.py or test failed, leave container running for manual inspection
                     logger.info(f"\nContainer will remain running for manual queries")
