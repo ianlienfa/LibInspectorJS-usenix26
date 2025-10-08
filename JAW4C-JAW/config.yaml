@@ -105,7 +105,7 @@ cve_vuln:
     crawling: false
     lib_detection: false  
     vulndb: false
-    static: false
+    static: true
     static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation

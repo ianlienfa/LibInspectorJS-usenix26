@@ -1495,6 +1495,7 @@ def getSinkExpression(tx, vuln_info):
 		else:
 			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', vuln_info['location'])]
 		print("pocStrArr", pocStrArr)
+		breakpoint()
 		json_arg = json.dumps(pocStrArr)
 		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
 			stdout=subprocess.PIPE,
@@ -1580,6 +1581,7 @@ def getSinkExpression(tx, vuln_info):
 			"""%(libObjScope['Id'])
 			vuln_info['debug_query'] = debug_query
 			print("debug query", debug_query)
+			breakpoint()
 			print("root", root)
 		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
 		if root:

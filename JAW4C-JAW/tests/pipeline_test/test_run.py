@@ -184,7 +184,7 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
 
     config['cve_vuln']['passes']['crawling'] = 'crawling' in phases_to_run
     config['cve_vuln']['passes']['lib_detection'] = 'lib_detection' in phases_to_run
-    config['cve_vuln']['passes']['vuln_db'] = 'vuln_db' in phases_to_run
+    config['cve_vuln']['passes']['vulndb'] = 'vuln_db' in phases_to_run
     config['cve_vuln']['passes']['static'] = 'static' in phases_to_run
     config['cve_vuln']['passes']['static_neo4j'] = 'static_neo4j' in phases_to_run
 

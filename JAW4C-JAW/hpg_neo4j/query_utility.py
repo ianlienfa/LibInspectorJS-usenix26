@@ -25,7 +25,7 @@
 
 
 """
-
+from functools import lru_cache
 
 # -------------------------------------------------------------------------- #
 #		Neo4j Utility Queries
@@ -547,6 +547,7 @@ def getChildsOf(tx, node, relation_type=''):
 	return outNode
 
 
+@lru_cache(maxsize=128, typed=False)
 def _get_initial_decl_via_cfg(tx, use_id, name):
 	query = """
 	WITH "%s" AS useId, "%s" AS name
@@ -580,7 +581,7 @@ def _get_initial_decl_via_cfg(tx, use_id, name):
 		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
 	return None
 
-
+@lru_cache(maxsize=128, typed=False)
 def _get_initial_decl_via_callgraph(tx, use_id, name):
 	query = """
 	WITH "%s" AS useId, "%s" AS name
@@ -612,7 +613,7 @@ def _get_initial_decl_via_callgraph(tx, use_id, name):
 		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
 	return None
 
-
+@lru_cache(maxsize=128, typed=False)
 def _get_initial_decl_via_params(tx, use_id, name):
 	query = """
 	WITH "%s" AS useId, "%s" AS name
@@ -631,7 +632,7 @@ def _get_initial_decl_via_params(tx, use_id, name):
 		return record['declarationNode'], record['initialDeclarationIdentifierNode'], record['depth']
 	return None
 
-
+@lru_cache(maxsize=128, typed=False)
 def _get_initial_decl_via_assignment(tx, use_id, name):
 	query = """
 	WITH "%s" AS useId, "%s" AS name
@@ -946,10 +947,29 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		return res
 
 
+	def get_bounded_cfg_children(tx, cfgnode, limit_depth=20):
+		query = """
+			MATCH (cfgNode: ASTNode {Id: '%s'}) 
+			MATCH p = (cfgNode)-[:CFG_parentOf*]->(child: CFGNode)
+			RETURN child
+			ORDER BY length(p) ASC LIMIT %d
+		"""%(cfgnode['Id'], limit_depth)
+		res = []
+		results = tx.run(query)			
+		res = [record['child'] for record in results]
+		return res
+
+
 	def _rec(tx, node, scope = None):
 		if scope == None:
 			scope = getScopeOf(tx, node)
-		applyHashingOnScope(tx, scope)
+		cfgnode = get_ast_topmost(tx, node)
+		cfg_scopes = get_bounded_cfg_children(tx, cfgnode) # the depth is set to be by default 20, by locality, hopefully we match an identical node 
+														   # if we match at least one identical node within 20 steps of control flow, then the recursive
+														   # function will be able to find more after
+		for cfg_scope in cfg_scopes:
+			applyHashingOnScope(tx, cfg_scope)
+		applyHashingOnScope(tx, scope, parent_only=True) # connect those hash that are across cfg nodes
 		matchingNodes = [node] + getNodesWithSameHashInScope(tx, node, scope)
 		matchingNodes = sorted(matchingNodes, key = lambda x: getRange(x)[0], reverse=True)		
 
@@ -983,6 +1003,7 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		matchingNodes += new_res		
 		return matchingNodes		
 	return list(set(_rec(tx, node, scope))), scope
+
 
 
 def getCodeExpression(wrapperNode):
