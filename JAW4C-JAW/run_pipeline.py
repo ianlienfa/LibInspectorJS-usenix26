@@ -235,7 +235,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 		if transform_enabled:
 			pass1_command += " --transform=true"
 
-		pass1_command += " --seedurl=" + website_url
+		pass1_command += " --seedurl=" + f'"{website_url}"'
 		LOGGER.debug(pass1_command)
 		IOModule.run_os_command(pass1_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
 		LOGGER.info("Pass 1 completed: Pure collection")
@@ -249,7 +249,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 			config["crawler"]["browser"]["headless"],
 		)
 		pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
-		pass2_command += " --seedurl=" + website_url
+		pass2_command += " --seedurl=" + f'"{website_url}"'
 		LOGGER.debug(pass2_command)
 		IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
 		LOGGER.info("Pass 2 completed: Taint analysis")
@@ -264,7 +264,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 
 		# Build crawling command dynamically
 		if config["testbed"]["archive"]["enable"]:
-			crawling_command = "node --max-old-space-size={5} {6} --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={7} --seedurl={8}".format(
+			crawling_command = 'node --max-old-space-size={5} {6} --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={7} --seedurl="{8}"'.format(
 				config["crawler"]["maxurls"],
 				config["crawler"]["browser"]["name"],
 				config["crawler"]["browser"]["headless"],
@@ -404,6 +404,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					
 					# Some vulnerabilities is similar, leading to duplicate vuln_info, remove them for better performance
 					vuln_list = utilityModule.get_unique_nested_list(vuln_list)
+					if not vuln_list:
+						LOGGER.error("No vuln found, early quitting")
 					with open(vuln_info_pathname, 'a') as vuln_fd:
 						json.dump({affiliatedurl: vuln_list}, vuln_fd)
 						vuln_fd.write('\n')			

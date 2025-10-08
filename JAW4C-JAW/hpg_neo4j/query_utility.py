@@ -562,7 +562,10 @@ def _get_initial_decl_via_cfg(tx, use_id, name):
 	]
 	MATCH p3 = (declarationNode)-[:AST_parentOf*]->(med)
 		,(med)-[:AST_parentOf {RelationType:'id'}]->(initialDeclarationIdentifierNode {Type: 'Identifier'})
-	RETURN declarationNode, initialDeclarationIdentifierNode, length(p1) + length(p2) + length(p3) as depth
+	WITH declarationNode, initialDeclarationIdentifierNode, length(p3) as depth, length(p1) + length(p2) as depth_pre
+	// Find the closest declaration
+	ORDER BY depth ASC LIMIT 1
+	RETURN declarationNode, initialDeclarationIdentifierNode, depth_pre + depth as depth
 	"""%(use_id, name)
 	print("[CFG] initial declaration query:", query)
 	results = tx.run(query)

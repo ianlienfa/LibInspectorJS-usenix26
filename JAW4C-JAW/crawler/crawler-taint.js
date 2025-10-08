@@ -606,10 +606,10 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 		// Create a new incognito browser context with disabled CSP
 		const context = await browser.newContext({ 
 			bypassCSP: true,
-			// proxy: {
-			// 	server: 'http://127.0.0.1:8002',
-			// },
-			// ignoreHTTPSErrors: true
+			proxy: {
+				server: 'http://127.0.0.1:8002',
+			},
+			ignoreHTTPSErrors: true,
 			...BrowserContext
 		});
 

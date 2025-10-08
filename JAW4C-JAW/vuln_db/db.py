@@ -152,8 +152,8 @@ class PostgresDB:
                 fetch="all"
             )
             try:
-                if all:
-                    res = dict(all)[0]['exploit_data']
+                if all:                    
+                    res = [item for row in all for item in json.loads(row[0])]
             except Exception as e:
                 raise RuntimeError('error parsing database output', all)
         print("package_vuln_search on ", package_name, "res: ", res)  

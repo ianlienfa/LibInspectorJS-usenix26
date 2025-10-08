@@ -263,11 +263,13 @@ async function getScriptSourceMappingObject(script_content, apply_transform = fa
 
 			// Apply babel transformation for static analysis purpose
 			transform_success = false
+			logger.info("Transforming script", script_content.slice(0, 20))
 			if(apply_transform){
 				let transformed = transform(script_content);
 				if(transformed !== ""){
 					script_content = transformed;
 					transform_success = true
+					logger.info("Transforming done!", script_content.slice(0, 20))
 				}
 			}
 
@@ -567,12 +569,21 @@ async function crawlWebsite(browser, url, domain, frontier, dataDirectory, debug
 	let scripts = [];
 	let page = await browser.newPage();
 	var closePage = true;
+	// Create a new incognito browser context with disabled CSP
+	// const context = await browser.newContext({ 
+	// 	bypassCSP: true,
+	// 	proxy: {
+	// 		server: 'http://127.0.0.1:8002',
+	// 	},
+	// 	ignoreHTTPSErrors: true
+	// 	// ...BrowserContext
+	// });
+
 	
 	/**
 	* Disable Content-Security Policy (CSP) to avoid breaking when adding cross-domain scripts 
 	* https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagesetbypasscspenabled
 	*/
-	await page.setBypassCSP(true);
 
 	await page.setViewport({ width: 1366, height: 768});
 	let CDPsession = await page.target().createCDPSession();
@@ -1099,24 +1110,12 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 	let nextURL = await frontier.unvisited[Math.floor(Math.random()*frontier.unvisited.length)];
 
 	// recurse
-	return await crawlWebsitePlaywright(browser, nextURL, domain, frontier, dataDirectory, false, 0, lift_enabled, transform_enabled, pure_crawl);
-
+	ret_browser_instance = await crawlWebsitePlaywright(browser, nextURL, domain, frontier, dataDirectory, false, 0, lift_enabled, transform_enabled, pure_crawl);
+	console.log(ret_browser_instance)
+	logger.info(`ret_browser_instance: ${ret_browser_instance}`)
+	return ret_browser_instance
 }
 
-
-async function launch_puppeteer(headless_mode, additional_args=undefined){
-	let args = ["--disable-setuid-sandbox", '--no-sandbox']
-	if(additional_args){
-		args = [...args, ...additional_args]
-	}
-	var browser = await puppeteer.launch({
-		headless: headless_mode,
-		// defaultViewport: null,
-		args: args,
-		'ignoreHTTPSErrors': true
-	});
-	return browser;
-}
 
 async function launch_playwright(headless_mode, additional_args=undefined){
 	// Create temp user data directory for session isolation
@@ -1133,7 +1132,10 @@ async function launch_playwright(headless_mode, additional_args=undefined){
 		bypassCSP: true,
 		headless: headless_mode,
 		args: args,
-		ignoreHTTPSErrors: true
+		ignoreHTTPSErrors: true,
+		// proxy: {
+		// 	server: 'http://127.0.0.1:8002'
+		// }
 	});
 
 	// Attach temp directory path to browser object for cleanup later

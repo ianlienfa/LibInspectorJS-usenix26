@@ -30,6 +30,7 @@ import os
 import sys
 import time
 import uuid
+import signal
 import constants as constantsModule
 import utils.io as IOModule
 import docker.neo4j.manage_container as dockerModule
@@ -225,8 +226,20 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 							continue
 						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
 						logger.info(f"executing vuln: {vuln_info}")
-						# breakpoint()						
-						out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)						
+						# breakpoint()
+
+						# Set up 5-minute timeout
+						def timeout_handler(signum, frame):
+							raise TimeoutError(f"Query execution exceeded 5 minute timeout for {vuln_info}")
+
+						signal.signal(signal.SIGALRM, timeout_handler)
+						signal.alarm(300)  # 5 minutes = 300 seconds
+
+						try:
+							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=300)
+						finally:
+							signal.alarm(0)  # Cancel the alarm
+
 						# breakpoint()
 						logger.info(f"analysis out: {out}")
 				except Exception as e:

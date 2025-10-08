@@ -17,6 +17,6 @@ TABLE: advisories_annotated
 # Testing command
 ```
 SELECT *
-FROM public.advisories_exploits 
+FROM advisories_raw
 WHERE doc @> '{"aliases": ["CVE-2018-7212"]}';
 ```

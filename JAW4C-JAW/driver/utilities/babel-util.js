@@ -4,9 +4,26 @@ const traverse = require("@babel/traverse").default;
 const generate  = require("@babel/generator").default;
 const t         = require("@babel/types");
 const exp = require("constants");
+const babel = require("@babel/core");
 
 function splitSequence(code) {
-  const ast = parser.parse(code, { sourceType: "module" });
+  // Parse with all modern syntax enabled
+  const ast = parser.parse(code, {
+    sourceType: "unambiguous",  // Auto-detect module vs script
+    plugins: [
+      'optionalChaining',
+      'nullishCoalescingOperator',
+      'objectRestSpread',
+      'classProperties',
+      'classPrivateProperties',
+      'classPrivateMethods',
+      'numericSeparator',
+      'logicalAssignment',
+      'dynamicImport',
+      'exportDefaultFrom',
+      'exportNamespaceFrom'
+    ]
+   });
 
   traverse(ast, {
     ExpressionStatement(path) {
@@ -50,7 +67,46 @@ function splitSequence(code) {
     }
   });
 
-  return generate(ast, { /* retain formatting */ }).code;
+  // Generate code first
+  const intermediateCode = generate(ast, { /* retain formatting */ }).code;
+
+  // Transform to ES2017 using Babel with explicit syntax lowering
+  // Resolve plugin paths relative to this module's location
+  const resolvePlugin = (name) => require.resolve(name, { paths: [__dirname] });
+
+  const result = babel.transformSync(intermediateCode, {
+    sourceType: "unambiguous",  // Auto-detect module vs script
+    comments: true,
+    sourceMaps: false,
+    retainLines: true,
+    presets: [
+      [resolvePlugin("@babel/preset-env"), {
+        targets: { node: "8.0" },       // ES2017-era baseline (before object spread)
+        bugfixes: true,
+        shippedProposals: false,
+        modules: "auto"                  // Auto-transform modules based on sourceType
+      }]
+    ],
+    plugins: [
+      // ES2020+
+      resolvePlugin("@babel/plugin-transform-optional-chaining"),              // a?.b, a?.[x], a?.()
+      resolvePlugin("@babel/plugin-transform-nullish-coalescing-operator"),    // a ?? b
+      resolvePlugin("@babel/plugin-transform-export-namespace-from"),          // export * as ns from 'x'
+      resolvePlugin("babel-plugin-dynamic-import-node"),                       // dynamic import → require()
+
+      // ES2021
+      resolvePlugin("@babel/plugin-transform-logical-assignment-operators"),   // a ||= b, a &&= b, a ??= b
+      resolvePlugin("@babel/plugin-transform-numeric-separator"),              // 1_000_000
+
+      // ES2022 (class features)
+      [resolvePlugin("@babel/plugin-transform-class-properties"), { loose: true }],
+      [resolvePlugin("@babel/plugin-transform-private-methods"), { loose: true }],
+      [resolvePlugin("@babel/plugin-transform-private-property-in-object"), { loose: true }],
+      resolvePlugin("@babel/plugin-transform-class-static-block"),
+    ]
+  });
+
+  return result.code;
 }
 
 function transformIfTs(code) {
