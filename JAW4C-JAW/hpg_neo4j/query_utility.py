@@ -894,26 +894,29 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		return res != []
 	
 
-	def applyHashingOnScope(tx, scope, scopeCacheSet = set()):
+	def applyHashingOnScope(tx, scope, scopeCacheSet = set(), parent_only=False):
 		if scope in scopeCacheSet:
 			return
 		else:
 			scopeCacheSet.add(scope)
-		query = """
-		// Step 1: Initialize leaf node hashes
-		CALL {
-			MATCH (n)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id: '%s'})
-			WHERE NOT (n)-[:AST_parentOf]->()
-			WITH n, 
-				CASE 
-					WHEN n.Type = 'Literal' THEN n.Value
-					ELSE n.Code
-				END AS val
-			SET n.hash = apoc.util.md5([val])
-		}
-
+		query = ""
+		if not parent_only:
+			query += """
+			// Step 1: Initialize leaf node hashes
+			CALL {
+				MATCH (n)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id: '%s'})
+				WHERE NOT (n)-[:AST_parentOf]->()
+				WITH n, 
+					CASE 
+						WHEN n.Type = 'Literal' THEN n.Value
+						ELSE n.Code
+					END AS val
+				SET n.hash = apoc.util.md5([val])
+			}
+			"""%(scope['Id'])		
+		query += """
 		// Step 2: Process parent nodes
-		MATCH (parent)-[:AST_parentOf]->(child)
+		MATCH (scope {Id: '%s'})-[:AST_parentOf*]->(parent)-[:AST_parentOf]->(child)
 		WHERE child.hash IS NOT NULL
 		WITH parent, apoc.coll.sort(collect(child.hash)) AS childHashes,  
 			CASE 
@@ -923,11 +926,12 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		SET parent.hash = apoc.util.md5([val, parent.type, childHashes])
 		RETURN parent, childHashes
 		"""%(scope['Id'])
-		# print("hashing query", query)
+		print("hashing query", query)
 		res = []
 		results = tx.run(query)			
 		res = [[record['parent'], record['childHashes']] for record in results]
 		return res
+
 
 	def getNodesWithSameHashInScope(tx, node, scope):
 		query = """
