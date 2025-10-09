@@ -691,54 +691,94 @@ def getInitialDeclaration(tx, node, cache = {}):
 	cache[node['Id']] = ans
 	return ans
 
-def getIdentifierLiteralScopeOf(tx, node):
+# def getIdentifierLiteralScopeOf(tx, node):
+# 	"""
+# 	@param {pointer} tx
+# 	@param {node object} node
+# 	@return {node object} returns the scope node of this node 
+# 	"""
+# 	print("getIdentifierLiteralScopeOf call on", node)
+# 	[initialDeclNode, idNode] = getInitialDeclaration(tx, node)
+# 	query = """
+# 		MATCH (node {Id: '%s'})<-[:CFG_parentOf|AST_parentOf*0..1]-(scopeNode)
+# 		WHERE scopeNode.Type IN ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression', 'Program', "BlockStatement"]
+# 		RETURN DISTINCT(scopeNode)
+# 	"""%(initialDeclNode['Id'])
+# 	# print("query", query)
+# 	results = tx.run(query)
+# 	for record in results:
+# 		# print(record)		
+# 		scopeNode = record['scopeNode']
+# 		return scopeNode
+# 	return None
+
+@lru_cache(maxsize=128, typed=False)
+def getScopeOf(tx, node):
 	"""
+	# Improved version from JAW
 	@param {pointer} tx
 	@param {node object} node
 	@return {node object} returns the scope node of this node 
 	"""
-	print("getIdentifierLiteralScopeOf call on", node)
-	[initialDeclNode, idNode] = getInitialDeclaration(tx, node)
+	top_expression = get_ast_topmost(tx, {'Id': node['Id']})
 	query = """
-		MATCH (node {Id: '%s'})<-[:CFG_parentOf|AST_parentOf*0..1]-(scopeNode)
-		WHERE scopeNode.Type IN ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression', 'Program', "BlockStatement"]
-		RETURN DISTINCT(scopeNode)
-	"""%(initialDeclNode['Id'])
-	# print("query", query)
+		WITH '%s' as id
+		MATCH (leaf:ASTNode {Id: id})
+
+		// Nearest function-like ancestor or Program
+		CALL {
+		WITH leaf
+		MATCH p = (owner)
+					-[:AST_parentOf*0..]->(leaf)
+		WHERE owner.Type IN [
+			'FunctionExpression','FunctionDeclaration','ArrowFunctionExpression',
+			'MethodDefinition','Function','Program'
+		]
+		RETURN owner, length(p) AS d
+		ORDER BY d ASC
+		LIMIT 1
+		}
+
+		OPTIONAL MATCH (owner)-[:AST_parentOf {RelationType:'id'}]->(fname:ASTNode {Type:'Identifier'})
+		RETURN owner AS block_node
+	"""%(top_expression['Id'])
+	print("getScopeOf query", query)
 	results = tx.run(query)
 	for record in results:
 		# print(record)		
-		scopeNode = record['scopeNode']
+		scopeNode = record['block_node']
 		return scopeNode
 	return None
+
+
 
 def getRange(node):		
 	range_str = "".join(filter(lambda char: char not in "[]", node['Range']))
 	return list(map(int, range_str.split(',')))
 
 
-def getScopeOf(tx, node, scopeCache = {}):		
-	def getAllIdentifierNodes(tx, node):
-		query = """
-		MATCH (IdNode {Type: 'Identifier'})<-[:AST_parentOf*]-(node {Id: '%s'})
-		RETURN IdNode
-		"""%(node['Id'])
-		res = []
-		results = tx.run(query)			
-		res = [record['IdNode'] for record in results]
-		return res
+# def getScopeOf(tx, node, scopeCache = {}):		
+# 	def getAllIdentifierNodes(tx, node):
+# 		query = """
+# 		MATCH (IdNode {Type: 'Identifier'})<-[:AST_parentOf*]-(node {Id: '%s'})
+# 		RETURN IdNode
+# 		"""%(node['Id'])
+# 		res = []
+# 		results = tx.run(query)			
+# 		res = [record['IdNode'] for record in results]
+# 		return res
 
-	if node['Id'] in scopeCache:
-		return scopeCache[node['Id']]
-	if node['Type'] == 'Identifier' or node['Type'] == 'Literal':
-		IdNodes = [node]
-	else:
-		IdNodes = getAllIdentifierNodes(tx, node)		
-	def get_or_compute_scope(idnode):
-		return scopeCache.setdefault(idnode['Id'], getIdentifierLiteralScopeOf(tx, idnode))
-	scopeNodes = [get_or_compute_scope(idnode) for idnode in IdNodes]
-	scope = max(scopeNodes, key=lambda x: getRange(x)[0])  # find the tightest scope					
-	return scope
+# 	if node['Id'] in scopeCache:
+# 		return scopeCache[node['Id']]
+# 	if node['Type'] == 'Identifier' or node['Type'] == 'Literal':
+# 		IdNodes = [node]
+# 	else:
+# 		IdNodes = getAllIdentifierNodes(tx, node)		
+# 	def get_or_compute_scope(idnode):
+# 		return scopeCache.setdefault(idnode['Id'], getIdentifierLiteralScopeOf(tx, idnode))
+# 	scopeNodes = [get_or_compute_scope(idnode) for idnode in IdNodes]
+# 	scope = max(scopeNodes, key=lambda x: getRange(x)[0])  # find the tightest scope					
+# 	return scope
 
 
 def getAssignee(tx, curIdentifierNode, topmost = None):
@@ -876,7 +916,7 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 			MATCH p = (node {Id: '%s'})<-[:AST_parentOf {RelationType: 'left'}]-(med)<-[:AST_parentOf|CFG_parentOf*0..]-(scope {Id: '%s'})
 			RETURN p
 		"""%(node['Id'], scope['Id'])	
-		# print("isLeftAssignment q", query)	
+		print("isLeftAssignment q", query)	
 		res = []
 		results = tx.run(query)			
 		res = [record['p'] for record in results]
@@ -906,7 +946,8 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 			// Step 1: Initialize leaf node hashes
 			CALL {
 				MATCH (n)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id: '%s'})
-				WHERE NOT (n)-[:AST_parentOf]->()
+				WHERE n.hash IS NULL 
+				AND NOT (n)-[:AST_parentOf]->()
 				WITH n, 
 					CASE 
 						WHEN n.Type = 'Literal' THEN n.Value
@@ -947,30 +988,91 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		return res
 
 
-	def get_bounded_cfg_children(tx, cfgnode, limit_depth=20):
+	def get_bounded_pdg_children(tx, cfgnode, limit_depth=10, limit_num=20):
 		query = """
 			MATCH (cfgNode: ASTNode {Id: '%s'}) 
-			MATCH p = (cfgNode)-[:CFG_parentOf*]->(child: CFGNode)
+			MATCH p = (cfgNode)-[:PDG_parentOf*..%d]->(child: CFGNode)
 			RETURN child
 			ORDER BY length(p) ASC LIMIT %d
-		"""%(cfgnode['Id'], limit_depth)
+		"""%(cfgnode['Id'], limit_depth, limit_num)
+		print("get_bounded_pdg_children", query)
 		res = []
 		results = tx.run(query)			
 		res = [record['child'] for record in results]
 		return res
 
+	def get_node_ident(tx, node):
+		query = """
+			MATCH (node: ASTNode {Id: '%s'}) 			
+			MATCH (node)-[:AST_parentOf*0..]->(med)-[:AST_parentOf {RelationType:'id'}]->(child)
+			RETURN child			
+		"""%(node['Id'])
+		print("get_node_ident", query)
+		res = []
+		results = tx.run(query)			
+		res = [record['child'] for record in results]
+		return res
 
+	def check_if_ident(tx, scope, name):
+		query = """
+			WITH "%s" AS scopeId, "%s" AS name
+			CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as matchingIdentifierNode, score
+			MATCH (scope: ASTNode {Id: scopeId}) 			
+			WHERE EXISTS {
+			MATCH (scope)-[:AST_parentOf*0..50]->(matchingIdentifierNode)  // cap depth if you can
+			}
+			RETURN scope;			
+		"""%(scope['Id'], name)
+		print("get_node_ident", query)
+		res = []
+		results = tx.run(query)			
+		res = [record['child'] for record in results]
+		return res
+
+	def getNodesWithSameIdentInScope(tx, idents, scopeNode, cmprNode):
+		q = " OR ".join(idents)  # -> "foo OR bar OR baz"
+		query = """
+			WITH "%s" AS q, "%s" AS scopeId, "%s" AS cmprType
+
+			// Use fulltext index to find identifiers by query string
+			CALL db.index.fulltext.queryNodes('ast_code', q)
+				YIELD node AS matchingIdentifierNode, score
+			WHERE matchingIdentifierNode.Type = 'Identifier'
+
+			// Restrict to scope
+			MATCH (scope:ASTNode {Id: scopeId})
+			WHERE EXISTS {
+			MATCH (scope)-[:AST_parentOf*0..50]->(matchingIdentifierNode)
+			}
+
+			// Find ancestors with target type
+			MATCH p = (node:ASTNode {Type: cmprType})-[:AST_parentOf*1..50]->(matchingIdentifierNode)
+			WITH node, min(length(p)) AS depth
+			ORDER BY depth ASC
+			RETURN DISTINCT node, depth
+			"""%(q, scopeNode['Id'], cmprNode['Type'])
+		results = tx.run(query)
+		return [r['node'] for r in results]	
+	
 	def _rec(tx, node, scope = None):
 		if scope == None:
 			scope = getScopeOf(tx, node)
 		cfgnode = get_ast_topmost(tx, node)
-		cfg_scopes = get_bounded_cfg_children(tx, cfgnode) # the depth is set to be by default 20, by locality, hopefully we match an identical node 
+		pdg_scopes = get_bounded_pdg_children(tx, cfgnode) # the depth is set to be by default 10, by locality, hopefully we match an identical node 
 														   # if we match at least one identical node within 20 steps of control flow, then the recursive
 														   # function will be able to find more after
-		for cfg_scope in cfg_scopes:
-			applyHashingOnScope(tx, cfg_scope)
-		applyHashingOnScope(tx, scope, parent_only=True) # connect those hash that are across cfg nodes
-		matchingNodes = [node] + getNodesWithSameHashInScope(tx, node, scope)
+		matchingNodes = [node]
+		print("identifiying identifiers on scope", cfgnode)
+		idents = get_node_ident(tx, node)
+		print("idents", idents)
+		idents_strs = [ident['Code'] for ident in idents]
+		if idents_strs:
+			for pfg_scope in pdg_scopes:
+				# breakpoint()
+				nodesWithSameIdent = getNodesWithSameIdentInScope(tx, idents_strs, pfg_scope, node)
+				print("nodesWithSameIdent", nodesWithSameIdent)
+				matchingNodes += nodesWithSameIdent
+
 		matchingNodes = sorted(matchingNodes, key = lambda x: getRange(x)[0], reverse=True)		
 
 		# the assertion: here all the matching nodes should have the right Code and ordered by its starting range from large to small	
@@ -1000,7 +1102,8 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 					identicalObjs, *_ = getIdenticalObjectInScope(tx, leftNode) # propagate 	
 					print("identicalObjs", identicalObjs)
 					new_res += identicalObjs
-		matchingNodes += new_res		
+		matchingNodes += new_res	
+		print("matching node done!")	
 		return matchingNodes		
 	return list(set(_rec(tx, node, scope))), scope
 

@@ -338,7 +338,7 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 				logger.info(f"analysis out: {out}")
 	except Exception as e:
 		print(f"Error found during execution {e}")
-		if stop_container:
+		if stop_container:			
 			dockerModule.stop_neo4j_container(container_name)
 			dockerModule.remove_neo4j_container(container_name)
 			dockerModule.remove_neo4j_database(database_name, container_name)
