@@ -936,6 +936,8 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 	
 
 	def applyHashingOnScope(tx, scope, scopeCacheSet = set(), parent_only=False):
+		if getRange(scope)[1] - getRange(scope)[0] >= 500:
+			return # Temporary added strict cutoff
 		if scope in scopeCacheSet:
 			return
 		else:
@@ -1061,17 +1063,11 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		pdg_scopes = get_bounded_pdg_children(tx, cfgnode) # the depth is set to be by default 10, by locality, hopefully we match an identical node 
 														   # if we match at least one identical node within 20 steps of control flow, then the recursive
 														   # function will be able to find more after
-		matchingNodes = [node]
-		print("identifiying identifiers on scope", cfgnode)
-		idents = get_node_ident(tx, node)
-		print("idents", idents)
-		idents_strs = [ident['Code'] for ident in idents]
-		if idents_strs:
-			for pfg_scope in pdg_scopes:
-				# breakpoint()
-				nodesWithSameIdent = getNodesWithSameIdentInScope(tx, idents_strs, pfg_scope, node)
-				print("nodesWithSameIdent", nodesWithSameIdent)
-				matchingNodes += nodesWithSameIdent
+		applyHashingOnScope(tx, cfgnode) # hash on itself
+		for cfg_scope in pdg_scopes:
+			applyHashingOnScope(tx, cfg_scope)
+		applyHashingOnScope(tx, scope, parent_only=True)
+		matchingNodes = [node] + getNodesWithSameHashInScope(tx, node, scope)
 
 		matchingNodes = sorted(matchingNodes, key = lambda x: getRange(x)[0], reverse=True)		
 
