@@ -913,13 +913,18 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 	
 	def isLeftAssignment(tx, node, scope):
 		query = """
-			MATCH p = (node {Id: '%s'})<-[:AST_parentOf {RelationType: 'left'}]-(med)<-[:AST_parentOf|CFG_parentOf*0..]-(scope {Id: '%s'})
-			RETURN p
+			WITH '%s' as nodeId, '%s' as scopeId
+			MATCH (node {Id: nodeId})
+			MATCH (scope {Id: scopeId})
+			WITH node
+			MATCH (node)
+			WHERE EXISTS { (node)<-[:AST_parentOf {RelationType: 'left'}]-(med)<-[:AST_parentOf*0..]-(scope) }
+			RETURN node
 		"""%(node['Id'], scope['Id'])	
 		print("isLeftAssignment q", query)	
 		res = []
 		results = tx.run(query)			
-		res = [record['p'] for record in results]
+		res = [record['node'] for record in results]
 		return res != []
 
 	def isDirectInitializer(tx, node):
@@ -936,7 +941,7 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 	
 
 	def applyHashingOnScope(tx, scope, scopeCacheSet = set(), parent_only=False):
-		if getRange(scope)[1] - getRange(scope)[0] >= 500:
+		if getRange(scope)[1] - getRange(scope)[0] >= 60:
 			return # Temporary added strict cutoff
 		if scope in scopeCacheSet:
 			return
@@ -947,7 +952,7 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 			query += """
 			// Step 1: Initialize leaf node hashes
 			CALL {
-				MATCH (n)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id: '%s'})
+				MATCH (n)<-[:AST_parentOf*]-(scope {Id: '%s'})
 				WHERE n.hash IS NULL 
 				AND NOT (n)-[:AST_parentOf]->()
 				WITH n, 
@@ -979,18 +984,24 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 
 	def getNodesWithSameHashInScope(tx, node, scope):
 		query = """
-			MATCH (node)<-[:AST_parentOf|CFG_parentOf*0..]-(scope {Id: '%s'}), (nodeB {Id: '%s'})
+			WITH '%s' as scopeId, '%s' as nodeBId
+			MATCH (nodeB {Id: nodeBId})
+			MATCH (node)
 			WHERE node.hash = nodeB.hash
 			AND node.Id <> nodeB.Id
+
+			WITH node, scopeId
+			MATCH (node)<-[:AST_parentOf*0..]-(scope {Id: scopeId})
 			RETURN distinct(node)
 		"""%(scope['Id'], node['Id'])
+		print("getNodesWithSameHashInScope query", query)
 		res = []
 		results = tx.run(query)			
 		res = [record['node'] for record in results]
 		return res
 
 
-	def get_bounded_pdg_children(tx, cfgnode, limit_depth=10, limit_num=20):
+	def get_bounded_pdg_children(tx, cfgnode, limit_depth=5, limit_num=20):
 		query = """
 			MATCH (cfgNode: ASTNode {Id: '%s'}) 
 			MATCH p = (cfgNode)-[:PDG_parentOf*..%d]->(child: CFGNode)

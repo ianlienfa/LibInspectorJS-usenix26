@@ -621,7 +621,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		// redirect browser console log in the browser to node js log
 		BROWSER_LOG && page.on('console', consoleObj => console.log('[BrowserConsole] ' + consoleObj.text()));
 
-		await page.goto(url, {waitUntil: 'load'});
+		await page.goto(url, {waitUntil: 'load', timeout: 60000});
 		await page.waitForTimeout(1000);
 		DEBUG && console.log('[pageLoad] new page loaded successfully');
 

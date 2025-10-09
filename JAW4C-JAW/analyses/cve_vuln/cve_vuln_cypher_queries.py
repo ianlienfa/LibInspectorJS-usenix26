@@ -1107,6 +1107,11 @@ def create_neo4j_indexes(tx):
 	create_ast_value_query = "CREATE FULLTEXT INDEX ast_value IF NOT EXISTS FOR (n:ASTNode) ON EACH [n.Value]"
 	tx.run(create_ast_value_query)
 
+
+	create_hash_query = "CREATE INDEX ast_hash IF NOT EXISTS FOR (n:ASTNode) ON (n.hash)"
+	tx.run(create_hash_query)
+
+
 	# await_ast_code_index = 'CALL db.awaitIndex("ast_code")'
 	# tx.run(await_ast_code_index)
 
@@ -1359,11 +1364,12 @@ def getSinkExpression(tx, vuln_info):
 			while len(search_list):
 				key_from_search_list = search_list.pop()
 				query = """
-					MATCH (node)<-[:AST_parentOf|CFG_parentOf*]-(scope {Id:'%s'})
+					MATCH (node)<-[:AST_parentOf*]-(scope {Id:'%s'})
 					WHERE node.%s IS NOT NULL
 					MATCH (parent)-[:AST_parentOf]->(node)
 					RETURN DISTINCT(parent)
 				"""%(libObjScope['Id'], key_from_search_list)
+				print("getPotentialNodeFromTaggedNode query", query)
 				results = tx.run(query)			
 				res.update([record['parent'] for record in results])
 		return list(res)
@@ -1376,7 +1382,7 @@ def getSinkExpression(tx, vuln_info):
 		# return list of candidate ids
 
 	
-	def nodeMatching(poc, constructKey, node):
+	def      nodeMatching(poc, constructKey, node):
 		"""
 			@param {the flattened poc map} poc
 			@param {str} the construct key to compare with

@@ -241,18 +241,18 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 		LOGGER.info("Pass 1 completed: Pure collection")
 
 		# Pass 2: Taint analysis with Foxhound
-		LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
-		pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --foxhound=true --collect=true".format(
-			crawler_node_memory,
-			os.path.join(crawler_command_cwd, 'crawler-taint.js'),
-			config["crawler"]["maxurls"],
-			config["crawler"]["browser"]["headless"],
-		)
-		pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
-		pass2_command += " --seedurl=" + f'"{website_url}"'
-		LOGGER.debug(pass2_command)
-		IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
-		LOGGER.info("Pass 2 completed: Taint analysis")
+		# LOGGER.info("Pass 2: Taint analysis with Foxhound browser")
+		# pass2_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=firefox --headless={3} --foxhound=true --collect=true".format(
+		# 	crawler_node_memory,
+		# 	os.path.join(crawler_command_cwd, 'crawler-taint.js'),
+		# 	config["crawler"]["maxurls"],
+		# 	config["crawler"]["browser"]["headless"],
+		# )
+		# pass2_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
+		# pass2_command += " --seedurl=" + f'"{website_url}"'
+		# LOGGER.debug(pass2_command)
+		# IOModule.run_os_command(pass2_command, cwd=crawler_command_cwd, timeout=crawling_timeout)
+		# LOGGER.info("Pass 2 completed: Taint analysis")
 
 	else:
 		# Original single-pass crawling
@@ -693,6 +693,7 @@ def main():
 					to_row = len(mapping.keys())
 				archive_urls = list(mapping.keys())
 				for i in range(from_row, to_row+1):
+					logging.info(f"[Archive working]=================={i}/{to_row+1}==================")
 					try:
 						website_url = create_start_crawl_url(archive_urls[i])
 						LOGGER.info(f"Running on website: {website_url}")
