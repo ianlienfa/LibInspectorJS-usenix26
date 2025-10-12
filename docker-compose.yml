@@ -1,0 +1,30 @@
+versions: '3.8'
+
+services:
+  logic:
+    image: jaw4c-logic
+    ports:
+    volumes:
+      - ./JAW4C-JAW:/JAW4C/JAW4C-JAW
+    depends_on:
+      - db
+      - proxy
+
+  db:
+    build: ./vuln_db_llm
+    container_name: vulndb_annotated
+    ports:
+      - "5430:5432"
+    environment:
+      POSTGRES_USER: vulndb_annotated
+      POSTGRES_PASSWORD: vulndb_pwd
+      POSTGRES_DB: vulndb_annotated
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
+
+  proxy:
+    build: ./JAW4C-WebArchive
+    entrypoint: bash
+    volumes:
+      - ./archive/archive-70:/proxy/archive-70

@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM alpine:latest
 
 COPY --from=mcr.microsoft.com/playwright:v1.49.1-arm64 /ms-playwright/chromium-1148/chrome-linux/ /opt/chrome/
 COPY JAW4C-JAW /JAW4C/JAW4C-JAW 

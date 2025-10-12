@@ -352,7 +352,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 			# Detection result and DB querying
 			vuln_list = [] # we often time only do query once
-			vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
+			vuln_info_pathname = os.path.join(webapp_data_directory, 'vuln.out')
 			
 			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
@@ -428,7 +428,13 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			if (config['cve_vuln']["passes"]["static_neo4j"]):				
 				if not vuln_list:					
 					with open(vuln_info_pathname, 'r') as vuln_fd:
-						vuln_list = json.load(vuln_fd)[url]		
+						# TODO: the vuln.out format is not friendly
+						for line in vuln_fd.readlines():
+							vuln_json = json.loads(line)
+							if url in vuln_json:								
+								vuln_list = vuln_json[url]
+					if not vuln_list:
+						continue
 				database_name = 'neo4j'
 				graphid = uuid.uuid4().hex
 				container_name = 'neo4j_container_' + graphid
@@ -693,7 +699,7 @@ def main():
 					to_row = len(mapping.keys())
 				archive_urls = list(mapping.keys())
 				for i in range(from_row, to_row+1):
-					logging.info(f"[Archive working]=================={i}/{to_row+1}==================")
+					LOGGER.info(f"[Archive working]=================={i}/{to_row+1}==================")
 					try:
 						website_url = create_start_crawl_url(archive_urls[i])
 						LOGGER.info(f"Running on website: {website_url}")
