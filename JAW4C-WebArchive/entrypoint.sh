@@ -16,74 +16,27 @@ log_path=$PERSIST/proxy_logs/$PROXY_ARCHIVE/$RANDOM.$RANDOM.$RANDOM
 echo "Log path: $log_path";
 echo "CLI flags: $@"
 
-for i in {8001..8003}; do 
-    echo "Launching proxy instance $i"
-    mitmdump \
-        --listen-host=0.0.0.0 \
-        --listen-port=$i \
-        --set confdir=./conf \
-        --set flow-detail=0 \
-        --set anticache=true \
-        --set anticomp=true \
-        -s "./scripts/proxy.py" \
-        --set useCache=true \
-        --set onlyUseCache=false \
-        --set useBabel=true \
-        --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
-        --set warcPath=$PERSIST/$PROXY_ARCHIVE \
-        --set replayNearest=true \
-        "${@:2}" > "$log_path"_out_$i 2> "$log_path"_err_$i &
-done
-
-# Fuzzer without instrumentation
+echo "Launching proxy instance 8002"
 mitmdump \
     --listen-host=0.0.0.0 \
-    --listen-port=8314 \
+    --listen-port=8002 \
     --set confdir=./conf \
     --set flow-detail=0 \
     --set anticache=true \
     --set anticomp=true \
     -s "./scripts/proxy.py" \
     --set useCache=true \
+    --set onlyUseCache=false \
     --set useBabel=true \
     --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
     --set warcPath=$PERSIST/$PROXY_ARCHIVE \
     --set replayNearest=true \
-    "${@:2}" \
-    --set instrument=false > "$log_path"_out_8314 2> "$log_path"_err_8314 &
+    --set replay=true \
+    --set archive=false \
+    --set append=false \
+    "${@:2}" > "$log_path"_out_$i 2> "$log_path"_err_$i &
 
-# Soak
-mitmdump \
-    --listen-host=0.0.0.0 \
-    --listen-port=8315 \
-    --set confdir=./conf \
-    --set flow-detail=0 \
-    --set anticache=true \
-    --set anticomp=true \
-    -s "./scripts/proxy.py" \
-    --set useCache=true \
-    --set useBabel=true \
-    --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
-    --set warcPath=$PERSIST/$PROXY_ARCHIVE \
-    --set replayNearest=true \
-    "${@:2}" \
-    --set instrument=false > "$log_path"_out_8315 2> "$log_path"_err_8315 &
+echo "Done starting all proxy instances";
 
-# Soak dummy
-mitmdump \
-    --listen-host=0.0.0.0 \
-    --listen-port=8316 \
-    --set confdir=./conf \
-    --set flow-detail=0 \
-    --set anticache=true \
-    --set anticomp=true \
-    -s "./scripts/proxy.py" \
-    --set useCache=true \
-    --set useBabel=true \
-    --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
-    --set warcPath=$PERSIST/$PROXY_ARCHIVE \
-    --set replayNearest=true \
-    "${@:2}" \
-    --set instrument=false > "$log_path"_out_8316 2> "$log_path"_err_8316
-
-echo "Done";
+# Keep the container running by waiting for all background processes
+wait

@@ -221,12 +221,13 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 	if config["crawler"]["browser"]["foxhound"]:
 		# Pass 1: Pure collection with Chrome
 		LOGGER.info("Pass 1: Pure collection with Chrome browser")
-		pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --pure=true".format(
+		pass1_command = "node --max-old-space-size={0} {1} --maxurls={2} --browser=chrome --headless={3} --overwrite={4} --additionalargs={5} --pure=true".format(
 			crawler_node_memory,
 			os.path.join(crawler_command_cwd, 'crawler.js'),
 			config["crawler"]["maxurls"],
 			config["crawler"]["browser"]["headless"],
-			config["crawler"]["overwrite"]
+			config["crawler"]["overwrite"],
+			f"'{json.dumps(config["crawler"]["playwright"])}'",
 		)
 
 		# Add lift or transform option based on config
@@ -272,7 +273,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 				config["crawler"]["browser"]["foxhound"],
 				crawler_node_memory,
 				os.path.join(crawler_command_cwd, crawler_js_program),
-				parse_additional_args_to_posix_style(config["crawler"]["puppeteer"]),
+				parse_additional_args_to_posix_style(config["crawler"]["playwight"]),
 				website_url
 			)
 		else:

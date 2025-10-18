@@ -1,30 +1,36 @@
-versions: '3.8'
-
 services:
   logic:
-    image: jaw4c-logic
-    ports:
+    build: .
+    container_name: jaw4c-logic
     volumes:
       - ./JAW4C-JAW:/JAW4C/JAW4C-JAW
+    environment:
+      HTTP_PROXY: http://proxy:8002
+      HTTPS_PROXY: http://proxy:8002
     depends_on:
       - db
       - proxy
+    command: >
+      sh -c "python3 -m run_pipeline --conf=config.yaml; while [ 1 ]; do echo '' > /dev/null; done"
 
   db:
     build: ./vuln_db_llm
-    container_name: vulndb_annotated
-    ports:
-      - "5430:5432"
+    container_name: jaw4c-vulndb
     environment:
       POSTGRES_USER: vulndb_annotated
       POSTGRES_PASSWORD: vulndb_pwd
       POSTGRES_DB: vulndb_annotated
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
-      - ./advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
+      - ./vuln_db_llm/pgdata:/var/lib/postgresql/data
+      - ./vuln_db_llm/advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
 
   proxy:
     build: ./JAW4C-WebArchive
-    entrypoint: bash
+    container_name: jaw4c-webarchive
     volumes:
-      - ./archive/archive-70:/proxy/archive-70
+      - ./JAW4C-WebArchive/archive/archive-70:/proxy/archive-70
+    ports:
+      - "8002:8002"
+    environment:
+      - PROXY_VOLUME_PATH=/proxy
+      - PROXY_ARCHIVE=archive-70

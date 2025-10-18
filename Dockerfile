@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM ubuntu:24.04
 
 COPY --from=mcr.microsoft.com/playwright:v1.49.1-arm64 /ms-playwright/chromium-1148/chrome-linux/ /opt/chrome/
 COPY JAW4C-JAW /JAW4C/JAW4C-JAW 
@@ -8,7 +8,7 @@ RUN apt-get update && \
     apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get install -y nodejs build-essential && \
-    apt-get install -y libgeos-dev pigz && \
+    apt-get install -y libgeos-dev pigz libgtk-3-0 && \
     export INEO_HOME=$(pwd)/ineo/; export PATH=$INEO_HOME/bin:$PATH && \
     apt-get install -y openjdk-11-jdk && \
     apt-get clean && \

@@ -591,7 +591,7 @@ async function getScriptSourceMappingObject(script_content) {
 **/
 
 
-async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, debug_run, wait_before_next_url, BrowserContext, lift_enabled, transform_enabled, collect_only){
+async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, debug_run, wait_before_next_url, additional_args, lift_enabled, transform_enabled, collect_only){
 
 
 	let url = pageURL;
@@ -603,15 +603,23 @@ async function crawlWebsite(browser, pageURL, domain, frontier, dataDirectory, d
 		let finished = false;
 		var closePage= true;
 
-		// Create a new incognito browser context with disabled CSP
-		const context = await browser.newContext({ 
+		let options = {
+			channel: 'chromium',
 			bypassCSP: true,
-			proxy: {
-				server: 'http://127.0.0.1:8002',
-			},
+			headless: headless_mode,
 			ignoreHTTPSErrors: true,
-			...BrowserContext
-		});
+			proxy: {
+				server: 'http://127.0.0.1:8002'
+			}
+		}
+
+		options = {...options, ...additional_args} // additional args will override this setting if provided
+
+		console.log("playwright options: ", options)
+
+
+		// Create a new incognito browser context with disabled CSP
+		const context = await browser.newContext(options);
 
 		const scriptPath = pathModule.join(BASE_DIR, "crawler/scripts/flowHandler.js");
 		// context.addInitScript({ path: scriptPath});

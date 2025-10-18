@@ -21,12 +21,10 @@ const { URL } = require('url');
 const lift = require('../driver/utilities/lift');
 const transform = require('../driver/utilities/transform');
 const logger = require('../driver/utilities/logger');
-const { debug } = require('console');
 
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 var js_beautify_sourcemap = require('js-beautify-sourcemap');
-const { off } = require('process');
 
 /**
  * ------------------------------------------------
@@ -894,23 +892,26 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 async function launch_playwright(headless_mode, additional_args=undefined){
 	// Create temp user data directory for session isolation
 	const userDataDir = fs.mkdtempSync(pathModule.join(os.tmpdir(), 'playwright-'));
+	
+	console.log('additional_args', additional_args)
 
-	let args = ["--disable-setuid-sandbox", '--no-sandbox']
-	if(additional_args){
-		args = [...args, ...additional_args]
-	}
-
-	// Use launchPersistentContext for isolated sessions
-	var browser = await chromium.launchPersistentContext(userDataDir, {
+	let options = {
 		channel: 'chromium',
 		bypassCSP: true,
 		headless: headless_mode,
-		args: args,
 		ignoreHTTPSErrors: true,
 		proxy: {
 			server: 'http://127.0.0.1:8002'
-		}
-	});
+		},		
+		executablePath: '/opt/chrome/chrome'
+	}
+
+	options = {...options, ...additional_args} // additional args will override this setting if provided
+
+	console.log("playwright options: ", options)
+
+	// Use launchPersistentContext for isolated sessions
+	var browser = await chromium.launchPersistentContext(userDataDir, options);
 
 	// Attach temp directory path to browser object for cleanup later
 	browser._tempUserDataDir = userDataDir;
