@@ -11,7 +11,7 @@ services:
       - db
       - proxy
     command: >
-      sh -c "python3 -m run_pipeline --conf=config.yaml; while [ 1 ]; do echo '' > /dev/null; done"
+      sh -c "python3 -m run_pipeline --conf=config_docker.yaml; while [ 1 ]; do echo '' > /dev/null; done"
 
   db:
     build: ./vuln_db_llm

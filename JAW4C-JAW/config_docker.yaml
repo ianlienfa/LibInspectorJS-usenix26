@@ -24,13 +24,13 @@ crawler:
   # check if domain is up with a python request before spawning a browser instance
   domain_health_check: false
   # puppeteer additional args
-  puppeteer:    
-    disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
-    load-extension: /home/ian/JAW4C/JAW4C-PTV
-    proxy-server: 127.0.0.1:8002
-    ignore-certificate-errors: true
-    disk-cache-dir: /dev/null
-    disk-cache-size: 1
+  # puppeteer:    
+  #   disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
+  #   load-extension: /home/ian/JAW4C/JAW4C-PTV
+  #   proxy-server: 127.0.0.1:8002
+  #   ignore-certificate-errors: true
+  #   disk-cache-dir: /dev/null
+  #   disk-cache-size: 1
 
   playwright:            
     # proxy-server: 127.0.0.1:8002  # local testing

@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-COPY --from=mcr.microsoft.com/playwright:v1.49.1-arm64 /ms-playwright/chromium-1148/chrome-linux/ /opt/chrome/
+COPY --from=mcr.microsoft.com/playwright:v1.49.1-arm64 /ms-playwright/chromium-1148/chrome-linux/ /opt/chrome/ 
 COPY JAW4C-JAW /JAW4C/JAW4C-JAW 
 
 RUN apt-get update && \
@@ -19,11 +19,12 @@ RUN ls /JAW4C/JAW4C-JAW
 RUN ls .
 RUN (cd analyses/cve_vuln && npm install)
 RUN (cd analyses/cve_vuln && npm install)
+RUN (cd crawler && npm install)
 RUN (cd dynamic && npm install)
 RUN (cd engine/lib/jaw/aliasing && make)
+RUN (cd engine && npm install)
 RUN (cd verifier && npm install)
 RUN (cd verifier/service && npm install)
-
 RUN (cd driver && npm install)
 
 # Python dependencies
