@@ -1,10 +1,10 @@
 services:
   logic:
-    build: .
-    container_name: jaw4c-logic
+    # build: .
+    image: jaw-logic
+    container_name: jaw4c-logic    
     volumes:
       - ./JAW4C-JAW:/JAW4C/JAW4C-JAW
-      - ./JAW4C-WebArchive/archive/archive-70:/JAW4C/JAW4C-WebArchive/archive # change based on the path to the archive
     environment:
       HTTP_PROXY: http://proxy:8002
       HTTPS_PROXY: http://proxy:8002
@@ -30,8 +30,8 @@ services:
     container_name: jaw4c-webarchive
     volumes:
       - ./JAW4C-WebArchive/archive/archive-70:/proxy/archive-70
-    ports:
-      - "8002:8002"
+        #ports:
+        # - "8002:8002"
     environment:
       - PROXY_VOLUME_PATH=/proxy
       - PROXY_ARCHIVE=archive-70
