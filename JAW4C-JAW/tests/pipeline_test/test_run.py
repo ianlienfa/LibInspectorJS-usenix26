@@ -194,6 +194,12 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
         config['crawler']['lib_detection'] = {}
     config['crawler']['lib_detection']['enable'] = 'lib_detection' in phases_to_run
 
+    # Remove proxy from headless browsers
+    if config['crawler'].get('playwright', {}).get('proxy', {}):
+        del config['crawler']['playwright']['proxy']
+    if config['crawler'].get('puppeteer', {}).get('proxy-server', {}):
+        del config['crawler']['puppeteer']['proxy-server']
+
     # Set keep_docker_alive option
     if 'staticpass' not in config:
         config['staticpass'] = {}

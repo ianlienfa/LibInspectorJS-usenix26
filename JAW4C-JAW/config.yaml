@@ -21,7 +21,7 @@ crawler:
   # amount of memory for the crawler
   memory: 8192
   # overwrite already existing crawled data or not
-  overwrite: false 
+  overwrite: true 
   # check if domain is up with a python request before spawning a browser instance
   domain_health_check: false
   # puppeteer additional args
@@ -33,10 +33,10 @@ crawler:
     disk-cache-dir: /dev/null
     disk-cache-size: 1
 
-  playwright:            
-    # proxy-server: 127.0.0.1:8002  # local testing
-    proxy: 
-      server: http://proxy:8002
+  playwright:   
+    executablePath: /usr/bin/chromium-browser # default path          
+  #   proxy: 
+  #     server: http://proxy:8002
 
 
   # browser to use for crawling

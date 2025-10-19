@@ -134,6 +134,31 @@ function getOrCreateDataDirectoryForWebsite(url){
 	return folderPath;
 }
 
+/** 
+ * @function isCdnScript 
+ * @param {object} script_object, Ex: {	
+ * "20.js": {
+		"type": "external",
+		"src": "https://www.routledge.com/js/bootstrap.bundle.min.js",
+		"lines": null,
+		"hash": "53a5b59c96c89303d5fb5e51219f8eb2"
+	},
+}
+ * @return {boolean} whether or not the input is a library script
+**/
+function isCdnScript(script_object){
+	const cdn_url_may_features = ['cdn', 'jsdelivr', 'cdnjs.cloudflare.com', 'ajax.googleapis.com', 'unpkg.com']
+
+	if(script_object === undefined){
+		return false
+	}
+	else{
+		if(script_object['src'] !== undefined){
+			return cdn_url_may_features.some(feature => script_object['src'].includes(feature))
+		}	
+	}	
+}
+
 
 
 
@@ -180,7 +205,7 @@ function isLibraryScript(script, options){
 
 
 async function staticallyAnalyzeWebpage(url, webpageFolder){
-
+	console.log(`[staticallyAnalyzeWebpage]: ${url}, ${webpageFolder}`)
 	let results_timing_file = pathModule.join(webpageFolder, "time.static_analysis.out");
 	if(!overwrite_hpg && fs.existsSync(results_timing_file)){
 		DEBUG && console.log('[skipping] results already exists for: '+ webpageFolder)
@@ -208,7 +233,6 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		var library_scripts = [];
 		let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/.*\.(js$)/ig);});
 		for(let i=0; i<scriptFiles.length; i++){
-			
 			let script_short_name = '' + i + '.js';
 			let script_full_name = pathModule.join(webpageFolder, script_short_name);
 			let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
@@ -218,26 +242,21 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	
 				let script_object = scripts_mapping[script_short_name];
 				if(script_object['type'] === 'external'){
-					let is_library = isLibraryScript(script_object['src'], {mode: 'src'});
-					DEBUG && is_library && console.log(`[Analyzer] ${script_object['src']} is library object`)
-					if(is_library){
+					// Deprecated isLibraryScript removed, this heuristic is too strong for analyzing bundled code, which often skips the library object calls from the bundles
+					// We only filter out the direct resources from cdn sites
+					let is_cdn_script = isCdnScript(script_object['src'], {mode: 'src'});
+					DEBUG && is_cdn_script && console.log(`[Analyzer] ${script_object['src']} is a cdn library object`)
+					if(is_cdn_script){
 						library_scripts.push(script_short_name);
 						continue;
 					}
 				}
 			}
 	
-	
+			console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
 			let script_content = await readFile(script_full_name);
 			if(script_content != -1){
-	
-				// if possible, filter out libraries based on the script content
-				let is_library = isLibraryScript(script_content, {mode: 'content'});
-				if(is_library){
-					DEBUG && is_library && console.log(`[Analyzer] ${script_object['src']} is library object`)
-					library_scripts.push(script_short_name);
-					continue;
-				}
+				console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name} success`)
 				scripts.push({
 					scriptId: i,
 					source: script_content,
@@ -276,6 +295,7 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	let parsingErrors = [];
 	for(let [idx, script] of scripts.entries()){
 		let scriptName = script.name; // '' + idx + '.js';
+		console.log(`[static_analysis] [${idx}/${scripts.length}] processing script: ${scriptName}`)
 		let parsingError = await SourceSinkAnalyzerInstance.api.initializeModelsFromSource(scriptName, script.source, constantsModule.LANG.js, do_ast_preprocessing_passes)
 		if(parsingError && parsingError === scriptName){
 			parsingErrors.push(parsingError);

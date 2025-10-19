@@ -4,6 +4,7 @@ services:
     container_name: jaw4c-logic
     volumes:
       - ./JAW4C-JAW:/JAW4C/JAW4C-JAW
+      - ./JAW4C-WebArchive/archive/archive-70:/JAW4C/JAW4C-WebArchive/archive # change based on the path to the archive
     environment:
       HTTP_PROXY: http://proxy:8002
       HTTPS_PROXY: http://proxy:8002

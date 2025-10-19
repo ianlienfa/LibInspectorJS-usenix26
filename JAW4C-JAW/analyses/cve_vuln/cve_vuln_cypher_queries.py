@@ -1051,7 +1051,7 @@ def getIdentifierAndExprFromArgCode(tx, argCode):
 		MATCH
 		// get the callexpression calling this id
 		(modIdArg {Type: 'Literal', Value: '%s'})<-[:AST_parentOf {RelationType: 'arguments'}]-(callExprNode {Type: 'CallExpression'})
-		,(callExprNode)-[:AST_parentOf {RelationType: 'callee'}]->(calleeNode {Type: 'Identifier'})
+		OPTIONAL MATCH (callExprNode)-[:AST_parentOf {RelationType: 'callee'}]->(calleeNode {Type: 'Identifier'})
 		// get the callee id too		
 		RETURN callExprNode, calleeNode
 	"""%(argCode)
@@ -1060,7 +1060,7 @@ def getIdentifierAndExprFromArgCode(tx, argCode):
 	res = []
 	for record in results:
 		callExprNode = record['callExprNode']
-		calleeNode = record['calleeNode']
+		calleeNode = record['calleeNode'] if 'calleeNode' in record else None
 		res.append((callExprNode, calleeNode))
 	return res	
 
@@ -1519,8 +1519,11 @@ def getSinkExpression(tx, vuln_info):
 			res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
 			print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
 			# filter out those matches that are not library Objects
-			libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
-			print("libObjectList", libObjectList)
+
+			# (Oct 18) Commenting this out since this check is too strict 
+			libObjectList = res_getIdentifierAndExprFromArgCode
+			# libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
+			# print("libObjectList", libObjectList)
 			vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
 		else:
 			# suppose to get location object for non mod objects
@@ -1823,12 +1826,27 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
 		# For cve sink...
+		#### DEBUG
+		r1 = True
+		#### DEBUG
+
 		if r1:
-			for call_expr in r1:
-				n = call_expr['n'] # call expression
-				a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
-				t = call_expr['t'] # top level expression statement
-				request_fn = vuln_info['poc_str'] # temporary
+
+			#### DEBUG (remove comment once done)
+			# for call_expr in r1:
+			# 	n = call_expr['n'] # call expression
+			# 	a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
+			# 	t = call_expr['t'] # top level expression statement
+			# 	request_fn = vuln_info['poc_str'] # temporary
+			#### DEBUG
+
+			# DEBUG
+			t = get_ast_topmost(tx, get_node_by_id(tx, 32163))
+			n = get_ast_parent(tx, get_node_by_id(tx, 32163))
+			a = get_node_by_id(tx, 32163)
+			request_fn = vuln_info['poc_str']
+			# DEBUG
+
 
 			wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
 			logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
@@ -1848,6 +1866,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				if ident in ce[0]:
 					logger.info(f"[debug] varname: {ident}, rootContextNode: {t}")
 					# vals = getValueOfWithLocationChain(tx, ident, t)
+					breakpoint()
 					vals = DF._get_varname_value_from_context(tx, ident, t)
 					request_storage[nid]['expected_values'][ident] = vals
 

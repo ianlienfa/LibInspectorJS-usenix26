@@ -26,7 +26,6 @@
 """
 
 import argparse
-import pandas as pd
 import os, sys
 import requests
 import json
@@ -353,7 +352,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 			# Detection result and DB querying
 			vuln_list = [] # we often time only do query once
-			vuln_info_pathname = os.path.join(webapp_data_directory, 'vuln.out')
+			vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
 			
 			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
@@ -577,45 +576,45 @@ def main():
 		crawler_node_memory = config["crawler"]["memory"]
 		
 	# crawling config
-	if config["testbed"]["archive"]["enable"]:
-		crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={6} --seedurl=SEED_URL".format(
-			config["crawler"]["maxurls"],
-			config["crawler"]["browser"]["name"],
-			config["crawler"]["browser"]["headless"],
-			config["crawler"]["overwrite"],
-			config["crawler"]["browser"]["foxhound"], # should_use_foxhound
-			crawler_node_memory,
-			parse_additional_args_to_posix_style(config["crawler"]["puppeteer"])
-		)
-	else:
-		crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --seedurl=SEED_URL".format(
-			config["crawler"]["maxurls"],
-			config["crawler"]["browser"]["name"],
-			config["crawler"]["browser"]["headless"],
-			config["crawler"]["overwrite"],
-			config["crawler"]["browser"]["foxhound"], # should_use_foxhound
-			crawler_node_memory
-		)		
+	# # if config["testbed"]["archive"]["enable"]:
+	# # 	crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={6} --seedurl=SEED_URL".format(
+	# # 		config["crawler"]["maxurls"],
+	# # 		config["crawler"]["browser"]["name"],
+	# # 		config["crawler"]["browser"]["headless"],
+	# # 		config["crawler"]["overwrite"],
+	# # 		config["crawler"]["browser"]["foxhound"], # should_use_foxhound
+	# # 		crawler_node_memory,
+	# # 		parse_additional_args_to_posix_style(config["crawler"]["puppeteer"])
+	# # 	)
+	# # else:
+	# # 	crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --seedurl=SEED_URL".format(
+	# # 		config["crawler"]["maxurls"],
+	# # 		config["crawler"]["browser"]["name"],
+	# # 		config["crawler"]["browser"]["headless"],
+	# # 		config["crawler"]["overwrite"],
+	# # 		config["crawler"]["browser"]["foxhound"], # should_use_foxhound
+	# # 		crawler_node_memory
+	# # 	)		
 		
-	browser_name = config["crawler"]["browser"]["name"]
-	if browser_name == 'chrome':
-		crawler_js_program = 'crawler.js'
-	else:
-		crawler_js_program = 'crawler-taint.js'
-		crawling_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
+	# browser_name = config["crawler"]["browser"]["name"]
+	# if browser_name == 'chrome':
+	# 	crawler_js_program = 'crawler.js'
+	# else:
+	# 	crawler_js_program = 'crawler-taint.js'
+	# 	crawling_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
 
-	node_crawler_driver_program = os.path.join(crawler_command_cwd, crawler_js_program)
-	crawling_command = crawling_command.replace("DRIVER_ENTRY", node_crawler_driver_program)
+	# node_crawler_driver_program = os.path.join(crawler_command_cwd, crawler_js_program)
+	# crawling_command = crawling_command.replace("DRIVER_ENTRY", node_crawler_driver_program)
 	crawling_timeout = int(config["crawler"]["sitetimeout"])
 
 	# lib_detector config
 	lib_detector_enable = config["cve_vuln"]["passes"]["lib_detection"]
 	lib_detector_lift = config.get('cve_vuln', {}).get('passes', {}).get('lift', False)
 	transform_enabled = config.get('cve_vuln', {}).get('passes', {}).get('transform', False)
-	if lib_detector_lift:
-		crawling_command += " --lift=True"
-	else:
-		crawling_command += " --lift=False"
+	# if lib_detector_lift:
+	# 	crawling_command += " --lift=True"
+	# else:
+	# 	crawling_command += " --lift=False"
 	detector_driver_program = 'dlv.js'
 	detection_timeout = config["crawler"]["lib_detection"]["detection_timeout"]
 

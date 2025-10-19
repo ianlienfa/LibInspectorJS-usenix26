@@ -585,7 +585,9 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		const url = response.url();
 		httpResponses[''+url] = await response.allHeaders();
 
-		console.log("response.url():", response.url())
+		console.log("[response] response.url():", response.url())
+		console.log("[response] response.status:", response.status())
+
 		if (response.request().resourceType() === 'script') {
 			const scriptPromise = response.text().then(async (script_content) => {
 				let scriptSourceMappingObject = await getScriptSourceMappingObject(script_content, transform_enabled);
@@ -619,7 +621,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		// redirect browser console log in the browser to node js log
 		BROWSER_LOG && page.on('console', consoleObj => console.log('[BrowserConsole] ' + consoleObj.text()));
 
-		await page.goto(url, {waitUntil: 'load', timeout: 60000});
+		response = await page.goto(url, {waitUntil: 'load', timeout: 60000});
 		await page.waitForTimeout(1000);
 		DEBUG && console.log('[pageLoad] new page loaded successfully');
 
@@ -893,22 +895,18 @@ async function launch_playwright(headless_mode, additional_args=undefined){
 	// Create temp user data directory for session isolation
 	const userDataDir = fs.mkdtempSync(pathModule.join(os.tmpdir(), 'playwright-'));
 	
-	console.log('additional_args', additional_args)
+	console.log('additional_args', JSON.stringify(additional_args, 4))
 
 	let options = {
 		channel: 'chromium',
 		bypassCSP: true,
 		headless: headless_mode,
-		ignoreHTTPSErrors: true,
-		proxy: {
-			server: 'http://127.0.0.1:8002'
-		},		
-		executablePath: '/opt/chrome/chrome'
+		ignoreHTTPSErrors: true,		
 	}
 
 	options = {...options, ...additional_args} // additional args will override this setting if provided
 
-	console.log("playwright options: ", options)
+	console.log("playwright options: ", JSON.stringify(options, 4))
 
 	// Use launchPersistentContext for isolated sessions
 	var browser = await chromium.launchPersistentContext(userDataDir, options);
