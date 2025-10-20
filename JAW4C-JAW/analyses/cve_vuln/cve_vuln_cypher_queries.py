@@ -1316,12 +1316,14 @@ def getSinkExpression(tx, vuln_info):
 				MATCH (scope:ASTNode {Id: scopeId})
 				CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node, score
 				WHERE (scope)-[:AST_parentOf*]->(node)
+				AND node.Code = code
 				RETURN node
 				UNION
 				WITH scopeId, code
 				MATCH (scope:ASTNode {Id: scopeId})
 				CALL db.index.fulltext.queryNodes("ast_value", code) YIELD node, score
 				WHERE (scope)-[:AST_parentOf*]->(node)
+				AND node.Value = code
 				RETURN node
 			}
 			RETURN DISTINCT(node)
@@ -1329,7 +1331,7 @@ def getSinkExpression(tx, vuln_info):
 		print(f"getCodeMatchInScope query: {query}")
 		# breakpoint()
 		res = []
-		results = tx.run(query)			
+		results = tx.run(query)
 		res = [record['node'] for record in results]
 		return res
 	
@@ -1382,7 +1384,7 @@ def getSinkExpression(tx, vuln_info):
 		# return list of candidate ids
 
 	
-	def      nodeMatching(poc, constructKey, node):
+	def nodeMatching(poc, constructKey, node):
 		"""
 			@param {the flattened poc map} poc
 			@param {str} the construct key to compare with
@@ -1865,8 +1867,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				logger.info(f"[debug] ident: {ident}, ident_id: {ident_id}")
 				if ident in ce[0]:
 					logger.info(f"[debug] varname: {ident}, rootContextNode: {t}")
-					# vals = getValueOfWithLocationChain(tx, ident, t)
-					breakpoint()
+					# vals = getValueOfWithLocationChain(tx, ident, t)					
 					vals = DF._get_varname_value_from_context(tx, ident, t)
 					request_storage[nid]['expected_values'][ident] = vals
 

@@ -28,6 +28,37 @@
 from functools import lru_cache
 
 # -------------------------------------------------------------------------- #
+#		Cycle Detection for Alias Analysis
+# -------------------------------------------------------------------------- #
+# Unlike taint analysis which uses a stack for variable names (allowing same
+# name in different scopes), alias analysis uses a set for node IDs (globally
+# unique, so no need to revisit same node within a query).
+
+alias_visited_set = set()
+
+def alias_visited_has(node_id):
+	"""
+	Check if a node ID has been visited in current alias analysis query.
+	@param node_id: string node ID
+	@return: boolean
+	"""
+	return node_id in alias_visited_set
+
+def alias_visited_add(node_id):
+	"""
+	Mark a node ID as visited in current alias analysis query.
+	@param node_id: string node ID
+	"""
+	alias_visited_set.add(node_id)
+
+def alias_visited_clear():
+	"""
+	Clear the visited set (call at start of each top-level alias query).
+	"""
+	global alias_visited_set
+	alias_visited_set = set()
+
+# -------------------------------------------------------------------------- #
 #		Neo4j Utility Queries
 # -------------------------------------------------------------------------- #
 
@@ -900,219 +931,161 @@ def getNodeFromRange(tx, rangeStr):
 	return res
 
 
+@lru_cache(maxsize=1000)
+def getForwardPDGAliases(tx, node_id, scope_id, depth_limit=10, result_limit=50):
+	"""
+	Find nodes that are assigned FROM the target node using forward PDG traversal.
+
+	Example:
+		a = b
+		c = b  <- target
+		d = c  <- this will be found (forward from c)
+
+	If asked for alias of 'c', returns 'd' (not 'a' or 'b').
+
+	@param tx: neo4j transaction pointer
+	@param node_id: string ID of the node to find forward aliases for
+	@param scope_id: string ID of the scope to search within
+	@param depth_limit: maximum PDG traversal depth (default 10)
+	@param result_limit: maximum number of results to return (default 50)
+	@return: list of alias node objects
+	"""
+	query = """
+		WITH '%s' AS nodeId, '%s' AS scopeId, %d AS depthLimit 
+
+		// Get the target node
+		MATCH (node:ASTNode {Id: nodeId})
+		MATCH (scope:ASTNode {Id: scopeId})
+
+		// Forward PDG traversal only - find nodes that depend on our target node
+		MATCH path = (node)-[:PDG_parentOf*1..10]->(alias:ASTNode)
+		WHERE (scope)-[:AST_parentOf*0..50]->(alias)
+		AND alias.Type = node.Type
+		AND alias.Id <> nodeId
+
+		RETURN DISTINCT alias, length(path) AS depth
+		ORDER BY depth ASC
+		// result_limit
+		LIMIT %d
+	"""%(node_id, scope_id, depth_limit, result_limit)
+
+	print("getForwardPDGAliases query", query)
+	results = tx.run(query)
+	return [record['alias'] for record in results]
+
+
 def getIdenticalObjectInScope(tx, node, scope = None):
 	"""
-		@param {pointer} tx
-		@param {node object} the node to look for identical object for
-		@return {[node object]}: a list of identical object found in the same scope				
-	"""	
-	# look for this expression identical_obj = id	
-	# 1. look for variable with the same name as id's name in the same scope
-	# 2. get their top expression, and see if that's a Assignment expression, if so push 
-	# 3. only recursively visit left hand side if in the assignment 
-	
+	Find syntactically identical nodes in scope using PDG-based analysis (refactored for performance).
+
+	Replaces expensive Merkle tree hashing with bounded PDG queries and cycle detection.
+
+	@param {pointer} tx
+	@param {node object} the node to look for identical object for
+	@param {node object} scope (optional) - scope to search within
+	@return {tuple}: ([node objects], scope) - list of identical objects and the scope
+	"""
+
+	# Clear visited set at the start of each top-level query
+	alias_visited_clear()
+
+	print(f"getIdenticalObjectInScope: {node['Type']}")
 	def isLeftAssignment(tx, node, scope):
+		"""Check if node is on the left side of an assignment (bounded query)."""
 		query = """
-			WITH '%s' as nodeId, '%s' as scopeId
-			MATCH (node {Id: nodeId})
-			MATCH (scope {Id: scopeId})
-			WITH node
-			MATCH (node)
-			WHERE EXISTS { (node)<-[:AST_parentOf {RelationType: 'left'}]-(med)<-[:AST_parentOf*0..]-(scope) }
+			WITH '%s' AS nodeId, '%s' AS scopeId
+			MATCH (node:ASTNode {Id: nodeId})
+			MATCH (scope:ASTNode {Id: scopeId})
+			WHERE EXISTS { (node)<-[:AST_parentOf {RelationType: 'left'}]-(med)<-[:AST_parentOf*0..50]-(scope) }
 			RETURN node
-		"""%(node['Id'], scope['Id'])	
-		print("isLeftAssignment q", query)	
-		res = []
-		results = tx.run(query)			
+		"""%(node['Id'], scope['Id'])
+		print("isLeftAssignment query", query)
+		results = tx.run(query)
 		res = [record['node'] for record in results]
-		return res != []
+		return len(res) > 0
 
 	def isDirectInitializer(tx, node):
+		"""Check if node is directly initialized (part of assignment or declaration)."""
 		query = """
-			MATCH p = (node {Id: '%s'})<-[:AST_parentOf]-(assignRelatedExpr)
+			MATCH (node:ASTNode {Id: '%s'})<-[:AST_parentOf]-(assignRelatedExpr:ASTNode)
 			WHERE assignRelatedExpr.Type IN ['VariableDeclarator', 'AssignmentExpression']
-			RETURN p
-		"""%(node['Id'])	
-		# print("isLeftAssignment q", query)	
-		res = []
-		results = tx.run(query)			
-		res = [record['p'] for record in results]
-		return res != []
-	
-
-	def applyHashingOnScope(tx, scope, scopeCacheSet = set(), parent_only=False):
-		if getRange(scope)[1] - getRange(scope)[0] >= 60:
-			return # Temporary added strict cutoff
-		if scope in scopeCacheSet:
-			return
-		else:
-			scopeCacheSet.add(scope)
-		query = ""
-		if not parent_only:
-			query += """
-			// Step 1: Initialize leaf node hashes
-			CALL {
-				MATCH (n)<-[:AST_parentOf*]-(scope {Id: '%s'})
-				WHERE n.hash IS NULL 
-				AND NOT (n)-[:AST_parentOf]->()
-				WITH n, 
-					CASE 
-						WHEN n.Type = 'Literal' THEN n.Value
-						ELSE n.Code
-					END AS val
-				SET n.hash = apoc.util.md5([val])
-			}
-			"""%(scope['Id'])		
-		query += """
-		// Step 2: Process parent nodes
-		MATCH (scope {Id: '%s'})-[:AST_parentOf*]->(parent)-[:AST_parentOf]->(child)
-		WHERE child.hash IS NOT NULL
-		WITH parent, apoc.coll.sort(collect(child.hash)) AS childHashes,  
-			CASE 
-				WHEN parent.Code IS NOT NULL THEN parent.Code
-				ELSE ''
-			END AS val
-		SET parent.hash = apoc.util.md5([val, parent.type, childHashes])
-		RETURN parent, childHashes
-		"""%(scope['Id'])
-		print("hashing query", query)
-		res = []
-		results = tx.run(query)			
-		res = [[record['parent'], record['childHashes']] for record in results]
-		return res
-
-
-	def getNodesWithSameHashInScope(tx, node, scope):
-		query = """
-			WITH '%s' as scopeId, '%s' as nodeBId
-			MATCH (nodeB {Id: nodeBId})
-			MATCH (node)
-			WHERE node.hash = nodeB.hash
-			AND node.Id <> nodeB.Id
-
-			WITH node, scopeId
-			MATCH (node)<-[:AST_parentOf*0..]-(scope {Id: scopeId})
-			RETURN distinct(node)
-		"""%(scope['Id'], node['Id'])
-		print("getNodesWithSameHashInScope query", query)
-		res = []
-		results = tx.run(query)			
-		res = [record['node'] for record in results]
-		return res
-
-
-	def get_bounded_pdg_children(tx, cfgnode, limit_depth=5, limit_num=20):
-		query = """
-			MATCH (cfgNode: ASTNode {Id: '%s'}) 
-			MATCH p = (cfgNode)-[:PDG_parentOf*..%d]->(child: CFGNode)
-			RETURN child
-			ORDER BY length(p) ASC LIMIT %d
-		"""%(cfgnode['Id'], limit_depth, limit_num)
-		print("get_bounded_pdg_children", query)
-		res = []
-		results = tx.run(query)			
-		res = [record['child'] for record in results]
-		return res
-
-	def get_node_ident(tx, node):
-		query = """
-			MATCH (node: ASTNode {Id: '%s'}) 			
-			MATCH (node)-[:AST_parentOf*0..]->(med)-[:AST_parentOf {RelationType:'id'}]->(child)
-			RETURN child			
+			RETURN assignRelatedExpr
 		"""%(node['Id'])
-		print("get_node_ident", query)
-		res = []
-		results = tx.run(query)			
-		res = [record['child'] for record in results]
-		return res
-
-	def check_if_ident(tx, scope, name):
-		query = """
-			WITH "%s" AS scopeId, "%s" AS name
-			CALL db.index.fulltext.queryNodes("ast_code", name) YIELD node as matchingIdentifierNode, score
-			MATCH (scope: ASTNode {Id: scopeId}) 			
-			WHERE EXISTS {
-			MATCH (scope)-[:AST_parentOf*0..50]->(matchingIdentifierNode)  // cap depth if you can
-			}
-			RETURN scope;			
-		"""%(scope['Id'], name)
-		print("get_node_ident", query)
-		res = []
-		results = tx.run(query)			
-		res = [record['child'] for record in results]
-		return res
-
-	def getNodesWithSameIdentInScope(tx, idents, scopeNode, cmprNode):
-		q = " OR ".join(idents)  # -> "foo OR bar OR baz"
-		query = """
-			WITH "%s" AS q, "%s" AS scopeId, "%s" AS cmprType
-
-			// Use fulltext index to find identifiers by query string
-			CALL db.index.fulltext.queryNodes('ast_code', q)
-				YIELD node AS matchingIdentifierNode, score
-			WHERE matchingIdentifierNode.Type = 'Identifier'
-
-			// Restrict to scope
-			MATCH (scope:ASTNode {Id: scopeId})
-			WHERE EXISTS {
-			MATCH (scope)-[:AST_parentOf*0..50]->(matchingIdentifierNode)
-			}
-
-			// Find ancestors with target type
-			MATCH p = (node:ASTNode {Type: cmprType})-[:AST_parentOf*1..50]->(matchingIdentifierNode)
-			WITH node, min(length(p)) AS depth
-			ORDER BY depth ASC
-			RETURN DISTINCT node, depth
-			"""%(q, scopeNode['Id'], cmprNode['Type'])
 		results = tx.run(query)
-		return [r['node'] for r in results]	
-	
+		res = [record['assignRelatedExpr'] for record in results]
+		return len(res) > 0
+
 	def _rec(tx, node, scope = None):
-		if scope == None:
+		"""
+		Recursive helper to find aliases using PDG-based approach with cycle detection.
+		Uses early returns at each filtering stage for efficiency.
+		"""
+		node_id = node['Id']
+
+		# Stage 1: Cycle detection
+		if alias_visited_has(node_id):
+			print(f"[Cycle detected] Already visited node {node_id}, skipping")
+			return []
+		alias_visited_add(node_id)
+
+		# Stage 2: Get scope
+		if scope is None:
 			scope = getScopeOf(tx, node)
-		cfgnode = get_ast_topmost(tx, node)
-		pdg_scopes = get_bounded_pdg_children(tx, cfgnode) # the depth is set to be by default 10, by locality, hopefully we match an identical node 
-														   # if we match at least one identical node within 20 steps of control flow, then the recursive
-														   # function will be able to find more after
-		applyHashingOnScope(tx, cfgnode) # hash on itself
-		for cfg_scope in pdg_scopes:
-			applyHashingOnScope(tx, cfg_scope)
-		applyHashingOnScope(tx, scope, parent_only=True)
-		matchingNodes = [node] + getNodesWithSameHashInScope(tx, node, scope)
 
-		matchingNodes = sorted(matchingNodes, key = lambda x: getRange(x)[0], reverse=True)		
+		# Stage 3: PDG-based alias discovery
+		pdg_aliases = getForwardPDGAliases(tx, node_id, scope['Id'], depth_limit=10, result_limit=50)
+		print(f"Stage 3: PDG aliases found: {len(pdg_aliases)}")
+		if not pdg_aliases:
+			return [node]  # Early return: only the node itself
 
-		# the assertion: here all the matching nodes should have the right Code and ordered by its starting range from large to small	
-		print("matchingNodes bf", matchingNodes)
+		# Stage 4: Type filtering (fast, avoid expensive getCodeOf calls)
+		type_filtered = [alias for alias in pdg_aliases if alias['Type'] == node['Type']]
+		print(f"Stage 4: Type matches: {len(type_filtered)}")
+		if not type_filtered:
+			return [node]  # Early return: only the node itself
 
-		# Remove all matching nodes that might be polluted by assignments
-		for i in range(len(matchingNodes)):
-			mnode = matchingNodes[i]			
-			if isLeftAssignment(tx, mnode, scope) and mnode['Id'] != node['Id']:
-				print("mnode", mnode, "node", node)
-				matchingNodes = matchingNodes[:i]
+		# Stage 5: Exact code matching (expensive, but filtered list)
+		node_code = getCodeOf(tx, node)
+		exact_aliases = [alias for alias in type_filtered if getCodeOf(tx, alias) == node_code]
+		print(f"Stage 5: Exact code matches: {len(exact_aliases)}")
+		if not exact_aliases:
+			return [node]  # Early return: only the node itself
+
+		# Stage 6: Sort by range and filter left assignments
+		matchingNodes = [node] + exact_aliases
+		matchingNodes.sort(key=lambda x: getRange(x)[0], reverse=True)
+
+		filtered_nodes = []
+		for i, mnode in enumerate(matchingNodes):
+			if isLeftAssignment(tx, mnode, scope) and mnode['Id'] != node_id:
+				print(f"Stage 6: Left assignment at {mnode['Id']}, truncating")
+				filtered_nodes = matchingNodes[:i]
 				break
-	
-		# the assertion: only the nodes before the first assignment if left
-		print("matchingNodes after left assignment test", matchingNodes)
-				
+		else:
+			filtered_nodes = matchingNodes
+
+		print(f"Stage 6: After left assignment filter: {len(filtered_nodes)}")
+		if not filtered_nodes:
+			raise RuntimeError("[getIdenticalObjectInScope] Unexpected: filtered out all nodes including self", node)
+
+		# Stage 7: Recursive propagation through initializers
 		new_res = []
-		print(f"hash matchingNodes for {[node['Id'], node['Code'] if node['Code'] else node['Value']]}:", [[n['Id'], node['Code'] if node['Code'] else node['Value']] for n in matchingNodes])
-		for matchingNode in matchingNodes:
-			if isDirectInitializer(tx, matchingNode):				
-				scope = getScopeOf(tx, matchingNode)
-				leftNode = getAssignee(tx, matchingNode, scope)							
-				# Make sure that the leftNode returned is not itself
-				if leftNode and leftNode['Id'] != matchingNode['Id']:	
-					# print('matchingNode', getCodeOf(tx, matchingNode))					
-					# print('leftNode', getCodeOf(tx, leftNode))								
-					identicalObjs, *_ = getIdenticalObjectInScope(tx, leftNode) # propagate 	
-					print("identicalObjs", identicalObjs)
+		for matchingNode in filtered_nodes:
+			if isDirectInitializer(tx, matchingNode):
+				match_scope = getScopeOf(tx, matchingNode)
+				leftNode = getAssignee(tx, matchingNode, match_scope)
+				if leftNode and leftNode['Id'] != matchingNode['Id']:
+					print(f"Stage 7: Recursing into assignee {leftNode['Id']}")
+					identicalObjs, *_ = getIdenticalObjectInScope(tx, leftNode, match_scope)
 					new_res += identicalObjs
-		matchingNodes += new_res	
-		print("matching node done!")	
-		return matchingNodes		
-	return list(set(_rec(tx, node, scope))), scope
+
+		result = filtered_nodes + new_res
+		print(f"Final result for {node_id}: {len(result)} nodes")
+		return result
+
+	# Execute recursive search
+	result = list(set(_rec(tx, node, scope)))
+	return result, scope
 
 
 
@@ -1197,7 +1170,6 @@ def getAdvancedCodeExpression(wrapperNode, is_argument = False, relation_type=''
 
 	node = wrapperNode['node']
 	children = wrapperNode['children']
-	
 	if 'Type' in node:
 		ntype = node['Type']
 	else:
