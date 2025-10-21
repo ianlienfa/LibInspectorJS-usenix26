@@ -1536,7 +1536,13 @@ def getSinkExpression(tx, vuln_info):
 		libObjScope = None
 		root = []
 		# match all provided poc and potential libobjs
+		# Store max level tracking for each POC to write to sink.flows.out
+		all_poc_max_levels = []  # [{poc_name, max_lv, matches: {constructKey: [nodes]}}]
+
 		for poc in flatPoc:
+			# Track max matched level for this POC
+			max_lv = -1
+			max_lv_matches = {}  # {constructKey: [nodes]}
 			# operate on all libobj scope marked
 			for pair in libObjectList:
 				if vuln_info['mod']:
@@ -1572,17 +1578,52 @@ def getSinkExpression(tx, vuln_info):
 								print(f"conditions not implemented, halting: ", curr_construct)
 								raise RuntimeError(f"conditions not implemented, halting: {curr_construct}")
 							matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
+							print(f"matching_res: {matching_res}")
+							print(f"matching_nodes: {matching_nodes}")
 							if not any(matching_res):
 								print('matching_res', matching_res, 'matching_nodes', matching_nodes)
 								raise EarlyHaltException({"curr_construct": curr_construct})
+
+							# Track max matched level (skip level 0 to avoid too many matches)
+							if lv > 0:
+								# Filter to only keep nodes that matched (where matching_res is True)
+								matched_nodes = [node for node, matched in zip(matching_nodes, matching_res) if matched]								
+								print(f"matched_nodes: {matched_nodes}")
+
+								if lv > max_lv:
+									# New deeper level - replace matches
+									max_lv = lv
+									max_lv_matches = {constuctKey: matched_nodes}
+									print(f"[MaxLevel] New max level {max_lv} at construct {constuctKey} with {len(matched_nodes)} nodes")
+								elif lv == max_lv:
+									# Same level - add to matches
+									max_lv_matches[constuctKey] = matched_nodes
+									print(f"[MaxLevel] Added construct {constuctKey} at level {max_lv} with {len(matched_nodes)} nodes")
 				except EarlyHaltException as e:
 					print(f"Early halt due to none matching for construct", e)
 					print("poc['constructs']", poc['constructs'])
 
+			# Store max level info for this POC (after all libobj pairs processed)
+			if max_lv > 0 and max_lv_matches:
+				poc_name = poc.get('name', f'poc_{len(all_poc_max_levels)}')
+				all_poc_max_levels.append({
+					'poc_name': poc_name,
+					'max_lv': max_lv,
+					'matches': max_lv_matches
+				})
+				print(f"[MaxLevel] Stored POC '{poc_name}' max level {max_lv} with {len(max_lv_matches)} constructs")
+				# Debug: print details of what was stored
+				for ck, nodes in max_lv_matches.items():
+					print(f"  [MaxLevel]   Construct '{ck}': {len(nodes)} nodes - types: {[type(n).__name__ for n in nodes]}")
+					for i, node in enumerate(nodes[:3]):  # Show first 3 nodes
+						if isinstance(node, dict):
+							print(f"  [MaxLevel]     Node {i}: Id={node.get('Id', 'N/A')}, Type={node.get('Type', 'N/A')}")
+						else:
+							print(f"  [MaxLevel]     Node {i}: {type(node).__name__} = {node}")
 
-				# root query: query if the special id of root exists
-				root = getNodeFromTagName(tx, poc['root'])
-				vuln_info['root'] = repr(root)
+			# root query: query if the special id of root exists
+			root = getNodeFromTagName(tx, poc['root'])
+			vuln_info['root'] = repr(root)
 
 		if libObjScope:						
 			debug_query = """
@@ -1608,8 +1649,13 @@ def getSinkExpression(tx, vuln_info):
 	except Exception as e:
 		print(f"Exception threw at getSinkExpression", e)
 		raise e
-	
-	return res	
+
+	# Final summary of all POC max levels
+	print(f"\n[MaxLevel] === FINAL SUMMARY: {len(all_poc_max_levels)} POCs with max level matches ===")
+	for poc_info in all_poc_max_levels:
+		print(f"  POC: {poc_info['poc_name']}, Max Level: {poc_info['max_lv']}, Constructs: {list(poc_info['matches'].keys())}")
+
+	return res, all_poc_max_levels	
 
 
 # ----------------------------------------------------------------------- #
@@ -1631,12 +1677,12 @@ def run_traversals_simple(tx, vuln_info):
 	# @Description: 
 	#	Finds asynchronous HTTP requests (sinks) and associates a semantic type to them
 	#	i.e., is any sink value traces back to the defined semantic types
-	if MAIN_QUERY_ACTIVE:		
+	if MAIN_QUERY_ACTIVE:
 		# different kinds of call expressions (sinks)
-		r1 = getSinkExpression(tx, vuln_info=vuln_info)
-		
+		r1, all_poc_max_levels = getSinkExpression(tx, vuln_info=vuln_info)
+
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
-		
+
 		# For cve sink...
 		if r1:
 			for call_expr in r1:
@@ -1683,6 +1729,30 @@ def run_traversals_simple(tx, vuln_info):
 				fd.write('[timestamp] generated on %s\n'%timestamp)
 				fd.write(sep+'\n')
 				fd.write('[*] NavigationURL: %s\n\n'%"tmp")
+
+				# Write POC max matched levels
+				if all_poc_max_levels:
+					print(f"all_poc_max_levels", all_poc_max_levels)
+					fd.write(sep_templates)
+					fd.write('[*] POC Maximum Matched Levels:\n')
+					for poc_info in all_poc_max_levels:
+						fd.write(f"\n[POC] {poc_info['poc_name']} - Max Level: {poc_info['max_lv']}\n")
+						for constructKey, nodes in poc_info['matches'].items():
+							fd.write(f"  [Construct] {constructKey}:\n")
+							for node in nodes:
+								try:
+									if not isinstance(node, dict):
+										fd.write(f"    - Invalid node type: {type(node).__name__} = {node}\n")
+										continue
+									code = getCodeOf(tx, node)
+									location = node.get('Location', 'unknown')
+									fd.write(f"    - Node ID: {node['Id']}\n")
+									fd.write(f"      Location: {location}\n")
+									fd.write(f"      Code: {code}\n")
+								except Exception as e:
+									node_id = node.get('Id', 'unknown') if isinstance(node, dict) else str(node)
+									fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
+					fd.write('\n')
 
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node
@@ -1821,9 +1891,9 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 	# @Description: 
 	#	Finds asynchronous HTTP requests (sinks) and associates a semantic type to them
 	#	i.e., is any sink value traces back to the defined semantic types
-	if MAIN_QUERY_ACTIVE:		
+	if MAIN_QUERY_ACTIVE:
 		# different kinds of call expressions (sinks)
-		r1 = getSinkExpression(tx, vuln_info=vuln_info)
+		r1, all_poc_max_levels = getSinkExpression(tx, vuln_info=vuln_info)
 
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
@@ -1888,6 +1958,29 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				fd.write('[timestamp] generated on %s\n'%timestamp)
 				fd.write(sep+'\n')
 				fd.write('[*] NavigationURL: %s\n\n'%navigation_url)
+
+				# Write POC max matched levels
+				if all_poc_max_levels:
+					fd.write(sep_templates)
+					fd.write('[*] POC Maximum Matched Levels:\n')
+					for poc_info in all_poc_max_levels:
+						fd.write(f"\n[POC] {poc_info['poc_name']} - Max Level: {poc_info['max_lv']}\n")
+						for constructKey, nodes in poc_info['matches'].items():
+							fd.write(f"  [Construct] {constructKey}:\n")
+							for node in nodes:
+								try:
+									if 'Id' not in node:
+										fd.write(f"    - Invalid node type: {type(node).__name__} = {node}\n")
+										continue
+									code = getCodeOf(tx, node)
+									location = node.get('Location', 'unknown')
+									fd.write(f"    - Node ID: {node['Id']}\n")
+									fd.write(f"      Location: {location}\n")
+									fd.write(f"      Code: {code}\n")
+								except Exception as e:
+									node_id = node.get('Id', 'unknown') if isinstance(node, dict) else str(node)
+									fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
+					fd.write('\n')
 
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node

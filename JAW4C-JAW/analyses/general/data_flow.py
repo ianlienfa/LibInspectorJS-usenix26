@@ -32,12 +32,56 @@ import hpg_neo4j.query_utility as QU
 import hpg_neo4j.db_utility as DU
 import constants as constantsModule
 import jsbeautifier
-import functools
 import json
+from functools import lru_cache, wraps
 
-## ------------------------------------------------------------------------------- ## 
+## ------------------------------------------------------------------------------- ##
 ## Utility Functions
-## ------------------------------------------------------------------------------- ## 
+## ------------------------------------------------------------------------------- ##
+
+def make_hashable_decorator(func):
+	"""
+	Decorator to convert unhashable arguments to hashable equivalents for lru_cache.
+	Handles: Neo4j transaction (uses id()), dicts (extracts 'Id' key), lists (converts to tuples).
+	"""
+	@wraps(func)
+	def wrapper(*args, **kwargs):
+		# Convert unhashable args to hashable
+		processed_args = tuple(
+			arg.get('Id', id(arg)) if isinstance(arg, dict)
+			else tuple(arg) if isinstance(arg, list)
+			else id(arg) if hasattr(arg, '__self__')  # Neo4j transaction
+			else arg
+			for arg in args
+		)
+
+		# Convert unhashable kwargs to hashable
+		processed_kwargs = {
+			k: v.get('Id', id(v)) if isinstance(v, dict)
+			   else tuple(v) if isinstance(v, list)
+			   else id(v) if hasattr(v, '__self__')
+			   else v
+			for k, v in kwargs.items()
+		}
+
+		# Get cache info before call
+		cache_info_before = func.cache_info()
+
+		# Call the cached function
+		result = func(*processed_args, **processed_kwargs)
+
+		# Get cache info after call
+		cache_info_after = func.cache_info()
+
+		# Check if it was a cache hit (hits increased)
+		if cache_info_after.hits > cache_info_before.hits:
+			print(f"[Cache HIT] {func.__name__}(varname={processed_args[1] if len(processed_args) > 1 else '?'}, node_id={processed_args[2] if len(processed_args) > 2 else '?'})")
+		else:
+			print(f"[Cache MISS] {func.__name__}(varname={processed_args[1] if len(processed_args) > 1 else '?'}, node_id={processed_args[2] if len(processed_args) > 2 else '?'}) - Cache: {cache_info_after}")
+
+		return result
+
+	return wrapper 
 
 def pretty_get_program_slices(slices):
 	"""
@@ -143,8 +187,10 @@ def param_stack_push(varname):
 def param_stack_pop():
 	param_stack.pop()
 
-	
-## ------------------------------------------------------------------------------- ## 
+# No global cache - using static argument trick in _get_varname_value_from_context instead
+
+
+## ------------------------------------------------------------------------------- ##
 ## Interface Functions
 ## ------------------------------------------------------------------------------- ## 
 
@@ -560,13 +606,14 @@ def get_function_def_of_block_stmt(tx, block_stmt_node):
 ## Internal Functions
 ## ------------------------------------------------------------------------------- ## 
 
-@functools.lru_cache(maxsize=512)
+@make_hashable_decorator
+@lru_cache(maxsize=1000)
 def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_declarations_only=False, PDG_on_arguments_only=False, context_scope=''):
 	"""
 	Description:
 	-------------
 	function for the data flow analysis
-	
+
 	@param tx {pointer} neo4j transaction pointer
 	@param {string} varname
 	@param {dict} context_node: node specifying the CFG-level statement where varname is defined
@@ -576,17 +623,17 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 		[program_slice, literals, dict of identifer mapped to identifer node is, location dict]
 	"""
 
+	# Extract node ID for queries
+	node_id = context_node['Id']
 
-	## ------------------------------------------------------------------------------- ## 
+	## ------------------------------------------------------------------------------- ##
 	## Globals and utility functions
-	## ------------------------------------------------------------------------------- ## 
+	## ------------------------------------------------------------------------------- ##
 
 	# output
-	out_values = [] 
+	out_values = []
 	# stores a map: funcDef id -->> get_function_call_values_of_function_definitions(funcDef)
-	knowledge_database = {} 
-	# context node identifer
-	node_id = context_node['Id']
+	knowledge_database = {}
 
 	if param_stack_has(varname):
 		return []
@@ -627,13 +674,13 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 		query = """
 		MATCH (n_s { Id: '%s' })<-[:PDG_parentOf { Arguments: '%s' }]-(n_t) RETURN collect(distinct n_t) AS resultset
 		"""%(node_id, varname)
-		print("pdg query", query, "at segment", QU.getCodeOf(tx, context_node))		
+		print("pdg query - PDG_on_arguments_only", query, "at segment", QU.getCodeOf(tx, context_node))		
 	else:
 		# for different kinds of POC formats
 		query = """
 		MATCH (n_s { Id: '%s' })<-[:PDG_parentOf]-(n_t) RETURN collect(distinct n_t) AS resultset
 		"""%(node_id)
-		print("pdg query", query, "at segment", QU.getCodeOf(tx, context_node))
+		print("pdg query - other", query, "at segment", QU.getCodeOf(tx, context_node))
 
 	results = tx.run(query)
 	for item in results: 
@@ -951,6 +998,7 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 
 
 	param_stack_pop()
+
 	return out_values
 
 
