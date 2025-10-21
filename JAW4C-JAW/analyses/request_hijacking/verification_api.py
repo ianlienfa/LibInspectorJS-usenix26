@@ -35,14 +35,8 @@ import utils.io as IOModule
 from utils.logging import logger as LOGGER
 
 
-def get_name_from_url(url):
-
-	"""
-	 @param url: eTLD+1 domain name
-	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
-
-	"""
-	return url.replace(':', '-').replace('/', '')
+# Import get_name_from_url from utils (defined in utils/utility.py)
+from utils.utility import get_name_from_url
 
 
 def start_verification_for_site(cmd, website_url, cwd, timeout=10800, overwrite=False):

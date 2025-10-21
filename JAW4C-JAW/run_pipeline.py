@@ -95,20 +95,8 @@ def parse_additional_args_to_posix_style(args):
             result.append(f"--{key}={val}")	
     return f"'{json.dumps(result)}'"
 
-def get_name_from_url(url):
-
-	"""
-	 @param url: eTLD+1 domain name
-	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
-
-	"""
-	return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+# Use get_name_from_url from utils.utility (already imported as utilityModule)
+get_name_from_url = utilityModule.get_name_from_url
 
 # Global variables to track current URL logging handlers
 current_url_handlers = None

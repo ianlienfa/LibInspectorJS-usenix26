@@ -49,14 +49,8 @@ def get_url_for_webpage(webpage_directory):
 	return content
  
 
-def get_name_from_url(url):
-
-	"""
-	 @param url: eTLD+1 domain name
-	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
-
-	"""
-	return url.replace(':', '-').replace('/', '')
+# Import get_name_from_url from utils (defined in utils/utility.py)
+from utils.utility import get_name_from_url
 
 
 

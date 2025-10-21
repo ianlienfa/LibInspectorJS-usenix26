@@ -50,20 +50,8 @@ def get_url_for_webpage(webpage_directory):
 	fd.close()
 	return content
 
-def get_name_from_url(url):
-
-	"""
-	 @param url: eTLD+1 domain name
-	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
-
-	"""
-	return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+# Import get_name_from_url from utils (defined in utils/utility.py)
+from utils.utility import get_name_from_url
 
 
 # def docker_build_hpg(seed_url):
