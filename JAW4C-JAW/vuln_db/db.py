@@ -128,8 +128,7 @@ class PostgresDB:
                     if all:
                         all = [ json.loads(i[0])[0] for i in all ]
                         res += all                      
-                except Exception as e:
-                    breakpoint()
+                except Exception as e:                    
                     raise RuntimeError('error parsing database output', all)
         else:
             query_str = """
