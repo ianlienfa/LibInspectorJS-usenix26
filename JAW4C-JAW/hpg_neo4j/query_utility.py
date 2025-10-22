@@ -932,16 +932,17 @@ def getNodeFromRange(tx, rangeStr):
 
 
 @lru_cache(maxsize=1000)
-def getForwardPDGAliases(tx, node_id, scope_id, depth_limit=10, result_limit=50):
+def getForwardPDGWithTypeMatch(tx, node_id, scope_id, depth_limit=10, result_limit=50):
 	"""
 	Find nodes that are assigned FROM the target node using forward PDG traversal.
+	The only select forward data dependency nodes with the SAME TYPE as the target node.
 
 	Example:
 		a = b
-		c = b  <- target
-		d = c  <- this will be found (forward from c)
+		c = b  <- target node: c
+		d = c  <- this c will be found (forward from c), d will not be found from b
 
-	If asked for alias of 'c', returns 'd' (not 'a' or 'b').
+	If asked for alias of 'c', returns 'c' on the next line (not 'a' or 'b').
 
 	@param tx: neo4j transaction pointer
 	@param node_id: string ID of the node to find forward aliases for
@@ -969,9 +970,76 @@ def getForwardPDGAliases(tx, node_id, scope_id, depth_limit=10, result_limit=50)
 		LIMIT %d
 	"""%(node_id, scope_id, depth_limit, result_limit)
 
-	print("getForwardPDGAliases query", query)
+	print("getForwardPDGWithTypeMatch query", query)
 	results = tx.run(query)
 	return [record['alias'] for record in results]
+
+
+@lru_cache(maxsize=1000)
+def getForwardPDGByAssignment(tx, node_id, scope_id, depth_limit=10, result_limit=50):
+	"""
+	Find nodes that are assigned FROM the target node based on assignment relationships.
+	Selects left-hand side identifiers from assignments where target appears on right side.
+
+	Example:
+		a = b(120)  <- target node: b(120)
+		            <- result: a (left side of assignment)
+		c = a       <- if traversing forward from a
+		            <- result: c (left side of assignment)
+
+	This finds variables that receive the value of the target through assignment,
+	regardless of type matching.
+
+	@param tx: neo4j transaction pointer
+	@param node_id: string ID of the node to find assignments for
+	@param scope_id: string ID of the scope to search within
+	@param depth_limit: maximum PDG traversal depth (default 10)
+	@param result_limit: maximum number of results to return (default 50)
+	@return: list of assigned-to node objects (left-hand side identifiers)
+	"""
+	query = """
+		WITH '%s' AS nodeId, '%s' AS scopeId, %d AS depthLimit, %d AS resultLimit
+
+		// Get the target node and scope
+		MATCH (node:ASTNode {Id: nodeId})
+		MATCH (scope:ASTNode {Id: scopeId})
+
+		// Pattern 1: AssignmentExpression (a = b)
+		// First find assignment expressions that enclose the target node
+		OPTIONAL MATCH (assign1:ASTNode)-[:AST_parentOf {RelationType: 'right'}]->(rightSide1)
+		WHERE assign1.Type = 'AssignmentExpression'
+		AND ((rightSide1)-[:AST_parentOf*0..5]->(node) OR rightSide1.Id = nodeId)
+		AND (scope)-[:AST_parentOf*0..50]->(assign1)
+
+		// Get left side identifier from this assignment
+		OPTIONAL MATCH (assign1)-[:AST_parentOf {RelationType: 'left'}]->(leftId1)
+		// WHERE leftId1.Type = 'Identifier' OR leftId1.Type = 'MemberExpression' // weak filtering
+
+		WITH COLLECT(DISTINCT leftId1) AS assignResults1, node, scope, resultLimit
+
+		// Pattern 2: VariableDeclarator (var a = b)
+		// Find variable declarators that enclose the target node
+		OPTIONAL MATCH (decl2:ASTNode)-[:AST_parentOf {RelationType: 'init'}]->(initSide2)
+		WHERE decl2.Type = 'VariableDeclarator'
+		AND ((initSide2)-[:AST_parentOf*0..5]->(node) OR initSide2.Id = node.Id)
+		AND (scope)-[:AST_parentOf*0..50]->(decl2)
+
+		// Get id side identifier from this declarator
+		OPTIONAL MATCH (decl2)-[:AST_parentOf {RelationType: 'id'}]->(idNode2)
+		// WHERE idNode2.Type = 'Identifier' // weak filtering
+
+		WITH assignResults1 + COLLECT(DISTINCT idNode2) AS allResults
+
+		UNWIND allResults AS result
+		WITH result
+		WHERE result IS NOT NULL
+		RETURN DISTINCT result AS assignedNode
+		LIMIT resultLimit
+	"""%(node_id, scope_id, depth_limit, result_limit)
+
+	print("getForwardPDGByAssignment query", query)
+	results = tx.run(query)
+	return [record['assignedNode'] for record in results]
 
 
 def getIdenticalObjectInScope(tx, node, scope = None):
@@ -1021,6 +1089,8 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		Uses early returns at each filtering stage for efficiency.
 		"""
 		node_id = node['Id']
+		matchingNodes = [node]
+		
 
 		# Stage 1: Cycle detection
 		if alias_visited_has(node_id):
@@ -1032,45 +1102,36 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 		if scope is None:
 			scope = getScopeOf(tx, node)
 
-		# Stage 3: PDG-based alias discovery
-		pdg_aliases = getForwardPDGAliases(tx, node_id, scope['Id'], depth_limit=10, result_limit=50)
+		# Stage 3: PDG-based alias discovery		
+		pdg_aliases = getForwardPDGWithTypeMatch(tx, node_id, scope['Id'], depth_limit=10, result_limit=50)
 		print(f"Stage 3: PDG aliases found: {len(pdg_aliases)}")
-		if not pdg_aliases:
-			return [node]  # Early return: only the node itself
-
-		# Stage 4: Type filtering (fast, avoid expensive getCodeOf calls)
-		type_filtered = [alias for alias in pdg_aliases if alias['Type'] == node['Type']]
-		print(f"Stage 4: Type matches: {len(type_filtered)}")
-		if not type_filtered:
-			return [node]  # Early return: only the node itself
-
-		# Stage 5: Exact code matching (expensive, but filtered list)
-		node_code = getCodeOf(tx, node)
-		exact_aliases = [alias for alias in type_filtered if getCodeOf(tx, alias) == node_code]
-		print(f"Stage 5: Exact code matches: {len(exact_aliases)}")
-		if not exact_aliases:
-			return [node]  # Early return: only the node itself
-
+		# breakpoint()
+		
 		# Stage 6: Sort by range and filter left assignments
-		matchingNodes = [node] + exact_aliases
+		matchingNodes += pdg_aliases
 		matchingNodes.sort(key=lambda x: getRange(x)[0], reverse=True)
-
-		filtered_nodes = []
+		
 		for i, mnode in enumerate(matchingNodes):
 			if isLeftAssignment(tx, mnode, scope) and mnode['Id'] != node_id:
 				print(f"Stage 6: Left assignment at {mnode['Id']}, truncating")
-				filtered_nodes = matchingNodes[:i]
+				matchingNodes = matchingNodes[:i]
 				break
-		else:
-			filtered_nodes = matchingNodes
 
-		print(f"Stage 6: After left assignment filter: {len(filtered_nodes)}")
-		if not filtered_nodes:
+		print(f"Stage 6: After left assignment filter: {len(matchingNodes)}")
+		if not matchingNodes:
 			raise RuntimeError("[getIdenticalObjectInScope] Unexpected: filtered out all nodes including self", node)
 
 		# Stage 7: Recursive propagation through initializers
+
+		# TODO: Apply getForwardPDGByAssignment here for assignment-based alias discovery
+		# Example: a = b(102), where b(102) is target node, should find 'a'
+		# Note: We do NOT filter out left assignments for assignment aliases because:
+		#   a = b(102)  <- we want 'a' in the result
+		#   b(102) = 3  <- this case is filtered by left assignment check, but 'a' is still valid
+		# Note: Does NOT support destructuring assignments like: a, b = c, d
+		# Blocked by: getAssignee function needs to be updated to work with assignment-based aliases
 		new_res = []
-		for matchingNode in filtered_nodes:
+		for matchingNode in matchingNodes:
 			if isDirectInitializer(tx, matchingNode):
 				match_scope = getScopeOf(tx, matchingNode)
 				leftNode = getAssignee(tx, matchingNode, match_scope)
@@ -1079,8 +1140,8 @@ def getIdenticalObjectInScope(tx, node, scope = None):
 					identicalObjs, *_ = getIdenticalObjectInScope(tx, leftNode, match_scope)
 					new_res += identicalObjs
 
-		result = filtered_nodes + new_res
-		print(f"Final result for {node_id}: {len(result)} nodes")
+		result = matchingNodes + new_res
+		print(f"Final result for {node_id}: {result}")
 		return result
 
 	# Execute recursive search

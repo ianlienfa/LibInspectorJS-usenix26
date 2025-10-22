@@ -221,7 +221,7 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 							raise TimeoutError(f"Query execution exceeded 5 minute timeout for {vuln_info}")
 
 						signal.signal(signal.SIGALRM, timeout_handler)
-						signal.alarm(300)  # 5 minutes = 300 seconds
+						signal.alarm(600)  # 5 minutes = 300 seconds
 
 						try:
 							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=300)

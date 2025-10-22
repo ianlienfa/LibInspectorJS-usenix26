@@ -1225,7 +1225,6 @@ def getSinkExpression(tx, vuln_info):
 
 	def pocTagging(node, constructKey, tag):		
 		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")		
-		# breakpoint()
 		identicalObjs, scope = neo4jQueryUtilityModule.getIdenticalObjectInScope(tx, node)
 		# print("identicalObjs of ", getCodeOf(tx, node), [[obj['Id'], obj['Location'], obj['Code']] for obj in identicalObjs])
 		# breakpoint()
@@ -1409,6 +1408,8 @@ def getSinkExpression(tx, vuln_info):
 				raise RuntimeError(f"not implemented case, {props}")
 			return boolean_collector
 			
+		# if node['Id'] == '32086':
+		# 	breakpoint()
 		construct = poc['constructs'][constructKey] 
 		props = getProperties(node, constructKey)
 		if props is None:
@@ -1580,6 +1581,7 @@ def getSinkExpression(tx, vuln_info):
 							matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
 							print(f"matching_res: {matching_res}")
 							print(f"matching_nodes: {matching_nodes}")
+							# breakpoint()
 							if not any(matching_res):
 								print('matching_res', matching_res, 'matching_nodes', matching_nodes)
 								raise EarlyHaltException({"curr_construct": curr_construct})
@@ -1894,32 +1896,11 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 	if MAIN_QUERY_ACTIVE:
 		# different kinds of call expressions (sinks)
 		r1, all_poc_max_levels = getSinkExpression(tx, vuln_info=vuln_info)
-
+		# breakpoint()
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
 		# For cve sink...
-		#### DEBUG
-		r1 = True
-		#### DEBUG
-
 		if r1:
-
-			#### DEBUG (remove comment once done)
-			# for call_expr in r1:
-			# 	n = call_expr['n'] # call expression
-			# 	a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
-			# 	t = call_expr['t'] # top level expression statement
-			# 	request_fn = vuln_info['poc_str'] # temporary
-			#### DEBUG
-
-			# DEBUG
-			t = get_ast_topmost(tx, get_node_by_id(tx, 32163))
-			n = get_ast_parent(tx, get_node_by_id(tx, 32163))
-			a = get_node_by_id(tx, 32163)
-			request_fn = vuln_info['poc_str']
-			# DEBUG
-
-
 			wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
 			logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
 			top_expression_code = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)[0]
