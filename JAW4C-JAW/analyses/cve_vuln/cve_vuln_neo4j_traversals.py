@@ -306,7 +306,7 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 					logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
 					continue
 
-				dockerModule.create_neo4j_container(container_name, webapp_folder_name)
+				dockerModule.create_neo4j_container(container_name, webapp_folder_name, each_webpage)
 				logger.info('waiting 5 seconds for the neo4j container to be ready.')
 				time.sleep(5)
 
@@ -316,7 +316,7 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 				#### To avoid the neo4j admin <-> neo4j user racing for the same lock, recreate the whole stuff on the same volume
 				dockerModule.stop_neo4j_container(container_name, cleanup=False)
 				dockerModule.remove_neo4j_container(container_name)
-				dockerModule.create_neo4j_container(container_name, webapp_folder_name)
+				dockerModule.create_neo4j_container(container_name, webapp_folder_name, each_webpage)
 				####
 
 				logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')				

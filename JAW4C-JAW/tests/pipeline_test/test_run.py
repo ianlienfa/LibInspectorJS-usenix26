@@ -33,6 +33,9 @@ Examples:
 
     # Keep Neo4j docker container alive for debugging
     python test_run.py --action=analysis --test=integration_test/taint_analysis/test_xss --keep-alive
+
+    # Use other config
+    python3 test_run.py --action=analysis --test=integration_test/static_analysis/test_jquery_CVE-2020-7656 --config=config_docker.yaml
 """
 
 import sys
@@ -194,11 +197,14 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
         config['crawler']['lib_detection'] = {}
     config['crawler']['lib_detection']['enable'] = 'lib_detection' in phases_to_run
 
-    # Remove proxy from headless browsers
-    if config['crawler'].get('playwright', {}).get('proxy', {}):
+    # Remove proxy from headless browsers for local testing
+    if config.get('crawler', {}).get('playwright', {}).get('proxy'):
         del config['crawler']['playwright']['proxy']
-    if config['crawler'].get('puppeteer', {}).get('proxy-server', {}):
+    if config.get('crawler', {}).get('puppeteer', {}).get('proxy-server'):
         del config['crawler']['puppeteer']['proxy-server']
+    if config.get('lib_detection', {}).get('detector', {}).get('proxy-server'):
+        del config['lib_detection']['detector']['proxy-server']
+
 
     # Set keep_docker_alive option
     if 'staticpass' not in config:

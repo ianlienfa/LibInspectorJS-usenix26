@@ -22,7 +22,26 @@ COPY JAW4C-JAW/engine/package.json ./engine/
 COPY JAW4C-JAW/engine/lib/jaw/dom-points-to/package.json ./engine/lib/jaw/dom-points-to/
 COPY JAW4C-JAW/engine/lib/jaw/normalization/package.json ./engine/lib/jaw/normalization/
 COPY JAW4C-JAW/driver/package.json ./driver/
-
+# Copy only package.json files from pipeline tests for dependency installation
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/package.json ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/package.json ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/package.json ./tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/package.json ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/package.json ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/package.json ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/
+# Copy test_prep.py and other essential test files
+COPY JAW4C-JAW/tests/pipeline_test/test_prep.py ./tests/pipeline_test/
+COPY JAW4C-JAW/tests/pipeline_test/test_phases.py ./tests/pipeline_test/
+COPY JAW4C-JAW/tests/pipeline_test/test_run.py ./tests/pipeline_test/
 
 # Install Python dependencies
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
@@ -37,6 +56,8 @@ RUN (cd engine && npm install)
 RUN (cd engine/lib/jaw/dom-points-to && npm install)
 RUN (cd engine/lib/jaw/normalization && npm install)
 RUN (cd driver && npm install)
+RUN (cd /JAW4C/JAW4C-JAW/tests/pipeline_test && python3 test_prep.py) 
+
 
 # Copy aliasing source and Makefile for compilation
 COPY JAW4C-JAW/engine/lib/jaw/aliasing/ ./engine/lib/jaw/aliasing/
@@ -72,21 +93,36 @@ RUN (cd engine/lib/jaw/aliasing && make)
 # Final runtime stage
 FROM ubuntu:24.04 as runtime
 
-# Install only runtime dependencies
+# Install only runtime dependencies including Docker
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip libgeos-dev pigz libgtk-3-0 openjdk-11-jre-headless && \
+    apt-get install -y python3 python3-pip libgeos-dev pigz libgtk-3-0 openjdk-11-jre-headless ca-certificates gnupg lsb-release && \
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y nodejs npm && node --version && \
+    npm --version && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli
 
-# Set environment variables
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
-ENV INEO_HOME=/JAW4C/JAW4C-JAW/ineo
-ENV PATH=$INEO_HOME/bin:$PATH
 
 # Copy from builder stage
 COPY --from=builder /JAW4C/JAW4C-JAW /JAW4C/JAW4C-JAW
 COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
+
+# Install chromium
+RUN cd /JAW4C/JAW4C-JAW/crawler && npx playwright install && npx playwright install-deps
+RUN cd /JAW4C/JAW4C-JAW/driver && npx puppeteer browsers install chrome
+
+# Configure Docker group and permissions for DinD
+RUN groupadd -f docker && \
+    usermod -aG docker root
+
+# Post-clean up
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV INEO_HOME=/JAW4C/JAW4C-JAW/ineo
+ENV PATH=$INEO_HOME/bin:$PATH
 
 WORKDIR /JAW4C/JAW4C-JAW

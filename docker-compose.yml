@@ -1,13 +1,48 @@
+networks:
+  jaw-network:
+    name: jaw4c-network
+
 services:
   logic:
-    # build: .
+    build: .
     image: jaw-logic
     container_name: jaw4c-logic    
     volumes:
-      - ./JAW4C-JAW:/JAW4C/JAW4C-JAW
+      - /home/ian/JAW4C:/JAW4C
+      - /home/ian/nms/archives/to_share/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      # Docker socket for Docker-in-Docker (DinD)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # node_modules (anonymous volumes for faster rebuilds)
+      - /JAW4C/JAW4C-JAW/crawler/node_modules
+      - /JAW4C/JAW4C-JAW/dynamic/node_modules
+      - /JAW4C/JAW4C-JAW/engine/node_modules
+      - /JAW4C/JAW4C-JAW/engine/lib/jaw/dom-points-to
+      - /JAW4C/JAW4C-JAW/engine/lib/jaw/normalization
+      - /JAW4C/JAW4C-JAW/driver/node_modules      
+      - /JAW4C/JAW4C-JAW/analyses/cve_vuln/node_modules
+      - /JAW4C/JAW4C-JAW/engine/lib/jaw/aliasing
+      # test node_modules (anonymous volumes for faster test rebuilds)
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test
     environment:
       HTTP_PROXY: http://proxy:8002
       HTTPS_PROXY: http://proxy:8002
+    networks:
+      - jaw-network
     depends_on:
       - db
       - proxy
@@ -17,6 +52,8 @@ services:
   db:
     build: ./vuln_db_llm
     container_name: jaw4c-vulndb
+    networks:
+      - jaw-network
     environment:
       POSTGRES_USER: vulndb_annotated
       POSTGRES_PASSWORD: vulndb_pwd
@@ -28,8 +65,10 @@ services:
   proxy:
     build: ./JAW4C-WebArchive
     container_name: jaw4c-webarchive
+    networks:
+      - jaw-network
     volumes:
-      - ./JAW4C-WebArchive/archive/archive-70:/proxy/archive-70
+      - /home/ian/nms/archives/to_share:/proxy/archive-70:ro      
         #ports:
         # - "8002:8002"
     environment:

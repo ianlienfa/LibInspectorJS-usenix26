@@ -344,11 +344,30 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			# Library detection
 			if lib_detector_enable and lib_detector_lift:
 				try:
-					lib_detection_api.lib_detection_single_url(url)
+					# Extract library detection arguments from config
+					detector_config = config.get("crawler", {}).get("lib_detection", {}).get("detector", {})
+					proxy_server_path = detector_config.get("proxy-server", "http://localhost:8002")
+					ptv_extension_path = detector_config.get("load-extension", "/JAW4C/JAW4C-PTV")
+					ptv_original_extension_path = detector_config.get("load-extension-original", "/JAW4C/JAW4C-PTV-Original")
+					headless = config.get("crawler", {}).get("browser", {}).get("headless", True)
+					ignore_cert_errors = detector_config.get("ignore-certificate-errors", True)
+					disk_cache_dir = detector_config.get("disk-cache-dir", "/dev/null")
+					disk_cache_size = detector_config.get("disk-cache-size", 1)
+					
+					lib_detection_api.lib_detection_single_url(
+						url, 
+						proxy_server_path=proxy_server_path,
+						ptv_extension_path=ptv_extension_path, 
+						ptv_original_extension_path=ptv_original_extension_path,
+						headless=headless,
+						ignore_cert_errors=ignore_cert_errors,
+						disk_cache_dir=disk_cache_dir,
+						disk_cache_size=disk_cache_size
+					)
 				except Exception as e:
 					LOGGER.error(f"Library detection failed for {url}: {e}")
 					continue
-			LOGGER.info("successfully detected libraries on %s."%(url))
+				LOGGER.info("successfully detected libraries on %s."%(url))
 
 			# Detection result and DB querying
 			vuln_list = [] # we often time only do query once

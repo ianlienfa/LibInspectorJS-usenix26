@@ -42,7 +42,7 @@ PROCESS_USER_ID = os.getuid()
 PROCESS_GROUP_ID = os.getgid()
 
 
-def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_home=VOLUME_HOME):
+def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None, volume_home=VOLUME_HOME):
 	"""
 	data_home: should be the path to the current url directory we're working on
 	"""
@@ -67,11 +67,11 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
 	# 	-e NEO4J_dbms_security_procedures_whitelist=apoc.coll.\\\*,apoc.load.\\\* \
 	command="""docker run \
     --name {0} \
-    -p{5}:7474 -p{6}:7687 \
+    --network jaw4c-network \
     -d \
     -v {1}/{0}/neo4j/data:/data \
     -v {1}/{0}/neo4j/logs:/logs \
-    -v {4}/{7}:/var/lib/neo4j/import/{8} \
+    -v {4}/{5}/{6}:/var/lib/neo4j/import/{6} \
     -v {1}/{0}/neo4j/plugins:/plugins \
 	-v {1}/{0}/neo4j/conf:/conf \
     -u neo4j:neo4j \
@@ -83,11 +83,40 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     arm64v8/neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, weburl_suffix, webapp_name)
+	"""
+	
+	# Format the command with conditional import path
+	if weburl_suffix and webapp_name:
+		command = command.format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, weburl_suffix, webapp_name)
+	else:
+		# For backward compatibility, create command without import volume
+		command_no_import = """docker run \
+    --name {0} \
+    --network jaw4c-network \
+    -d \
+    -v {1}/{0}/neo4j/data:/data \
+    -v {1}/{0}/neo4j/logs:/logs \
+    -v {1}/{0}/neo4j/plugins:/plugins \
+	-v {1}/{0}/neo4j/conf:/conf \
+    -u neo4j:neo4j \
+    -e NEO4J_apoc_export_file_enabled=true \
+    -e NEO4J_apoc_import_file_enabled=true \
+    -e NEO4J_apoc_import_file_use__neo4j__config=true \
+    -e NEO4JLABS_PLUGINS='["apoc"]' \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
+    -e PYTHONUNBUFFERED=1 \
+    --env NEO4J_AUTH={2}/{3} \
+    arm64v8/neo4j:4.4""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS)
+		command = command_no_import
 	# Note: pass the analyzer outputs folder as the import directory of neo4j
 
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('Docker container %s is starting.'%str(container_name))
+	
+	# Update connection strings to use container name instead of localhost
+	constants.NEO4J_CONN_HTTP_STRING = f"http://{container_name}:7474"
+	constants.NEO4J_CONN_STRING = f"bolt://{container_name}:7687"
+	constants.NEOMODEL_NEO4J_CONN_STRING = f"bolt://{constants.NEO4J_USER}:{constants.NEO4J_PASS}@{container_name}:7687"
 
 	command	= "docker exec %s 'rm -f /var/lib/neo4j/data/databases/store_lock'"%(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
@@ -129,7 +158,7 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 	# 	-e NEO4J_dbms_security_procedures_whitelist=apoc.coll.\\\*,apoc.load.\\\* \
 	command="""docker run \
     --name {0} \
-    -p{5}:7474 -p{6}:7687 \
+    --network jaw4c-network \
     -d \
     -v {1}/{0}/neo4j/data:/data \
     -v {1}/{0}/neo4j/logs:/logs \
@@ -145,11 +174,16 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     arm64v8/neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, webapp_name)
+	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, webapp_name)
 	# Note: For unit tests, data_import_path is the full path to the test directory
 
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('Docker container %s is starting.'%str(container_name))
+	
+	# Update connection strings to use container name instead of localhost
+	constants.NEO4J_CONN_HTTP_STRING = f"http://{container_name}:7474"
+	constants.NEO4J_CONN_STRING = f"bolt://{container_name}:7687"
+	constants.NEOMODEL_NEO4J_CONN_STRING = f"bolt://{constants.NEO4J_USER}:{constants.NEO4J_PASS}@{container_name}:7687"
 
 	command	= "docker exec %s 'rm -f /var/lib/neo4j/data/databases/store_lock'"%(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)

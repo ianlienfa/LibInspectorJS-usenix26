@@ -4,7 +4,6 @@
  *   			third-party imports
  * ------------------------------------------------
 **/
-const puppeteer = require('puppeteer');
 const { chromium } = require('playwright');
 const fs = require('fs');
 const pathModule = require('path');
