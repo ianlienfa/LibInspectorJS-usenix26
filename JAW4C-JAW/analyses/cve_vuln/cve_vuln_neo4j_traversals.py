@@ -171,11 +171,12 @@ def build_hpg(container_name, webpage):
 	return container_name
 
 
-def analyze_hpg(seed_url, container_name, vuln_list):
-	"""	
+def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300):
+	"""
 	@param {string} seed_url
+	@param {int} container_transaction_timeout: timeout in seconds for each transaction (default: 300)
 	@description: imports an HPG inside a neo4j docker instance and runs traversals over it.
-	
+
 	"""
 	webapp_folder_name = get_name_from_url(seed_url)
 	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
@@ -216,15 +217,15 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						logger.info(f"executing vuln: {vuln_info}")
 						# breakpoint()
 
-						# Set up 5-minute timeout
+						# Set up timeout
 						def timeout_handler(signum, frame):
-							raise TimeoutError(f"Query execution exceeded 5 minute timeout for {vuln_info}")
+							raise TimeoutError(f"Query execution exceeded {container_transaction_timeout} second timeout for {vuln_info}")
 
 						signal.signal(signal.SIGALRM, timeout_handler)
-						signal.alarm(600)  # 5 minutes = 300 seconds
+						signal.alarm(container_transaction_timeout * 2)  # Set alarm to 2x conn_timeout
 
 						try:
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=300)
+							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=container_transaction_timeout)
 						finally:
 							signal.alarm(0)  # Cancel the alarm
 
