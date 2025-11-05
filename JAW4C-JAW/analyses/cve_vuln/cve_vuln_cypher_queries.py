@@ -1913,6 +1913,8 @@ def getSinkByTagTainting(tx, vuln_info):
 			@param {dict} nodeid_to_matches: mapping of node ids to their matched values
 			@param {list} out_values: list to collect output values
 			@param {str} context_scope: scope context for variable naming
+			@invariant: this should always return the closest node between currASTNode and topMost and eventually reach topMost
+			@invariant: when currASTNode == topMost, the propagation recurse back to nodeTagTainting
 			@return trace
 			"""
 			if currASTNode['Id'] == topMost['Id']:
@@ -1923,32 +1925,105 @@ def getSinkByTagTainting(tx, vuln_info):
 					case 'BlockStatement':
 						# the parameter 'varname' is a function argument
 						# foo(a, a.b, '1', {'a': 1})
-						# Here: foo(a, b, c, d)
-
-						func_def_node = get_function_def_of_block_stmt(tx, currASTNode) # check if func def has a varname parameter 
-						print("func_def_node", func_def_node, "at segment", neo4jQueryUtilityModule.getCodeOf(tx, func_def_node))
-						if func_def_node and func_def_node['Type'] in ['FunctionExpression', 'FunctionDeclaration', 'ArrowFunctionExpression']:
-
-							match_signature = check_if_function_has_param(tx, varname, func_def_node)
-							# TODO: identify the edge match with the param's name and see if match
+						# Here: foo(a, b, c, d), d calls taintThroughEdgeProperty, finds the FunctionDef, 
+						# then calls taintPropTilASTTopmost with the argument node
+						nodeTagTainting(tx, node, currASTNode, nodeid_to_matches, out_values, context_scope)
 					case 'ReturnStatement':
+						# TODO: improve function-callsite search efficiency through knowledge database
 						# the PDG match is at a return statement
-						# TODO: Identify the callexpression that calls this function and propagate taint to the return value
+						# Identify the callexpression that calls this function and propagate taint to the return value
 						##	foo = ()=>{return a}
 						##	bar = foo()
-						#   // bar now has tainted tag from a 
+						#   // bar now has tainted tag from a
 						##
+						# 1. Get function definition containing this return statement
+						# 2. Identify call sites of this function in visited_set
+						# 3. For each call site, propagate taint to the variable assigned from the call
+
+						# TODO: wrap this into a helper function
+						# Find the function definition containing this return statement
+						func_def_query = """
+						MATCH (ret_stmt {Id: '%s'})<-[:AST_parentOf*]-(func_def)
+						WHERE func_def.Type IN ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
+						RETURN func_def
+						ORDER BY length(path) ASC
+						LIMIT 1
+						""" % (currASTNode['Id'])
+
+						func_def_results = tx.run(func_def_query)
+						func_def_node = None
+						for record in func_def_results:
+							func_def_node = record['func_def']
+							break
+
+						if func_def_node is None:
+							print(f"Warning: Could not find function definition for ReturnStatement {currASTNode['Id']}")
+						else:
+							print(f"Found function definition for return statement: {neo4jQueryUtilityModule.getCodeOf(tx, func_def_node)[:100]}")
+
+							# TODO: Simplfy this through knowledge database
+							# Find ALL call sites that call this function
+							call_sites_query = """
+							MATCH (func_def {Id: '%s'})<-[:CG_parentOf]-(call_expr {Type: 'CallExpression'})
+							RETURN call_expr
+							""" % (func_def_node['Id'])
+
+							call_sites_results = tx.run(call_sites_query)
+
+							for call_record in call_sites_results:
+								call_expr = call_record['call_expr']
+
+								# FILTER: Only propagate if this call site is in visited_set (current taint path)
+								if call_expr['Id'] not in visited_set:
+									print(f"Skipping call site {call_expr['Id']} - not in current taint path (visited_set)")
+									continue
+
+								print(f"Propagating taint to call site in visited_set: {neo4jQueryUtilityModule.getCodeOf(tx, call_expr)[:100]}")
+
+								# Find what receives the return value
+								# Patterns: bar = foo(), obj.prop = foo(), anotherFunc(foo())
+								receiver_query = """
+								MATCH (call_expr {Id: '%s'})<-[:AST_parentOf]-(parent)
+								WHERE parent.Type IN ['VariableDeclarator', 'AssignmentExpression', 'CallExpression']
+								RETURN parent, parent.Type as parent_type
+								""" % (call_expr['Id'])
+
+								receiver_results = tx.run(receiver_query)
+
+								for receiver_record in receiver_results:
+									parent = receiver_record['parent']
+									parent_type = receiver_record['parent_type']
+
+									if parent_type == 'VariableDeclarator':
+										# Pattern: bar = foo()
+										lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, parent, 'id')
+										if lhs_node:
+											print(f"  Tainting variable declarator LHS: {neo4jQueryUtilityModule.getCodeOf(tx, lhs_node)}")
+											nodeTagTainting(tx, lhs_node, lhs_node, nodeid_to_matches, out_values, context_scope)
+
+									elif parent_type == 'AssignmentExpression':
+										# Pattern: a = foo() or obj.prop = foo()
+										lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, parent, 'left')
+										if lhs_node:
+											print(f"  Tainting assignment LHS: {neo4jQueryUtilityModule.getCodeOf(tx, lhs_node)}")
+											nodeTagTainting(tx, lhs_node, lhs_node, nodeid_to_matches, out_values, context_scope)
+
+									elif parent_type == 'CallExpression':
+										# Pattern: anotherFunc(foo()) - the return value is an argument
+										# In this case, the call expression itself is tainted
+										print(f"  Return value used as argument in: {neo4jQueryUtilityModule.getCodeOf(tx, parent)[:100]}")
+										# The call_expr is already in visited_set, taint will propagate through normal flow
+										pass
 
 					case 'ExpressionStatement':
 						# the PDG match is at an expression statement
 						# Check if the node here is the lhs of the expression statement, if so, propagate taint by calling nodeTagTainting
 						# ex: a = b + c
-						# TODO: handle assignment expression
-
+						nodeTagTainting(tx, node, currASTNode, nodeid_to_matches, out_values, context_scope)
 					case _:
-						# Could be all kinds of CFG nodes here
+						# Could be all kinds of CFG nodes here					
 						raise NotImplementedError("taintThroughEdgeProperty not implemented for node type: " + iteratorNode['Type'])
-						continue
+						
 			else:   
 				# Query for closest AssignmentExpression or CallExpression
 				# ex: const test1 = htmlResolver((()=>{a = "test"; return a; })());
@@ -1973,10 +2048,11 @@ def getSinkByTagTainting(tx, vuln_info):
 
 				# This should at most have one record due to the double limit 1
 				for record in assignexpr_callexpr_result:
-					closest_node = record['closest_node']
+					closest_node = record['closest_node']					
 					if record['Type'] == 'AssignmentExpression':
-						# get assignment lhs, set that as node, set currentASTNode as currASTNode
-						# TODO: implement tainting through AssignmentExpression
+						# get left hand side
+						lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, closest_node, 'left')
+						taintPropTilASTTopmost(lhs_node, closest_node, topMost, nodeid_to_matches, out_values, context_scope)
 
 					elif record['Type'] == 'CallExpression':
 						callExpressionNode = closest_node
@@ -1995,11 +2071,10 @@ def getSinkByTagTainting(tx, vuln_info):
 					else:
 						# not implemented error
 						raise NotImplementedError("taintPropTilASTTopmost not implemented for node type: " + record['Type'])
-				# keep propagating upwards
+				# If no AssignmentExpression or CallExpression found, keep propagating upwards				
 				# with this set up, the eventual varname being used with PDG edge is always the left most varname
 				taintPropTilASTTopmost(node, topMost, topMost, nodeid_to_matches, out_values, context_scope)
-						
-					
+											
 
 		def _handle_call_definition_taint(tx, node, callExpressionNode, argname, taintTag, nodeid_to_matches, out_values, context_scope=''):
 			"""
@@ -2121,7 +2196,7 @@ def getSinkByTagTainting(tx, vuln_info):
 		@lru_cache(maxsize=1000)
 		def nodeTagTainting(node, contextNode, taintTag):
 			"""
-			Tag a node with tainting information.
+			Tag a PDG node with tainting information.
 			@param {object} node: the node to tag
 			@param {str} contextNode: the context node for PDG querying
 			@param {str} taintTag: the construct key in the POC
