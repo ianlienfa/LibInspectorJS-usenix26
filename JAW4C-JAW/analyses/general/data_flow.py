@@ -74,10 +74,10 @@ def make_hashable_decorator(func):
 		cache_info_after = func.cache_info()
 
 		# Check if it was a cache hit (hits increased)
-		if cache_info_after.hits > cache_info_before.hits:
-			print(f"[Cache HIT] {func.__name__}(varname={processed_args[1] if len(processed_args) > 1 else '?'}, node_id={processed_args[2] if len(processed_args) > 2 else '?'})")
-		else:
-			print(f"[Cache MISS] {func.__name__}(varname={processed_args[1] if len(processed_args) > 1 else '?'}, node_id={processed_args[2] if len(processed_args) > 2 else '?'}) - Cache: {cache_info_after}")
+		# if cache_info_after.hits > cache_info_before.hits:
+		# 	print(f"[Cache HIT] {func.__name__}(varname={processed_args[1] if len(processed_args) > 1 else '?'}, node_id={processed_args[2] if len(processed_args) > 2 else '?'})")
+		# else:
+		# 	print(f"[Cache MISS] {func.__name__}(varname={processed_args[1] if len(processed_args) > 1 else '?'}, node_id={processed_args[2] if len(processed_args) > 2 else '?'}) - Cache: {cache_info_after}")
 
 		return result
 

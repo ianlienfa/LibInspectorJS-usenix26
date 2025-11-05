@@ -147,7 +147,6 @@ def get_ast_topmost(tx, node):
 	@param {neo4j-node} node
 	@return topmost parent of an AST node
 	"""
-
 	CFG_LEVEL_STATEMENTS = get_cfg_level_nodes_for_statements()
 
 	if "Type" in node:
@@ -163,6 +162,7 @@ def get_ast_topmost(tx, node):
 	done = False
 	iterator = node
 	while not done:
+	
 		parent = get_ast_parent(tx, iterator)
 		if parent is None:
 			done = True
