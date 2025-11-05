@@ -436,7 +436,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 				# Query on vulnerabilities
 				if container_name:
 					for try_attempts in range(2):
-						try:
+						try:							
+							# vuln_list element: {"http://localhost:3000/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656": [{"mod": true, "libname": "jquery", "location": "692", "version": "3.4.0", "vuln": [{"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<options>alert('XSS')</options>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": false, "payload": "<img src=x onerror=alert(1)>", "exported": true, "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": 0.8, "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<option><style></style><script>alert('XSS')</script></option>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}]}]}
 							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
 							break
 						except Exception as e:

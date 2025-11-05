@@ -36,6 +36,51 @@ const util = require('util');
 var escodegen = require('escodegen');
 
 /**
+ * Helper: Build full dotted name for a MemberExpression if statically resolvable.
+ * e.g. for a.b.c returns 'a.b.c'. Returns null for computed properties or dynamic parts.
+ * @param {Object} node AST node (Identifier or MemberExpression)
+ * @returns {string|null}
+ */
+function getMemberExpressionFullName(node, lv) {
+    'use strict';
+    if (lv === undefined) lv = 0;
+    if (!node) return null;
+    if (node.type === 'Identifier') return node.name;
+    if (node.type === 'MemberExpression' && node.computed !== true) {
+        if (lv > 5) return null; // prevent too deep recursion
+        var objectName = getMemberExpressionFullName(node.object, lv+1);
+        if (!objectName) return null;
+        var prop = null;
+        if (node.property && node.property.type === 'Identifier') prop = node.property.name;
+        else if (node.property && node.property.type === 'Literal') prop = String(node.property.value);
+        if (!prop) return null;
+        return objectName + '.' + prop;
+    }
+    return null;
+}
+
+/**
+ * Helper: ensure a Var exists in the provided scope for the given dotted name.
+ * Adds a local variable if not present and returns the Var object (or null on failure).
+ * @param {Scope} scope
+ * @param {string} name
+ * @returns {Var|null}
+ */
+function ensureVarInScope(scope, name) {
+    'use strict';
+    if (!scope || typeof name !== 'string' || name.length === 0) return null;
+    var v = scope.getVariable(name);
+    if (v) return v;
+    try {
+        // addLocalVariable will only add if not present
+        scope.addLocalVariable(name);
+        return scope.getLocalVariable(name);
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
  * DefUseAnalyzer
  * @constructor
  */
@@ -457,25 +502,46 @@ DefUseAnalyzer.prototype.findKILLSet = function (cfgNode) {
                 FunctionDeclaration: function () {},
                 FunctionExpression: function () {},
                 AssignmentExpression: function (node, recurse) {
-                    killedVarDef = Set.union(
-                        killedVarDef,
-                        findVariableAndItsDefinitionsFromASet(
-                            reachIns,
-                            (node.left.type === 'MemberExpression') ? currentScope.getVariable(node.left.object.name) : currentScope.getVariable(node.left.name)
-                        )
-                    );
+                    if (node.left.type === 'MemberExpression') {
+                        // kill base variable defs (e.g., `a` in `a.b = ...`) for backward compatibility
+                        var baseVar = (node.left.object && node.left.object.type === 'Identifier') ? currentScope.getVariable(node.left.object.name) : null;
+                        if (baseVar) {
+                            killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, baseVar));
+                        }
+                        // also kill full property var defs (e.g., `a.b.c`) if present
+                        var fullName = getMemberExpressionFullName(node.left);
+                        if (fullName) {
+                            var propVar = currentScope.getVariable(fullName);
+                            if (propVar) {
+                                killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, propVar));
+                            }
+                        }
+                    } else {
+                        killedVarDef = Set.union(
+                            killedVarDef,
+                            findVariableAndItsDefinitionsFromASet(reachIns, currentScope.getVariable(node.left.name))
+                        );
+                    }
                     if (node.right.type === 'AssignmentExpression' || node.right.type === 'UpdateExpression') {/// Sequential assignment
                         recurse(node.right);
                     }
                 },
                 UpdateExpression: function (node) {
-                    killedVarDef = Set.union(
-                        killedVarDef,
-                        findVariableAndItsDefinitionsFromASet(
-                            reachIns,
-                            currentScope.getVariable(node.argument.name)
-                        )
-                    );
+                    if (node.argument.type === 'MemberExpression') {
+                        var fullName = getMemberExpressionFullName(node.argument);
+                        if (fullName) {
+                            var propVar = currentScope.getVariable(fullName);
+                            if (propVar) {
+                                killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, propVar));
+                            }
+                        }
+                        var baseVar = (node.argument.object && node.argument.object.type === 'Identifier') ? currentScope.getVariable(node.argument.object.name) : null;
+                        if (baseVar) {
+                            killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, baseVar));
+                        }
+                    } else {
+                        killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, currentScope.getVariable(node.argument.name)));
+                    }
                 },
                 SwitchCase: function () {},
                 VariableDeclaration: function (node, recurse) {
@@ -484,13 +550,8 @@ DefUseAnalyzer.prototype.findKILLSet = function (cfgNode) {
                     };
                 },
                 VariableDeclarator: function (node) {
-                    killedVarDef = Set.union(
-                        killedVarDef,
-                        findVariableAndItsDefinitionsFromASet(
-                            reachIns,
-                            currentScope.getVariable(node.id.name)
-                        )
-                    );
+                    // variable declarator id is usually an Identifier; treat normally
+                    killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, currentScope.getVariable(node.id.name)));
                 }
             });
         }
@@ -548,7 +609,13 @@ DefUseAnalyzer.prototype.findGENSet = function (cfgNode) {
                 }
             },
             AssignmentExpression: function (node, recurse) {
-                var definedVar = (node.left.type === 'MemberExpression') ? currentScope.getVariable(node.left.object.name) : currentScope.getVariable(node.left.name);
+                var definedVar = null;
+                if (node.left.type === 'MemberExpression') {
+                    // keep base variable for backward compatibility (e.g., `a` in `a.b = ...`)
+                    definedVar = (node.left.object && node.left.object.type === 'Identifier') ? currentScope.getVariable(node.left.object.name) : null;
+                } else {
+                    definedVar = currentScope.getVariable(node.left.name);
+                }
                 if (!!definedVar) {
                     if (node.right.type === 'FunctionExpression') {
                         generatedVarDef.add(varDefFactory.create(definedVar, defFactory.createFunctionDef(cfgNode, node.right.range)));
@@ -559,11 +626,39 @@ DefUseAnalyzer.prototype.findGENSet = function (cfgNode) {
                         }
                     }
                 }
+                // Also create a VarDef for the full dotted property (e.g., `a.b.c`) when possible
+                if (node.left.type === 'MemberExpression') {
+                    var fullName = getMemberExpressionFullName(node.left);
+                    if (fullName) {
+                        var propVar = ensureVarInScope(currentScope, fullName);
+                        if (propVar) {
+                            if (node.right.type === 'FunctionExpression') {
+                                generatedVarDef.add(varDefFactory.create(propVar, defFactory.createFunctionDef(cfgNode, node.right.range)));
+                            } else {
+                                generatedVarDef.add(varDefFactory.create(propVar, defFactory.createLiteralDef(cfgNode, node.right.range)));
+                            }
+                        }
+                    }
+                }
             },
             UpdateExpression: function (node) {
-                var definedVar = currentScope.getVariable(node.argument.name);
-                if (!!definedVar) {
-                    generatedVarDef.add(varDefFactory.create(definedVar, defFactory.createLiteralDef(cfgNode, node.range)));
+                if (node.argument.type === 'MemberExpression') {
+                    var fullName = getMemberExpressionFullName(node.argument);
+                    if (fullName) {
+                        var propVar = ensureVarInScope(currentScope, fullName);
+                        if (propVar) {
+                            generatedVarDef.add(varDefFactory.create(propVar, defFactory.createLiteralDef(cfgNode, node.range)));
+                        }
+                    }
+                    var baseVar = (node.argument.object && node.argument.object.type === 'Identifier') ? currentScope.getVariable(node.argument.object.name) : null;
+                    if (baseVar) {
+                        generatedVarDef.add(varDefFactory.create(baseVar, defFactory.createLiteralDef(cfgNode, node.range)));
+                    }
+                } else {
+                    var definedVar = currentScope.getVariable(node.argument.name);
+                    if (!!definedVar) {
+                        generatedVarDef.add(varDefFactory.create(definedVar, defFactory.createLiteralDef(cfgNode, node.range)));
+                    }
                 }
             },
             CallExpression: function (node) {
@@ -695,7 +790,20 @@ DefUseAnalyzer.prototype.findUSESet = function (cfgNode) {
             recurse(node.alternate);
         },
         MemberExpression: function (node, recurse) {
+            // recurse into the object part (e.g., for a.b.c recurse into a.b)
             recurse(node.object);
+            // Also treat the full dotted property as a used variable when statically resolvable
+            var fullName = getMemberExpressionFullName(node);
+            if (fullName) {
+                var usedVar = currentScope.getVariable(fullName);
+                if (!!usedVar) {
+                    if (!isPUse) {
+                        cuseVars.add(usedVar);
+                    } else {
+                        puseVars.add(usedVar);
+                    }
+                }
+            }
         },
         ReturnStatement: function(node, recurse){
             recurse(node.argument);

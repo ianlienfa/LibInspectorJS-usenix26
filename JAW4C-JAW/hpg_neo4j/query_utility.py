@@ -26,6 +26,8 @@
 
 """
 from functools import lru_cache
+from analyses.general import data_flow
+import constants as constantsModule
 
 # -------------------------------------------------------------------------- #
 #		Cycle Detection for Alias Analysis
@@ -58,6 +60,13 @@ def alias_visited_clear():
 	global alias_visited_set
 	alias_visited_set = set()
 
+def alias_visited_remove(node_id):
+	"""
+	Unmark a node ID as visited in current alias analysis query.
+	Used when backtracking in recursion.
+	@param node_id: string node ID
+	"""
+	alias_visited_set.remove(node_id)
 # -------------------------------------------------------------------------- #
 #		Neo4j Utility Queries
 # -------------------------------------------------------------------------- #
@@ -556,7 +565,7 @@ def getChildsOf(tx, node, relation_type=''):
 	@param {pointer} tx
 	@param {node object} node
 	@param {string} relation_type
-	@return {dict}: wrapperNode= a dict containing the parse tree with its root set to input node, format: {'node': node, 'children': [child_node1, child_node2, ...]} 
+	@return {dict}: wrapperNode= a dict containing the parse tree with its root set to input node, format: {'node': node, 'children': [child_node1, child_node2, ...]}
 	"""
 
 	outNode =  {'node': node, 'children': []} # wrapper around neo4j node
@@ -576,6 +585,34 @@ def getChildsOf(tx, node, relation_type=''):
 		for childNode in childNodes:
 			outNode['children'].append(getChildsOf(tx, childNode))
 	return outNode
+
+
+def getChildByRelationType(tx, node, relation_type):
+	"""
+	Get a single child node by AST relation type.
+	This is the reverse of get_ast_parent for a specific relation type.
+
+	@param {pointer} tx: neo4j transaction pointer
+	@param {node object} node: parent node
+	@param {string} relation_type: the RelationType of the AST_parentOf edge (e.g., 'body', 'params', 'init')
+	@return {node object or None}: the child node with the specified relation type, or None if not found
+	@example:
+		# Get the body of a function definition
+		func_body = getChildByRelationType(tx, func_def_node, 'body')
+		# Get the init value of a variable declarator
+		init_node = getChildByRelationType(tx, var_declarator, 'init')
+	"""
+	query = """
+	MATCH (parent {Id: '%s'})-[:AST_parentOf {RelationType: '%s'}]->(child)
+	RETURN child
+	LIMIT 1
+	""" % (node['Id'], relation_type)
+
+	results = tx.run(query)
+	for record in results:
+		return record['child']
+
+	return None
 
 
 @lru_cache(maxsize=128, typed=False)
@@ -1040,6 +1077,247 @@ def getForwardPDGByAssignment(tx, node_id, scope_id, depth_limit=10, result_limi
 	print("getForwardPDGByAssignment query", query)
 	results = tx.run(query)
 	return [record['assignedNode'] for record in results]
+
+
+# def get_alias_nodes(tx, node, context_node, context_scope='', depth=0, max_depth=10):
+# 	"""
+# 	Find alias nodes by following assignment flow through PDG edges.
+
+# 	@param tx: neo4j transaction pointer
+# 	@param node: The node to find aliases for
+# 	@param context_node: CFG-level context (statement containing node)
+# 	@param context_scope: scope identifier for recursion tracking
+# 	@param depth: Current recursion depth
+# 	@param max_depth: Maximum recursion depth
+# 	@return: List of alias nodes (including self)
+# 	"""
+
+# 	# check if node is in a cached set, if so return the precomputed result
+# 	if alias_visited_has(node['Id']):
+# 		print(f"[get_alias_from_assign] Already visited {node['Id']}")
+# 		return []
+	
+# 	alias_visited_add(node['Id'])
+
+# 	# Depth limit
+# 	if depth >= max_depth:
+# 		print(f"[get_alias_from_assign] Max depth reached")
+# 		return [node]
+
+# 	result = [node]  # Include self
+# 	print(f"[get_alias_from_assign] Depth={depth}, Node={node['Id']}, Type={node['Type']}, Context={context_node['Id']}")
+
+# 	# process context_node if it's Program - halt if true
+# 	if context_node['Type'] == 'Program':
+# 		print(f"[get_alias_from_assign] Context is Program, halting")
+# 		return result
+
+# 	# PDG query
+# 	alias_candidates_context_nodes = []
+
+# 	if node['Type'] == 'Identifier':
+# 		# PDG query with edge argument
+# 		varname = node['Code']
+# 		query = """
+# 		MATCH (n_s:ASTNode { Id: '%s' })-[:PDG_parentOf { Arguments: '%s' }]->(n_t)
+# 		RETURN collect(distinct n_t) AS resultset
+# 		"""%(context_node['Id'], varname)
+# 		results_ident = tx.run(query)
+# 		for item in results_ident:
+# 			alias_candidates_context_nodes = item['resultset']
+# 		print(f"[get_alias_from_assign] PDG query with Arguments='{varname}'")
+# 	else:
+# 		# identify the identifier within node, for each identifier, do edge-argument PDG query
+# 		# a.b = c
+# 		# q = a.b
+# 		tree = getChildsOf(tx, node)
+# 		[code_expr, literals, idents] = get_code_expression(tree)
+# 		print(f"[get_alias_from_assign] Extracted from node: idents={list(idents.keys())}, literals={literals}")
+
+# 		# take intersection for results of all identifier and Literals (to reduce false positive)
+# 		candidates_per_arg = {}
+
+# 		### TODO: We probably don't need to do this for all identifiers, propbably should case on the type
+# 		for varname in idents.keys():
+# 			query_ident = """
+# 			MATCH (n_s { Id: '%s' })-[:PDG_parentOf { Arguments: '%s' }]->(n_t)
+# 			RETURN collect(distinct n_t) AS resultset
+# 			"""%(context_node['Id'], varname)
+# 			results_ident = tx.run(query_ident)
+# 			for item in results_ident:
+# 				candidates_per_arg[varname] = item['resultset']
+# 			print(f"[get_alias_from_assign]   Ident '{varname}': {len(candidates_per_arg.get(varname, []))} candidates")
+
+# 		# TODO: do the strict alias filtering 
+
+
+# 		# TODO: place into alias_candidates_context_nodes
+
+
+# 		# # Intersection: nodes that have ALL identifiers
+# 		# if candidates_per_arg:
+# 		# 	first_key = list(candidates_per_arg.keys())[0]
+# 		# 	alias_candidates_context_nodes = candidates_per_arg[first_key]
+
+# 		# 	for varname, candidates in candidates_per_arg.items():
+# 		# 		if varname == first_key:
+# 		# 			continue
+# 		# 		candidate_ids = {c['Id'] for c in candidates}
+# 		# 		alias_candidates_context_nodes = [c for c in alias_candidates_context_nodes if c['Id'] in candidate_ids]
+
+# 		# 	print(f"[get_alias_from_assign] After intersection: {len(alias_candidates_context_nodes)} candidates")
+
+# 		# # Skip the standard query below since we already processed
+# 		# query = None
+
+# 	# # Execute standard query if not already processed
+# 	# if query:
+# 	# 	results = tx.run(query)
+# 	# 	for item in results:
+# 	# 		alias_candidates_context_nodes = item['resultset']
+
+# 	print(f"[get_alias_from_assign] Found {len(alias_candidates_context_nodes)} candidate CFG nodes")
+
+# 	# filter out the varnodes
+# 	# new_varnodes = [ nodes with the exact Type/identifier/Literals in alias_candidates_context_nodes]
+# 	new_varnodes = []
+
+# 	for iteratorNode in alias_candidates_context_nodes:
+# 		# Process context_node if it's Program - halt
+# 		if iteratorNode['Type'] == 'Program':
+# 			continue
+
+# 		# Handle BlockStatement (function parameters)
+# 		if iteratorNode['Type'] == 'BlockStatement' and (node['Type'] == 'Identifier' or node['Type'] == 'Literal'):
+# 			varname = node['Code'] if node['Type'] == 'Identifier' else str(node['Value'])
+# 			func_def_node = data_flow.get_function_def_of_block_stmt(tx, iteratorNode)
+
+# 			if func_def_node and func_def_node['Type'] in ['FunctionExpression', 'FunctionDeclaration', 'ArrowFunctionExpression']:
+# 				match_signature = data_flow.check_if_function_has_param(tx, varname, func_def_node)
+# 				if match_signature:
+# 					print(f"[get_alias_from_assign] Found function parameter match for '{varname}'")
+# 					# TODO: Handle function parameter propagation
+# 			continue
+
+# 		# Get subtree and extract identifiers/literals
+# 		tree = getChildsOf(tx, iteratorNode)
+# 		[code_expr, literals, idents] = get_code_expression(tree)
+# 		print(f"[get_alias_from_assign] Candidate CFG {iteratorNode['Id']}: {code_expr}")
+
+# 		# Filter: nodes with exact Type and Code/Value match
+# 		if node['Type'] == 'Identifier':
+# 			varname = node['Code']
+# 			if varname in idents:
+# 				matching_node = get_node_by_id(tx, idents[varname])
+# 				if matching_node and matching_node['Type'] == 'Identifier':
+# 					new_varnodes.append(matching_node)
+# 					print(f"[get_alias_from_assign]   ✓ Matched Identifier '{varname}'")
+
+# 		elif node['Type'] == 'Literal':
+# 			target_value = str(node.get('Value', ''))
+# 			# Find matching literal values
+# 			for lit in literals:
+# 				if str(lit) == target_value:
+# 					# Find the Literal node with this value in the tree
+# 					query_lit = """
+# 					MATCH (cfg:ASTNode {Id: '%s'})-[:AST_parentOf*0..]->(lit:ASTNode {Type: 'Literal', Value: '%s'})
+# 					RETURN DISTINCT lit
+# 					"""%(iteratorNode['Id'], target_value)
+# 					results_lit = tx.run(query_lit)
+# 					for record in results_lit:
+# 						new_varnodes.append(record['lit'])
+# 						print(f"[get_alias_from_assign]   ✓ Matched Literal '{target_value}'")
+
+# 		else:
+# 			# For complex types: find nodes with same type and code expression
+# 			query_complex = """
+# 			MATCH (cfg:ASTNode {Id: '%s'})-[:AST_parentOf*0..]->(match:ASTNode {Type: '%s'})
+# 			WHERE match.Id <> '%s'
+# 			RETURN DISTINCT match
+# 			"""%(iteratorNode['Id'], node['Type'], node['Id'])
+
+# 			results_complex = tx.run(query_complex)
+# 			for record in results_complex:
+# 				candidate = record['match']
+# 				# Verify code expression matches
+# 				cand_tree = getChildsOf(tx, candidate)
+# 				[cand_code, _, _] = get_code_expression(cand_tree)
+
+# 				node_tree = getChildsOf(tx, node)
+# 				[node_code, _, _] = get_code_expression(node_tree)
+
+# 				if cand_code == node_code:
+# 					new_varnodes.append(candidate)
+# 					print(f"[get_alias_from_assign]   ✓ Matched {node['Type']}: {cand_code}")
+
+# 	print(f"[get_alias_from_assign] Filtered to {len(new_varnodes)} matching varnodes")
+
+# 	# extract alias node from the current context
+# 	# - allow rules: VariableDeclarator/AssignmentExpression/CallExpression
+# 	renamed_varnodes = []
+
+# 	for varnode in new_varnodes:
+# 		if varnode in result:
+# 			continue
+
+# 		result.append(varnode)
+
+# 		# Get CFG context for this varnode
+# 		varnode_cfg = get_ast_topmost(tx, varnode)
+
+# 		# Rule 1: VariableDeclarator (var a = <varnode>)
+# 		query_decl = """
+# 		MATCH (cfg:ASTNode {Id: '%s'})-[:AST_parentOf*0..]->(decl:ASTNode {Type: 'VariableDeclarator'})
+# 		-[:AST_parentOf {RelationType: 'init'}]->(init)-[:AST_parentOf*0..]->(target:ASTNode {Id: '%s'})
+# 		MATCH (decl)-[:AST_parentOf {RelationType: 'id'}]->(leftId:ASTNode {Type: 'Identifier'})
+# 		RETURN DISTINCT leftId
+# 		"""%(varnode_cfg['Id'], varnode['Id'])
+
+# 		results_decl = tx.run(query_decl)
+# 		for record in results_decl:
+# 			left_id = record['leftId']
+# 			renamed_varnodes.append((left_id, varnode_cfg))
+# 			print(f"[get_alias_from_assign]   → Renamed to '{left_id['Code']}' via VariableDeclarator")
+
+# 		# Rule 2: AssignmentExpression (a = <varnode>)
+# 		query_assign = """
+# 		MATCH (cfg:ASTNode {Id: '%s'})-[:AST_parentOf*0..]->(assign:ASTNode {Type: 'AssignmentExpression'})
+# 		-[:AST_parentOf {RelationType: 'right'}]->(right)-[:AST_parentOf*0..]->(target:ASTNode {Id: '%s'})
+# 		MATCH (assign)-[:AST_parentOf {RelationType: 'left'}]->(leftId:ASTNode {Type: 'Identifier'})
+# 		RETURN DISTINCT leftId
+# 		"""%(varnode_cfg['Id'], varnode['Id'])
+
+# 		results_assign = tx.run(query_assign)
+# 		for record in results_assign:
+# 			left_id = record['leftId']
+# 			renamed_varnodes.append((left_id, varnode_cfg))
+# 			print(f"[get_alias_from_assign]   → Renamed to '{left_id['Code']}' via AssignmentExpression")
+
+# 		# TODO: Rule 3: CallExpression - propagate into corresponding function definition
+
+# 	print(f"[get_alias_from_assign] Found {len(renamed_varnodes)} renamed nodes")
+
+# 	# recursion - call get_alias on each element of the new_varnode
+# 	for new_node, new_context in renamed_varnodes:
+# 		if new_node in result:
+# 			continue
+
+# 		result.append(new_node)
+
+# 		# Recursive call
+# 		print(f"[get_alias_from_assign] Recursing into node {new_node['Id']}...")
+# 		deeper_aliases = get_alias_nodes(tx, new_node, new_context, context_scope=context_scope, depth=depth+1, max_depth=max_depth)
+
+# 		# Add deeper aliases
+# 		for deeper in deeper_aliases:
+# 			if deeper not in result:
+# 				result.append(deeper)
+
+# 	alias_visited_remove(node['Id'])
+# 	print(f"[get_alias_from_assign] Final result: {len(result)} alias nodes")
+
+# 	return result
+
 
 
 def getIdenticalObjectInScope(tx, node, scope = None):

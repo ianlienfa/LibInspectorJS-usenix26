@@ -97,6 +97,59 @@ DefUseAnalysisExecutor.prototype.buildIntraProceduralModelsOfEachPageModels = fu
             defuseAnalyzer.doAnalysis(models[j]);
             defuseAnalyzer.findDUPairs(models[j]);
 
+            // Debug output: print summary of analysis results for this model
+            try{
+                if(constantsModule.staticModelPrintPhases){
+                    let model = models[j];
+                    let scopeName = (model && model.mainlyRelatedScope && model.mainlyRelatedScope.name)? model.mainlyRelatedScope.name : 'UNKNOWN_SCOPE';
+                    console.log('[PDG-DEBUG] Model scope:', scopeName);
+
+                    // CFG node summary
+                    if(model.graph && model.graph[2]){
+                        console.log('[PDG-DEBUG]   CFG nodes:', model.graph[2].length);
+                        model.graph[2].forEach(n => {
+                            let reachIns = (n.reachIns)? n.reachIns.size : 0;
+                            let cuse = (n.cuse)? n.cuse.size : 0;
+                            let puse = (n.puse)? n.puse.size : 0;
+                            console.log('[PDG-DEBUG]     node', n.uniqueId, 'reachIns=', reachIns, 'cuse=', cuse, 'puse=', puse);
+                        });
+                    }
+
+                    // DUPairs summary (print up to 5 variables and up to 5 pairs each)
+                    let dupairs = model.dupairs;
+                    if(dupairs){
+                        try{
+                            // Some Map/Set polyfills in older runtimes aren't iterable with `for..of`.
+                            // Use `forEach` which is supported by the Map/Set implementations used in this repo.
+                            console.log('[PDG-DEBUG]   DUPairs variables count:', dupairs.size);
+                            let vcount = 0;
+                            dupairs.forEach(function (pairs, variable) {
+                                if(vcount >= 5) return;
+                                let varName = (variable && variable.name)? variable.name : (variable && variable.toString)? variable.toString() : String(variable);
+                                console.log('[PDG-DEBUG]     var:"', varName, '" pairs_count=', pairs.size);
+                                let pcount = 0;
+                                pairs.forEach(function (pair) {
+                                    if(pcount >= 5) return;
+                                    // pair.def / pair.use
+                                    let defNode = pair.def || pair.first || null;
+                                    let useNode = pair.use || pair.second || null;
+                                    let defId = defNode && defNode.uniqueId? defNode.uniqueId : JSON.stringify(defNode);
+                                    let useDesc = (Array.isArray(useNode))? ('IF-predicate AST id=' + (useNode[0] && useNode[0]._id)) : (useNode && useNode.uniqueId? ('useNode ' + useNode.uniqueId) : JSON.stringify(useNode));
+                                    console.log('[PDG-DEBUG]       def -> use :', defId, '->', useDesc);
+                                    pcount++;
+                                });
+                                vcount++;
+                            });
+                        }catch(e){
+                            console.log('[PDG-DEBUG]   error while printing dupairs:', e && e.stack? e.stack : e);
+                        }
+                    }
+                }
+            }catch(e){
+                // swallow debug errors to avoid interrupting analysis
+                try{ console.log('[PDG-DEBUG] unexpected debug error:', e && e.stack? e.stack : e); }catch(e2){}
+            }
+
             if(performance.now() - startTime > timeout){
                 constantsModule.staticModelPrintPhases && console.log('breaking loop');
                 return true;
