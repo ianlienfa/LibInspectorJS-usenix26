@@ -1776,23 +1776,6 @@ def getSinkByTagTainting(tx, vuln_info):
 		res = [record['node'] for record in results]
 		return res
 
-	def _get_all_call_values_of(varname, func_def_node):
-
-		key = func_def_node['Id']
-		if key in knowledge_database:
-			knowledge = knowledge_database[key]
-			print("knowledge in database", knowledge)
-		else:
-			knowledge = get_function_call_values_of_function_definitions(tx, func_def_node)
-			knowledge_database[key] = knowledge
-
-		ret = {}
-		for nid, values in knowledge.items():
-			if varname in values:
-				ret[nid] = values[varname]
-
-		return ret
-
 	def _get_call_sites_of_function(func_def_node):
 		"""
 		Query all call sites for a given function definition, with caching.
@@ -1924,18 +1907,17 @@ def getSinkByTagTainting(tx, vuln_info):
 					continue  # skip non-leaf nodes, preserved nodes, ex: (LIBOBJ, PAYLOAD, WILDCARD)
 				poc['fullset'].add(_gen_taint_tag(constructKey, code))
 
-	def _unitPocTagging(node, tag):
-		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")
-		# breakpoint()		
+	def _unitPocTagging(node, name, tag):
 		query = """
 			MATCH (node:ASTNode {Id: '%s'})
-			SET node.tag = '%s'
+			WHERE node.%s IS NULL
+			SET node.%s = '%s'
 			RETURN node
-		"""%(node['Id'], json.dumps(tag))
+		"""%(node['Id'], name, name, json.dumps(tag))
 		res = []
-		results = tx.run(query)			
+		results = tx.run(query)		
 		res = [record['node'] for record in results]		
-		return res[0]
+		return res[0] if res else None
 
 	def get_potential_sink_args(tx, node, poc):
 		"""
@@ -2031,8 +2013,6 @@ def getSinkByTagTainting(tx, vuln_info):
 						if func_def_node is None:
 							print(f"Warning: Could not find function definition for ReturnStatement {currASTNode['Id']}")
 						else:
-							print(f"Found function definition for return statement: {neo4jQueryUtilityModule.getCodeOf(tx, func_def_node)[:100]}")
-
 							# Find ALL call sites that call this function (using knowledge database cache)
 							call_sites = _get_call_sites_of_function(func_def_node)
 
@@ -2042,8 +2022,6 @@ def getSinkByTagTainting(tx, vuln_info):
 								if call_expr['Id'] not in visited_set:
 									print(f"Skipping call site {call_expr['Id']} - not in current taint path (visited_set)")
 									continue
-
-								print(f"Propagating taint to call site in visited_set: {neo4jQueryUtilityModule.getCodeOf(tx, call_expr)[:100]}")
 
 								# Find what receives the return value
 								# Patterns: bar = foo(), obj.prop = foo(), anotherFunc(foo())
@@ -2064,20 +2042,20 @@ def getSinkByTagTainting(tx, vuln_info):
 										# Pattern: bar = foo()
 										lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, parent, 'id')
 										if lhs_node:
-											print(f"  Tainting variable declarator LHS: {neo4jQueryUtilityModule.getCodeOf(tx, lhs_node)}")
+											print(f"  Tainting variable declarator LHS: {lhs_node}")
 											nodeTagTainting(lhs_node, call_site_top_most, taintTag)
 
 									elif parent_type == 'AssignmentExpression':
 										# Pattern: a = foo() or obj.prop = foo()
 										lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, parent, 'left')
 										if lhs_node:
-											print(f"  Tainting assignment LHS: {neo4jQueryUtilityModule.getCodeOf(tx, lhs_node)}")
+											print(f"  Tainting assignment LHS: {lhs_node}")
 											nodeTagTainting(lhs_node, call_site_top_most, taintTag)
 
 									elif parent_type == 'CallExpression':
 										# Pattern: anotherFunc(foo()) - the return value is an argument
 										# In this case, the call expression itself is tainted
-										print(f"  Return value used as argument in: {neo4jQueryUtilityModule.getCodeOf(tx, parent)[:100]}")
+										print(f"  Return value used as argument in: {parent}")
 										# Should still taint since we might not have return value information for foo() until now
 										nodeTagTainting(call_expr, call_site_top_most, taintTag)
 
@@ -2193,7 +2171,7 @@ def getSinkByTagTainting(tx, vuln_info):
 				except:
 					arguments = []
 
-				print(f"Found call definition for CallExpression {callExpressionNode['Id']} -> {func_def_node['Type']} at {neo4jQueryUtilityModule.getCodeOf(tx, func_def_node)}")
+				print(f"Found call definition for CallExpression {callExpressionNode['Id']} -> {func_def_node['Type']} at {func_def_node}")
 				print(f"  Arguments at call site: {arguments}")
 				print(f"  Looking for argname: {argname}")
 
@@ -2305,7 +2283,7 @@ def getSinkByTagTainting(tx, vuln_info):
 					taintPropTilASTTopmost(alias, alias, iteratorNode, taintTag, nodeid_to_matches, out_values, context_scope)				
 		@make_hashable_decorator
 		@lru_cache(maxsize=1000)
-		def nodeTagTainting(node, contextNode, taintTag):
+		def nodeTagTainting(node, contextNode, taintTag, graphTagging=True):
 			"""
 			Tag a PDG node with tainting information.
 			@param {object} node: the node to tag
@@ -2321,6 +2299,7 @@ def getSinkByTagTainting(tx, vuln_info):
 			@visited_set: set of node IDs already visited to avoid cycles
 			@postcondition: - nodeid_to_matches is updated with the new match and all of the dependent nodes
 							- if current set matches with the poc fullset, mark the root node as matched
+			@debug: graphTagging is currently on for debugging purposes, it adds tags to neo4j graph db nodes, should be turned off in production
 			@example: assume 32 is the literal matching the poc construct
 				1	def foo(param):
 				2		use(param)
@@ -2343,14 +2322,16 @@ def getSinkByTagTainting(tx, vuln_info):
 			print('taintTag', taintTag)
 			nodeid_to_matches[contextNode['Id']].add(taintTag)			
 
-			# add a tag to neo4j graph db (DEBUG)
-			# _unitPocTagging(node, json.dumps(json.dumps(sorted(list(nodeid_to_matches[contextNode['Id']])))))
+			# Add a tag to neo4j graph db (DEBUG)
+			if graphTagging:
+				_unitPocTagging(contextNode, 'tag', json.dumps(list(nodeid_to_matches[contextNode['Id']])))
 
 			# Check if current node's matched constructs cover the poc fullset
 			if poc['fullset'].issubset(nodeid_to_matches[contextNode['Id']]):
 				if 'root' not in nodeid_to_matches:
 					nodeid_to_matches['root'] = set()
-				nodeid_to_matches['root'].add(contextNode['Id'])
+				nodeid_to_matches['root'].add(contextNode['Id'])				
+				_unitPocTagging(contextNode, 'root', True)
 
 			# PDG query to find dependent nodes, here we do two types of queries: 
 			# 1. full string dependency match, ex: a.b.c
@@ -2426,6 +2407,16 @@ def getSinkByTagTainting(tx, vuln_info):
 			breakpoint()
 			raise e
 			
+		all_poc_max_levels = []
+		# order the nodeid_to_matches by size of sets (descending)
+		max_match_size = max([len(v) for v in nodeid_to_matches.values()] + [0])
+		items_with_max_size = dict(filter(lambda item: len(item[1]) == max_match_size, nodeid_to_matches.items()))
+		for nodeId, matchSet in items_with_max_size.items():
+			all_poc_max_levels.append({
+				'node': get_node_by_id(tx, nodeId),
+				'matchSet': list(matchSet)
+			})
+
 		# Identify the root nodes from the matches
 		if 'root' in nodeid_to_matches:
 			# return the root nodes
@@ -2441,13 +2432,10 @@ def getSinkByTagTainting(tx, vuln_info):
 						"a": arg
 					})
 
-			return res
+			return res, all_poc_max_levels
 		else:
-			return []
+			return [], all_poc_max_levels
 
-
-	res = []
-	all_poc_max_levels = []
 								
 	try:
 		flatPoc = pocPreprocess(vuln_info)
@@ -2469,7 +2457,7 @@ def getSinkByTagTainting(tx, vuln_info):
 			except Exception as e:
 				print(f"Exception in processing POC match: libObj: {libObj} \n poc: {poc}", e)
 				continue  # Skip to next libObj or poc
-	return res, all_poc_max_levels
+	return [], []
 
 
 # ----------------------------------------------------------------------- #
@@ -2711,7 +2699,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		print("Starting tainting-based sink detection, processing vuln_info:", vuln_info)
 		print("===================================================================")
 		breakpoint()  # Debug point before tainting-based sink detection
-		r1 = getSinkByTagTainting(tx, vuln_info=vuln_info)
+		r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info)
 		# DEBUG PRINT ALARM THAT TAINTING IS DONE
 		print("Tainting-based sink detection completed. Results:", r1)		
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
@@ -2764,27 +2752,14 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				fd.write('[*] NavigationURL: %s\n\n'%navigation_url)
 
 				# Write POC max matched levels
-				# if all_poc_max_levels:
-				# 	fd.write(sep_templates)
-				# 	fd.write('[*] POC Maximum Matched Levels:\n')
-				# 	for poc_info in all_poc_max_levels:
-				# 		fd.write(f"\n[POC] {poc_info['poc_name']} - Max Level: {poc_info['max_lv']}\n")
-				# 		for constructKey, nodes in poc_info['matches'].items():
-				# 			fd.write(f"  [Construct] {constructKey}:\n")
-				# 			for node in nodes:
-				# 				try:
-				# 					if 'Id' not in node:
-				# 						fd.write(f"    - Invalid node type: {type(node).__name__} = {node}\n")
-				# 						continue
-				# 					code = getCodeOf(tx, node)
-				# 					location = node.get('Location', 'unknown')
-				# 					fd.write(f"    - Node ID: {node['Id']}\n")
-				# 					fd.write(f"      Location: {location}\n")
-				# 					fd.write(f"      Code: {code}\n")
-				# 				except Exception as e:
-				# 					node_id = node.get('Id', 'unknown') if isinstance(node, dict) else str(node)
-				# 					fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
-				# 	fd.write('\n')
+				if all_poc_max_levels:
+					fd.write(sep_templates)
+					fd.write('[*] POC Maximum Matched Levels:\n')
+					for poc_info in all_poc_max_levels:
+						# Write based on the previous definition of getSinkByTagTainting
+						fd.write(f"-- node: {poc_info['node']}\n")
+						fd.write(f" - match_set: {poc_info['matchSet']}\n")
+					fd.write('\n')
 
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node

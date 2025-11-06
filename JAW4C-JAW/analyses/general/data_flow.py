@@ -680,7 +680,7 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 		query = """
 		MATCH (n_s { Id: '%s' })<-[:PDG_parentOf]-(n_t) RETURN collect(distinct n_t) AS resultset
 		"""%(node_id)
-		print("pdg query - other", query, "at segment", QU.getCodeOf(tx, context_node))
+		# print("pdg query - other", query, "at segment", QU.getCodeOf(tx, context_node))
 
 	results = tx.run(query)
 	for item in results: 
@@ -694,7 +694,7 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 				# the parameter 'varname' is a function argument
 
 				func_def_node = get_function_def_of_block_stmt(tx, iteratorNode) # check if func def has a varname parameter 
-				print("func_def_node", func_def_node, "at segment", QU.getCodeOf(tx, func_def_node))
+				# print("func_def_node", func_def_node, "at segment", QU.getCodeOf(tx, func_def_node))
 				if func_def_node['Type'] in ['FunctionExpression', 'FunctionDeclaration', 'ArrowFunctionExpression']:
 
 					match_signature = check_if_function_has_param(tx, varname, func_def_node)
