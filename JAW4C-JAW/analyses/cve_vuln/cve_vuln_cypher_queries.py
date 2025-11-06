@@ -1777,21 +1777,50 @@ def getSinkByTagTainting(tx, vuln_info):
 		return res
 
 	def _get_all_call_values_of(varname, func_def_node):
-		
+
 		key = func_def_node['Id']
 		if key in knowledge_database:
 			knowledge = knowledge_database[key]
 			print("knowledge in database", knowledge)
 		else:
-			knowledge = get_function_call_values_of_function_definitions(tx, func_def_node)	
+			knowledge = get_function_call_values_of_function_definitions(tx, func_def_node)
 			knowledge_database[key] = knowledge
-		
+
 		ret = {}
 		for nid, values in knowledge.items():
 			if varname in values:
 				ret[nid] = values[varname]
 
 		return ret
+
+	def _get_call_sites_of_function(func_def_node):
+		"""
+		Query all call sites for a given function definition, with caching.
+
+		@param {dict} func_def_node: function definition node
+		@return {list} list of call expression nodes that call this function
+		"""
+		cache_key = 'call_sites_' + func_def_node['Id']
+
+		if cache_key in knowledge_database:
+			call_sites = knowledge_database[cache_key]
+			print(f"[Cache HIT] Found {len(call_sites)} call sites for function {func_def_node['Id']} in knowledge database")
+			return call_sites
+		else:
+			# Query not in cache, execute it
+			call_sites_query = """
+			MATCH (func_def {Id: '%s'})<-[:CG_parentOf]-(call_expr {Type: 'CallExpression'})
+			RETURN call_expr
+			""" % (func_def_node['Id'])
+
+			call_sites_results = tx.run(call_sites_query)
+			call_sites = [record['call_expr'] for record in call_sites_results]
+
+			# Store in knowledge database for future use
+			knowledge_database[cache_key] = call_sites
+			print(f"[Cache MISS] Queried and cached {len(call_sites)} call sites for function {func_def_node['Id']}")
+
+			return call_sites
 
 	def _get_full_member_name(tx, memberNode):
 		"""
@@ -1856,6 +1885,28 @@ def getSinkByTagTainting(tx, vuln_info):
 
 	def _gen_taint_tag(constructKey, code):
 		return f"{code}__{constructKey}"
+
+	def _get_parent_function_node(tx, node):
+		"""
+		@description: get the parent function definition node of the given node
+		@details: Note that this function is optimized for return nodes
+		@param {pointer} tx: neo4j transaction pointer
+		@param {object} node: AST node to analyze
+		@return {object} function definition AST node | None
+		"""
+		func_def_query = """
+			MATCH (ret_stmt {Id: '%s'})<-[:AST_parentOf*1..50]-(func_def)
+			WHERE func_def.Type IN ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
+			RETURN func_def
+			ORDER BY length(path) ASC
+			LIMIT 1
+		""" % (node['Id'])
+		func_def_results = tx.run(func_def_query)
+		func_def_node = None
+		for record in func_def_results:
+			func_def_node = record['func_def']
+			break
+		return func_def_node	
 
 	def addfullset(poc):
 		"""
@@ -1975,39 +2026,17 @@ def getSinkByTagTainting(tx, vuln_info):
 						# 1. Get function definition containing this return statement
 						# 2. Identify call sites of this function in visited_set
 						# 3. For each call site, propagate taint to the variable assigned from the call
-
-						# TODO: wrap this into a helper function
-						# Find the function definition containing this return statement
-						func_def_query = """
-						MATCH (ret_stmt {Id: '%s'})<-[:AST_parentOf*]-(func_def)
-						WHERE func_def.Type IN ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
-						RETURN func_def
-						ORDER BY length(path) ASC
-						LIMIT 1
-						""" % (currASTNode['Id'])
-
-						func_def_results = tx.run(func_def_query)
-						func_def_node = None
-						for record in func_def_results:
-							func_def_node = record['func_def']
-							break
-
+						
+						func_def_node = _get_parent_function_node(tx, currASTNode)
 						if func_def_node is None:
 							print(f"Warning: Could not find function definition for ReturnStatement {currASTNode['Id']}")
 						else:
 							print(f"Found function definition for return statement: {neo4jQueryUtilityModule.getCodeOf(tx, func_def_node)[:100]}")
 
-							# TODO: Simplfy this through knowledge database
-							# Find ALL call sites that call this function
-							call_sites_query = """
-							MATCH (func_def {Id: '%s'})<-[:CG_parentOf]-(call_expr {Type: 'CallExpression'})
-							RETURN call_expr
-							""" % (func_def_node['Id'])
+							# Find ALL call sites that call this function (using knowledge database cache)
+							call_sites = _get_call_sites_of_function(func_def_node)
 
-							call_sites_results = tx.run(call_sites_query)
-
-							for call_record in call_sites_results:
-								call_expr = call_record['call_expr']
+							for call_expr in call_sites:
 
 								# FILTER: Only propagate if this call site is in visited_set (current taint path)
 								if call_expr['Id'] not in visited_set:
@@ -2023,6 +2052,7 @@ def getSinkByTagTainting(tx, vuln_info):
 								WHERE parent.Type IN ['VariableDeclarator', 'AssignmentExpression', 'CallExpression']
 								RETURN parent, parent.Type as parent_type
 								""" % (call_expr['Id'])
+								call_site_top_most = get_ast_topmost(tx, call_expr)
 
 								receiver_results = tx.run(receiver_query)
 
@@ -2035,21 +2065,22 @@ def getSinkByTagTainting(tx, vuln_info):
 										lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, parent, 'id')
 										if lhs_node:
 											print(f"  Tainting variable declarator LHS: {neo4jQueryUtilityModule.getCodeOf(tx, lhs_node)}")
-											nodeTagTainting(lhs_node, topMost, taintTag)
+											nodeTagTainting(lhs_node, call_site_top_most, taintTag)
 
 									elif parent_type == 'AssignmentExpression':
 										# Pattern: a = foo() or obj.prop = foo()
 										lhs_node = neo4jQueryUtilityModule.getChildByRelationType(tx, parent, 'left')
 										if lhs_node:
 											print(f"  Tainting assignment LHS: {neo4jQueryUtilityModule.getCodeOf(tx, lhs_node)}")
-											nodeTagTainting(lhs_node, topMost, taintTag)
+											nodeTagTainting(lhs_node, call_site_top_most, taintTag)
 
 									elif parent_type == 'CallExpression':
 										# Pattern: anotherFunc(foo()) - the return value is an argument
 										# In this case, the call expression itself is tainted
 										print(f"  Return value used as argument in: {neo4jQueryUtilityModule.getCodeOf(tx, parent)[:100]}")
-										# The call_expr is already in visited_set, taint will propagate through normal flow
-										pass
+										# Should still taint since we might not have return value information for foo() until now
+										nodeTagTainting(call_expr, call_site_top_most, taintTag)
+
 
 					case 'ExpressionStatement':
 						# the PDG match is at an expression statement
