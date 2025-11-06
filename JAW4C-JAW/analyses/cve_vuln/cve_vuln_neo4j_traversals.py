@@ -206,7 +206,12 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			for entry in vuln_list:
 				try:
 					location, vuln, mod = entry['location'], entry['vuln'], entry['mod']
+					poc_set = set()
 					for v in vuln:
+						if v['poc'] in poc_set:
+							logger.info(f'Skipping duplicate poc: {v["poc"]}')
+							continue
+						poc_set.add(v['poc'])
 						if 'LIBOBJ' not in v['poc']:
 							logger.info(f'Skipping {v['poc']} due to unsupported form: no LIBOBJ')
 							continue

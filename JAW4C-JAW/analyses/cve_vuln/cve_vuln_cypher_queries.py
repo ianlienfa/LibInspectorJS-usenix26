@@ -1886,6 +1886,39 @@ def getSinkByTagTainting(tx, vuln_info):
 		res = [record['node'] for record in results]		
 		return res[0]
 
+	def get_potential_sink_args(tx, node, poc):
+		"""
+		Identify potential sink arguments of a given node based on the POC.
+		@param {pointer} tx: neo4j transaction pointer
+		@param {object} node: AST node to analyze
+		@param {object} poc: POC structure with constructs and fullset
+		@return {list} list of potential sink argument nodes
+		"""
+		# The potential sink args should not be those identifiers/literals that are already tainted
+		ident_code = set([ i.split('_')[0] for i in poc['fullset']])
+		query = """
+			MATCH (n {Id: '%s'})
+			CALL apoc.path.expandConfig(n, {
+				relationshipFilter: ">AST_parentOf",
+				minLevel: 1,
+				maxLevel: 15,
+				bfs: True
+			})		
+			YIELD path
+			WITH [n IN nodes(path) WHERE n.Value IS NOT NULL OR n.Code IS NOT NULL | {node: n, code: coalesce(n.Value, n.Code)} ] AS pairs WHERE size(pairs) > 0
+			RETURN pairs
+			LIMIT 5
+		""" % (node['Id'])		
+		# print("get_potential_sink_args query", query)
+		results = tx.run(query)
+		potential_args = []
+		for record in results:
+			pair = record['pairs'][0]
+			node, code = pair['node'], pair['code']
+			if code not in ident_code:
+				potential_args.append(node)
+		return potential_args
+	
 	def processPocMatch(tx, libObj, poc):
 		"""
 		Process a single POC match against a library object.
@@ -2266,10 +2299,6 @@ def getSinkByTagTainting(tx, vuln_info):
 				6	foo(a)			
 				(line 3, 4, 5 and line 1, 2 will be tainted with '32') 
 			"""		
-			# debug print
-			if '_' not in taintTag:
-				traceback.print_stack()
-				breakpoint()
 			print(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
 
 			out_values = []
@@ -2350,7 +2379,7 @@ def getSinkByTagTainting(tx, vuln_info):
 								print(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
 								for k, v in nodeid_to_matches.items():									
 									print(f"nodeid_to_matches [id: {k}] \n - node: {get_node_by_id(tx, k)} \n - value: {v}")
-								breakpoint()  # Debug point after tainting
+								# breakpoint()  # Debug point after tainting
 							except Exception as e:
 								print(f"Error in nodeTagTainting: {e}")
 								# print traceback
@@ -2372,9 +2401,8 @@ def getSinkByTagTainting(tx, vuln_info):
 			res = []
 			for nodeId in nodeid_to_matches['root']:
 				rootNode = get_node_by_id(tx, nodeId)
-				tree = neo4jQueryUtilityModule.getChildsOf(tx, rootNode)
-				# go through the childs to find the right nodes to set argument as
-				args = [] # TODO: find the right argument nodes
+				# go through the leaves to find the right nodes to set argument as
+				args = get_potential_sink_args(tx, rootNode, poc)	
 				for arg in args:
 					res.append({
 						"t": rootNode,
@@ -2405,12 +2433,7 @@ def getSinkByTagTainting(tx, vuln_info):
 			else:
 				libObj = pair
 			try:
-				result = processPocMatch(tx, libObj, poc)
-				print('root matches:', result)
-				# Turn in to [n, a, t] form
-				# TODO
-				# transform nodes to [n, a, t] format
-				# the argument node might be hard to tell, enumerate all possibilities?
+				return processPocMatch(tx, libObj, poc)				
 
 			except Exception as e:
 				print(f"Exception in processing POC match: libObj: {libObj} \n poc: {poc}", e)
@@ -2653,40 +2676,43 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 	#	i.e., is any sink value traces back to the defined semantic types
 	if MAIN_QUERY_ACTIVE:
 		# different kinds of call expressions (sinks)
+		print("===================================================================")
+		print("Starting tainting-based sink detection, processing vuln_info:", vuln_info)
+		print("===================================================================")
+		breakpoint()  # Debug point before tainting-based sink detection
 		r1 = getSinkByTagTainting(tx, vuln_info=vuln_info)
 		# DEBUG PRINT ALARM THAT TAINTING IS DONE
 		print("Tainting-based sink detection completed. Results:", r1)		
-		breakpoint()
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
 		# For cve sink...
 		if r1:
-			for call_expr in r1:
-				n = call_expr['n'] # call expression
-				a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
-				t = call_expr['t'] # top level expression statement
+			for expr in r1:
+				n = expr['n'] # top expression
+				a = expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
+				t = expr['t'] # top level expression statement
 				print(f"[n, a, t]: n: {n}, a: {a}, t: {t}")
 				request_fn = vuln_info['poc_str'] # temporary
-			wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
-			logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
-			top_expression_code = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)[0]
-			logger.info(f"[debug] top_expression_code: {top_expression_code}")
+				wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
+				logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
+				top_expression_code = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)[0]
+				logger.info(f"[debug] top_expression_code: {top_expression_code}")
 
-			if 'function(' in top_expression_code:
-				top_expression_code = jsbeautifier.beautify(top_expression_code)
+				if 'function(' in top_expression_code:
+					top_expression_code = jsbeautifier.beautify(top_expression_code)
 
-			wrapper_node= neo4jQueryUtilityModule.getChildsOf(tx, a)
-			ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node)
-			nid = request_fn + '__nid=' + n['Id'] + '__Loc=' + str(n['Location'])
-			logger.info(f"[debug] nid: {nid}")
-			request_storage[nid] = {'reachability':[], 'endpoint_code': ce[0], 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': t['Id'], 'CallExpression': n['Id'], 'Argument': a['Id']}}
-			for ident, ident_id in ce[2].items():
-				logger.info(f"[debug] ident: {ident}, ident_id: {ident_id}")
-				if ident in ce[0]:
-					logger.info(f"[debug] varname: {ident}, rootContextNode: {t}")
-					# vals = getValueOfWithLocationChain(tx, ident, t)					
-					vals = DF._get_varname_value_from_context(tx, ident, t)
-					request_storage[nid]['expected_values'][ident] = vals
+				wrapper_node= neo4jQueryUtilityModule.getChildsOf(tx, a)
+				ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node)
+				nid = request_fn + '__nid=' + n['Id'] + '__Loc=' + str(n['Location'])
+				logger.info(f"[debug] nid: {nid}")
+				request_storage[nid] = {'reachability':[], 'endpoint_code': ce[0], 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': t['Id'], 'CallExpression': n['Id'], 'Argument': a['Id']}}
+				for ident, ident_id in ce[2].items():
+					logger.info(f"[debug] ident: {ident}, ident_id: {ident_id}")
+					if ident in ce[0]:
+						logger.info(f"[debug] varname: {ident}, rootContextNode: {t}")
+						# vals = getValueOfWithLocationChain(tx, ident, t)					
+						vals = DF._get_varname_value_from_context(tx, ident, t)
+						request_storage[nid]['expected_values'][ident] = vals
 
 
 
@@ -2707,27 +2733,27 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				fd.write('[*] NavigationURL: %s\n\n'%navigation_url)
 
 				# Write POC max matched levels
-				if all_poc_max_levels:
-					fd.write(sep_templates)
-					fd.write('[*] POC Maximum Matched Levels:\n')
-					for poc_info in all_poc_max_levels:
-						fd.write(f"\n[POC] {poc_info['poc_name']} - Max Level: {poc_info['max_lv']}\n")
-						for constructKey, nodes in poc_info['matches'].items():
-							fd.write(f"  [Construct] {constructKey}:\n")
-							for node in nodes:
-								try:
-									if 'Id' not in node:
-										fd.write(f"    - Invalid node type: {type(node).__name__} = {node}\n")
-										continue
-									code = getCodeOf(tx, node)
-									location = node.get('Location', 'unknown')
-									fd.write(f"    - Node ID: {node['Id']}\n")
-									fd.write(f"      Location: {location}\n")
-									fd.write(f"      Code: {code}\n")
-								except Exception as e:
-									node_id = node.get('Id', 'unknown') if isinstance(node, dict) else str(node)
-									fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
-					fd.write('\n')
+				# if all_poc_max_levels:
+				# 	fd.write(sep_templates)
+				# 	fd.write('[*] POC Maximum Matched Levels:\n')
+				# 	for poc_info in all_poc_max_levels:
+				# 		fd.write(f"\n[POC] {poc_info['poc_name']} - Max Level: {poc_info['max_lv']}\n")
+				# 		for constructKey, nodes in poc_info['matches'].items():
+				# 			fd.write(f"  [Construct] {constructKey}:\n")
+				# 			for node in nodes:
+				# 				try:
+				# 					if 'Id' not in node:
+				# 						fd.write(f"    - Invalid node type: {type(node).__name__} = {node}\n")
+				# 						continue
+				# 					code = getCodeOf(tx, node)
+				# 					location = node.get('Location', 'unknown')
+				# 					fd.write(f"    - Node ID: {node['Id']}\n")
+				# 					fd.write(f"      Location: {location}\n")
+				# 					fd.write(f"      Code: {code}\n")
+				# 				except Exception as e:
+				# 					node_id = node.get('Id', 'unknown') if isinstance(node, dict) else str(node)
+				# 					fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
+				# 	fd.write('\n')
 
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node
@@ -2744,10 +2770,10 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 					request_tags = []
 					print_buffer = []
 
-					endpoint_tags = _get_semantic_type(request_variable, 0, document_props, find_endpoint_tags=True)
-					request_tags.extend(endpoint_tags)
-					logger.info(f"endpoint_tags: {endpoint_tags}")
-					logger.info(f"request_tags: {request_tags}")
+					# endpoint_tags = _get_semantic_type(request_variable, 0, document_props, find_endpoint_tags=True)
+					# request_tags.extend(endpoint_tags)
+					# logger.info(f"endpoint_tags: {endpoint_tags}")
+					# logger.info(f"request_tags: {request_tags}")
 					logger.info(f"request_storage: {request_storage}")
 
 					counter = 1
@@ -2796,10 +2822,12 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 
 					print_buffer = _get_orderd_unique_list(print_buffer) # remove duplicates, if any
 					tag_set = _get_semantic_type_set(request_tags)
+					out.append(tag_set)
 					logger.info(f"tag_set: {tag_set}")
 					if not ( len(tag_set) == 1 and CSRFSemanticTypes.SEM_TYPE_NON_REACHABLE in tag_set ):
 						fd.write(sep_templates)
 						fd.write('[*] Tags: %s\n'%(str(tag_set)))
+						fd.write('[*] Vuln Info: %s\n'%(json.dumps(vuln_info)))
 						fd.write('[*] NodeId: %s\n'%str(id_set))
 						fd.write('[*] Location: %s\n'%location)
 						fd.write('[*] Function: %s\n'%request_fn)
@@ -2847,7 +2875,6 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 						fd.write(sep_templates+'\n') # add two newlines
 
 	hashSymbol = "#"
-
 	return out
 
 
