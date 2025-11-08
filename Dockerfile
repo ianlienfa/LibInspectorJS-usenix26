@@ -22,22 +22,24 @@ COPY JAW4C-JAW/engine/package.json ./engine/
 COPY JAW4C-JAW/engine/lib/jaw/dom-points-to/package.json ./engine/lib/jaw/dom-points-to/
 COPY JAW4C-JAW/engine/lib/jaw/normalization/package.json ./engine/lib/jaw/normalization/
 COPY JAW4C-JAW/driver/package.json ./driver/
-# Copy only package.json files from pipeline tests for dependency installation
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/package.json ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/package.json ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/package.json ./tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/package.json ./tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/package.json ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/package.json ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/package.json ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/
+
+# Copy full directories from pipeline tests for dependency installation and webpack build
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/ ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/ ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/ ./tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/
+
 # Copy test_prep.py and other essential test files
 COPY JAW4C-JAW/tests/pipeline_test/test_prep.py ./tests/pipeline_test/
 COPY JAW4C-JAW/tests/pipeline_test/test_phases.py ./tests/pipeline_test/
@@ -95,9 +97,9 @@ FROM ubuntu:24.04 as runtime
 
 # Install only runtime dependencies including Docker
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip libgeos-dev pigz libgtk-3-0 openjdk-11-jre-headless ca-certificates gnupg lsb-release && \
+    apt-get install -y python3 python3-pip curl libgeos-dev pigz libgtk-3-0 openjdk-11-jre-headless ca-certificates gnupg lsb-release && \
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-    apt-get install -y nodejs npm && node --version && \
+    apt-get install -y nodejs && node --version && \
     npm --version && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \

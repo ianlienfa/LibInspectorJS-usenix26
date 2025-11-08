@@ -27,6 +27,7 @@
 
 
 import os
+import subprocess
 import grp
 import constants
 import utils.utility as utilityModule
@@ -58,8 +59,16 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
 		conf_dir = os.path.join(container_data_path, 'conf')
 		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
 			os.makedirs(p)
-			os.chown(p, -1, 7474)
+			os.chown(p, 7474, 7474)
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
+
+	# Reconstruct volume mapping if in container
+	os.environ["HOSTNAME"] = os.environ.get("HOSTNAME", subprocess.check_output("hostname", shell=True, text=True).strip())
+	base_path = subprocess.check_output(
+		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C\"}}{{.Source}}{{end}}{{end}}' | sed 's|/JAW4C||'",
+		shell=True,
+		text=True
+	).strip()
 			
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
@@ -68,13 +77,16 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
 	command="""docker run \
     --name {0} \
     --network jaw4c-network \
+	--network-alias neo4j \
+	-p 7474:7474 \
+  	-p 7687:7687 \
+	-u neo4j:neo4j \
     -d \
-    -v {1}/{0}/neo4j/data:/data \
-    -v {1}/{0}/neo4j/logs:/logs \
-    -v {4}/{5}/{6}:/var/lib/neo4j/import/{6} \
-    -v {1}/{0}/neo4j/plugins:/plugins \
-	-v {1}/{0}/neo4j/conf:/conf \
-    -u neo4j:neo4j \
+    -v {7}{1}/{0}/neo4j/data:/data \
+    -v {7}{1}/{0}/neo4j/logs:/logs \
+    -v {7}{4}/{5}:/var/lib/neo4j/import/{6} \
+	-v {7}{1}/{0}/neo4j/plugins:/plugins \
+	-v {7}{1}/{0}/neo4j/conf:/conf \
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
@@ -82,23 +94,26 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
-    arm64v8/neo4j:4.4
+    neo4j:4.4
 	"""
 	
 	# Format the command with conditional import path
 	if weburl_suffix and webapp_name:
-		command = command.format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, weburl_suffix, webapp_name)
+		command = command.format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, weburl_suffix, webapp_name, base_path)
 	else:
 		# For backward compatibility, create command without import volume
 		command_no_import = """docker run \
     --name {0} \
     --network jaw4c-network \
+	--network-alias neo4j \
+	-p 7474:7474 \
+  	-p 7687:7687 \
+	-u neo4j:neo4j \
     -d \
-    -v {1}/{0}/neo4j/data:/data \
-    -v {1}/{0}/neo4j/logs:/logs \
-    -v {1}/{0}/neo4j/plugins:/plugins \
-	-v {1}/{0}/neo4j/conf:/conf \
-    -u neo4j:neo4j \
+    -v {4}{1}/{0}/neo4j/data:/data \
+    -v {4}{1}/{0}/neo4j/logs:/logs \
+	-v {4}{1}/{0}/neo4j/plugins:/plugins \
+	-v {4}{1}/{0}/neo4j/conf:/conf \
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
@@ -106,7 +121,7 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
-    arm64v8/neo4j:4.4""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS)
+    neo4j:4.4""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, base_path)
 		command = command_no_import
 	# Note: pass the analyzer outputs folder as the import directory of neo4j
 
@@ -114,11 +129,15 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
 	logger.info('Docker container %s is starting.'%str(container_name))
 	
 	# Update connection strings to use container name instead of localhost
-	constants.NEO4J_CONN_HTTP_STRING = f"http://{container_name}:7474"
-	constants.NEO4J_CONN_STRING = f"bolt://{container_name}:7687"
-	constants.NEOMODEL_NEO4J_CONN_STRING = f"bolt://{constants.NEO4J_USER}:{constants.NEO4J_PASS}@{container_name}:7687"
+	constants.NEO4J_CONN_HTTP_STRING = f"http://neo4j:7474"
+	constants.NEO4J_CONN_STRING = f"bolt://neo4j:7687"
+	constants.NEOMODEL_NEO4J_CONN_STRING = f"bolt://{constants.NEO4J_USER}:{constants.NEO4J_PASS}@neo4j:7687"
 
 	command	= "docker exec %s 'rm -f /var/lib/neo4j/data/databases/store_lock'"%(container_name)
+	utilityModule.run_os_command(command, print_stdout=False)
+	logger.info('%s: Docker container removing lock.'%str(container_name))
+
+	command	= "docker exec %s 'rm -f /data/databases/store_lock'"%(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('%s: Docker container removing lock.'%str(container_name))
 
@@ -152,6 +171,14 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 			os.chown(p, -1, 7474)
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
 
+	# Reconstruct volume mapping if in container
+	os.environ["HOSTNAME"] = os.environ.get("HOSTNAME", subprocess.check_output("hostname", shell=True, text=True).strip())
+	base_path = subprocess.check_output(
+		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C\"}}{{.Source}}{{end}}{{end}}' | sed 's|/JAW4C||'",
+		shell=True,
+		text=True
+	).strip()
+
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
 	# other options:
@@ -159,13 +186,16 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 	command="""docker run \
     --name {0} \
     --network jaw4c-network \
+	--network-alias neo4j \
+	-p 7474:7474 \
+  	-p 7687:7687 \
+	-u neo4j:neo4j \
     -d \
-    -v {1}/{0}/neo4j/data:/data \
-    -v {1}/{0}/neo4j/logs:/logs \
-    -v {4}:/var/lib/neo4j/import/{7} \
-    -v {1}/{0}/neo4j/plugins:/plugins \
-	-v {1}/{0}/neo4j/conf:/conf \
-    -u neo4j:neo4j \
+    -v {6}{1}/{0}/neo4j/data:/data \
+    -v {6}{1}/{0}/neo4j/logs:/logs \
+    -v {6}{4}:/var/lib/neo4j/import/{5} \
+    -v {6}{1}/{0}/neo4j/plugins:/plugins \
+	-v {6}{1}/{0}/neo4j/conf:/conf \
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
@@ -173,22 +203,24 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
-    arm64v8/neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, webapp_name)
+    neo4j:4.4""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, webapp_name, base_path)
 	# Note: For unit tests, data_import_path is the full path to the test directory
 
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('Docker container %s is starting.'%str(container_name))
 	
 	# Update connection strings to use container name instead of localhost
-	constants.NEO4J_CONN_HTTP_STRING = f"http://{container_name}:7474"
-	constants.NEO4J_CONN_STRING = f"bolt://{container_name}:7687"
-	constants.NEOMODEL_NEO4J_CONN_STRING = f"bolt://{constants.NEO4J_USER}:{constants.NEO4J_PASS}@{container_name}:7687"
+	constants.NEO4J_CONN_HTTP_STRING = f"http://neo4j:7474"
+	constants.NEO4J_CONN_STRING = f"bolt://neo4j:7687"
+	constants.NEOMODEL_NEO4J_CONN_STRING = f"bolt://{constants.NEO4J_USER}:{constants.NEO4J_PASS}@neo4j:7687"
 
 	command	= "docker exec %s 'rm -f /var/lib/neo4j/data/databases/store_lock'"%(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.info('%s: Docker container removing lock.'%str(container_name))
 
+	command	= "docker exec %s 'rm -f /data/databases/store_lock'"%(container_name)
+	utilityModule.run_os_command(command, print_stdout=False)
+	logger.info('%s: Docker container removing lock.'%str(container_name))
 
 
 def remove_neo4j_database(database_name, container_name, all=False):
@@ -285,10 +317,10 @@ def import_data_inside_container(container_name, database_name, relative_import_
 			else:
 				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
 
-
 		# directly run the command inside the neo4j container with docker exec
 		cmd = "docker exec -it %s %s"%(container_name, neo4j_import_cmd)
 		utilityModule.run_os_command(cmd, print_stdout=True, prettify=True)
+
 		return 1
 
 	elif mode == 'graphML':
@@ -316,7 +348,6 @@ if __name__ == '__main__':
 
 	logger.info('running neo4j docker tests...')
 	_test_import()
-
 
 
 

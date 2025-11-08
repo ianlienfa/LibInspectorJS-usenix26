@@ -116,11 +116,12 @@ def get_name_from_url(url):
 def neo4j_wait(try_attempt=2):
 	for _ in range(try_attempt):
 		logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
-		connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+		connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150, conn=constantsModule.NEO4J_CONN_HTTP_STRING)
 		if connection_success:
+			logger.info('waiting for the tcp port 7474 of the neo4j container is ready')
 			break
 		else:
-			logger.info('waiting failed, retrying ...')
+			logger.info('waiting failed, retrying...')
 			time.sleep(5)				
 
 
@@ -200,7 +201,7 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 
 	# setting index to increase performance
 	logger.info(f"Creating indexes...")
-	create_neo4j_indexes_out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.create_neo4j_indexes, conn_timeout=50)						
+	create_neo4j_indexes_out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.create_neo4j_indexes, conn=constantsModule.NEO4J_CONN_STRING, conn_timeout=50)						
 	logger.info(f"Index creation out: {create_neo4j_indexes_out}")
 	# breakpoint()
 
@@ -210,7 +211,7 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 			webpage = os.path.join(webapp_data_directory, each_webpage)
 			logger.warning('HPG for: %s'%(webpage))
 
-			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150, conn=constantsModule.NEO4J_CONN_HTTP_STRING)
 			if not connection_success:
 				raise RuntimeError("connection failure on making query")
 			navigation_url = get_url_for_webpage(webpage)
@@ -236,7 +237,7 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						signal.alarm(300)  # 5 minutes = 300 seconds
 
 						try:
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=300)
+							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn=constantsModule.NEO4J_CONN_STRING, conn_timeout=300)
 						finally:
 							signal.alarm(0)  # Cancel the alarm
 
@@ -286,8 +287,6 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 		graphid = uuid.uuid4().hex
 		container_name = 'neo4j_container_' + graphid
 
-
-
 		for each_webpage in webapp_pages:
 			logger.debug(f'Working on {each_webpage}')
 			relative_import_path = os.path.join(webapp_folder_name, each_webpage)
@@ -320,7 +319,7 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 				####
 
 				logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')				
-				connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+				connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150, conn=constantsModule.NEO4J_CONN_HTTP_STRING)
 				if not connection_success:
 					sys.exit(1)		
 
@@ -329,11 +328,11 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 
 			# run the vulnerability detection queries
 			if query:
-				connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+				connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150, conn=constantsModule.NEO4J_CONN_HTTP_STRING)
 				if not connection_success:
 					sys.exit(1)
 				navigation_url = get_url_for_webpage(webpage)
-				out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=50)
+				out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn=constantsModule.NEO4J_CONN_STRING, conn_timeout=50)
 				# out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage)
 				logger.info(f"analysis out: {out}")
 	except Exception as e:

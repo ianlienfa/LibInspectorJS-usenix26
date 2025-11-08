@@ -1866,7 +1866,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				if ident in ce[0]:
 					logger.info(f"[debug] varname: {ident}, rootContextNode: {t}")
 					# vals = getValueOfWithLocationChain(tx, ident, t)
-					breakpoint()
+					# breakpoint()
 					vals = DF._get_varname_value_from_context(tx, ident, t)
 					request_storage[nid]['expected_values'][ident] = vals
 
