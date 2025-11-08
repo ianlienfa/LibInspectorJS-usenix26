@@ -15,15 +15,7 @@
 import os
 import re
 import json
-
-def get_name_from_url(url: str) -> str:
-    return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+from utils.utility import get_name_from_url
 
 def read_raw_result_with_url(url):
     """

@@ -26,11 +26,12 @@ from threading import Timer
 import time
 import os
 import re
+import hashlib
+from urllib.parse import urlparse
 import constants as constantsModule
 from neo4j import GraphDatabase
 from datetime import datetime
 import signal
-import hashlib
 from utils.logging import logger
 import json
 
@@ -148,29 +149,39 @@ def _get_last_subpath(s):
 def getDirectoryNameFromURL(url):
 	"""
 	@param url: eTLD+1 domain name
-	@return converts the url to a string name suitable for a directory by removing the colon and slash symbols
+	@return converts the url to a short directory name using domain + SHA256 hash
+
+	Note: This is a wrapper around get_name_from_url() for backward compatibility.
+	New code should use get_name_from_url() directly.
 	"""
-	return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+	return get_name_from_url(url)
 
 def get_name_from_url(url):
 	"""
-	The cve version for having archive urls into neo4j
-	@param url: eTLD+1 domain name
-	@return converts the url to a string name suitable for a directory by removing the colon and slash symbols
+	@param url: full URL string
+	@return converts the url to a short directory name using domain + SHA256 hash
+
+	IMPORTANT: This function must remain synchronized with the JavaScript version:
+	  - JavaScript: getNameFromURL() in crawler/crawler-taint.js
+	  - JavaScript: getNameFromURL() in crawler/crawler.js
+	Both must produce identical output for the same input URL.
+	Hash algorithm: SHA256 (matching JavaScript hashURL function)
+	Domain sanitization: replace non-alphanumeric (except dash) with underscore
 	"""
-	return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+	# Generate SHA256 hash of the URL (matching JavaScript)
+	url_hash = hashlib.sha256(url.encode('utf-8')).hexdigest()
+
+	# Extract and sanitize domain for readability
+	try:
+		parsed = urlparse(url)
+		domain = parsed.hostname if parsed.hostname else 'unknown'
+		# Sanitize domain: replace non-alphanumeric (except dash) with underscore
+		domain = ''.join(c if c.isalnum() or c == '-' else '_' for c in domain)
+	except:
+		domain = 'unknown'
+
+	# Format: domain-hash (e.g., www_ebay_de-abc123...)
+	return f"{domain}-{url_hash}"
 
 def get_unique_nested_list(l):
 	"""

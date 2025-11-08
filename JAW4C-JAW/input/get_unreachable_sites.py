@@ -65,8 +65,8 @@ def is_website_up(uri):
 		return False
 
 
-def get_name_from_url(url):
-	return url.replace(':', '-').replace('/', '');
+# Import get_name_from_url from utils (defined in utils/utility.py)
+from utils.utility import get_name_from_url
 
 
 def main():

@@ -95,20 +95,8 @@ def parse_additional_args_to_posix_style(args):
             result.append(f"--{key}={val}")	
     return f"'{json.dumps(result)}'"
 
-def get_name_from_url(url):
-
-	"""
-	 @param url: eTLD+1 domain name
-	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
-
-	"""
-	return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+# Use get_name_from_url from utils.utility (already imported as utilityModule)
+get_name_from_url = utilityModule.get_name_from_url
 
 # Global variables to track current URL logging handlers
 current_url_handlers = None
@@ -300,7 +288,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 
 	LOGGER.info("successfully crawled %s."%(website_url))
 
-def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg):
+def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout):
 	"""
 	Performs CVE vulnerability analysis for a given website URL
 
@@ -314,6 +302,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 	@param static_analysis_per_webpage_timeout: Timeout per webpage
 	@param static_analysis_compress_hpg: Whether to compress HPG
 	@param static_analysis_overwrite_hpg: Whether to overwrite HPG
+	@param container_transaction_timeout: Timeout for neo4j container transactions
 	"""
 	if not config['cve_vuln']['enabled']:
 		return
@@ -468,7 +457,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 				if container_name:
 					for try_attempts in range(2):
 						try:
-							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list)
+							# vuln_list element: {"http://localhost:3000/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656": [{"mod": true, "libname": "jquery", "location": "692", "version": "3.4.0", "vuln": [{"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<options>alert('XSS')</options>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": false, "payload": "<img src=x onerror=alert(1)>", "exported": true, "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": 0.8, "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<option><style></style><script>alert('XSS')</script></option>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}]}]}
+							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list, container_transaction_timeout)
 							break
 						except Exception as e:
 							print(f"neo4j exception {e}, retrying ... ")
@@ -480,7 +470,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 						dockerModule.stop_neo4j_container(container_name)
 						dockerModule.remove_neo4j_container(container_name)
 
-def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg):
+def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout):
 	"""
 	Processes a single website through the entire analysis pipeline
 
@@ -499,6 +489,7 @@ def process_single_website(website_url, config, domain_health_check, crawler_com
 	@param static_analysis_per_webpage_timeout: Timeout per webpage
 	@param static_analysis_compress_hpg: Whether to compress HPG
 	@param static_analysis_overwrite_hpg: Whether to overwrite HPG
+	@param container_transaction_timeout: Timeout for neo4j container transactions
 	"""
 	# Domain health check
 	if domain_health_check:
@@ -511,7 +502,7 @@ def process_single_website(website_url, config, domain_health_check, crawler_com
 		perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory)
 
 	# CVE vulnerability analysis
-	perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg)
+	perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout)
 
 
 
@@ -663,6 +654,10 @@ def main():
 	if "overwrite_hpg" in config["staticpass"]:
 		static_analysis_overwrite_hpg = config["staticpass"]["overwrite_hpg"]
 
+	container_transaction_timeout = 300  # default value
+	if "container_transaction_timeout" in config["staticpass"]:
+		container_transaction_timeout = int(config["staticpass"]["container_transaction_timeout"])
+
 	# set neo4j config
 	if "neo4j_user" in config["staticpass"]:
 		constantsModule.NEO4J_USER = config["staticpass"]["neo4j_user"]
@@ -705,7 +700,8 @@ def main():
 			static_analysis_memory=static_analysis_memory,
 			static_analysis_per_webpage_timeout=static_analysis_per_webpage_timeout,
 			static_analysis_compress_hpg=static_analysis_compress_hpg,
-			static_analysis_overwrite_hpg=static_analysis_overwrite_hpg
+			static_analysis_overwrite_hpg=static_analysis_overwrite_hpg,
+			container_transaction_timeout=container_transaction_timeout
 		)
 	# ----------- Multiple-sites Analysis Section (Web Archive) -----------
 	else: 
@@ -737,7 +733,8 @@ def main():
 							static_analysis_memory=static_analysis_memory,
 							static_analysis_per_webpage_timeout=static_analysis_per_webpage_timeout,
 							static_analysis_compress_hpg=static_analysis_compress_hpg,
-							static_analysis_overwrite_hpg=static_analysis_overwrite_hpg
+							static_analysis_overwrite_hpg=static_analysis_overwrite_hpg,
+							container_transaction_timeout=container_transaction_timeout
 						)
 					except RuntimeError as r_e:
 						print(f"Runtime error catched for {website_url}: {r_e}, moving on to the next...")

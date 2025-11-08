@@ -135,18 +135,34 @@ function isValid(link){
 }
 
 
-/** 
- * @function getNameFromURL 
- * @param url: eTLD+1 domain name
- * @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
+/**
+ * @function getNameFromURL
+ * @param url: full URL string
+ * @return converts the url to a short directory name using domain + SHA256 hash
+ *
+ * IMPORTANT: This function must remain synchronized with the Python version:
+ *   - Python: get_name_from_url() in analyses/cve_vuln/cve_vuln_neo4j_traversals.py
+ *   - Python: get_name_from_url() in utils/utility.py
+ * Both must produce identical output for the same input URL.
+ * Hash algorithm: SHA256 (via hashURL function)
+ * Domain sanitization: replace non-alphanumeric (except dash) with underscore
 **/
 function getNameFromURL(url) {
-  return url
-    .replace(/:/g, '-')
-    .replace(/\//g, '')
-    .replace(/&/g, '%26')
-    .replace(/=/g, '%3D')
-    .replace(/\?/g, '%3F');
+  // Generate SHA256 hash of the URL
+  const urlHash = hashURL(url);
+
+  // Extract and sanitize domain for readability
+  let domain = '';
+  try {
+    const urlObj = new URL(url);
+    domain = urlObj.hostname.replace(/[^a-zA-Z0-9-]/g, '_');
+  } catch (e) {
+    // If URL parsing fails, use 'unknown'
+    domain = 'unknown';
+  }
+
+  // Format: domain-hash (e.g., www_ebay_de-abc123...)
+  return `${domain}-${urlHash}`;
 }
 
 

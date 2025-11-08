@@ -50,20 +50,8 @@ def get_url_for_webpage(webpage_directory):
 	fd.close()
 	return content
 
-def get_name_from_url(url):
-
-	"""
-	 @param url: eTLD+1 domain name
-	 @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
-
-	"""
-	return (
-        url.replace(":", "-")
-           .replace("/", "")
-           .replace("&", "%26")
-           .replace("=", "%3D")
-           .replace("?", "%3F")
-    )
+# Import get_name_from_url from utils (defined in utils/utility.py)
+from utils.utility import get_name_from_url
 
 
 # def docker_build_hpg(seed_url):
@@ -184,11 +172,12 @@ def build_hpg(container_name, webpage):
 	return container_name
 
 
-def analyze_hpg(seed_url, container_name, vuln_list):
-	"""	
+def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300):
+	"""
 	@param {string} seed_url
+	@param {int} container_transaction_timeout: timeout in seconds for each transaction (default: 300)
 	@description: imports an HPG inside a neo4j docker instance and runs traversals over it.
-	
+
 	"""
 	webapp_folder_name = get_name_from_url(seed_url)
 	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
@@ -218,7 +207,12 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 			for entry in vuln_list:
 				try:
 					location, vuln, mod = entry['location'], entry['vuln'], entry['mod']
+					poc_set = set()
 					for v in vuln:
+						if v['poc'] in poc_set:
+							logger.info(f'Skipping duplicate poc: {v["poc"]}')
+							continue
+						poc_set.add(v['poc'])
 						if 'LIBOBJ' not in v['poc']:
 							logger.info(f'Skipping {v['poc']} due to unsupported form: no LIBOBJ')
 							continue
@@ -229,15 +223,15 @@ def analyze_hpg(seed_url, container_name, vuln_list):
 						logger.info(f"executing vuln: {vuln_info}")
 						# breakpoint()
 
-						# Set up 5-minute timeout
+						# Set up timeout
 						def timeout_handler(signum, frame):
-							raise TimeoutError(f"Query execution exceeded 5 minute timeout for {vuln_info}")
+							raise TimeoutError(f"Query execution exceeded {container_transaction_timeout} second timeout for {vuln_info}")
 
 						signal.signal(signal.SIGALRM, timeout_handler)
-						signal.alarm(300)  # 5 minutes = 300 seconds
+						signal.alarm(container_transaction_timeout * 2)  # Set alarm to 2x conn_timeout
 
 						try:
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn=constantsModule.NEO4J_CONN_STRING, conn_timeout=300)
+							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn=constantsModule.NEO4J_CONN_STRING, conn_timeout=container_transaction_timeout)
 						finally:
 							signal.alarm(0)  # Cancel the alarm
 
