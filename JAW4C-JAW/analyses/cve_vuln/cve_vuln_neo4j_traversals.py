@@ -132,12 +132,16 @@ def build_hpg(container_name, webpage):
 		# de-compress the hpg 
 		IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
 
+		# remove old containers & databases if they exist
+		dockerModule.clear_neo4j_containers("jaw4c-network", database_name)
+		time.sleep(5)
+		
 		# import
 		nodes_file = os.path.join(webpage, constantsModule.NODE_INPUT_FILE_NAME)
 		rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
 		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
-			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')			
-		
+			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
+
 		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
 		logger.info('waiting 5 seconds for the neo4j container to be ready.')
 		time.sleep(5)
@@ -344,30 +348,3 @@ def build_and_analyze_hpg(seed_url, vuln_info, config={'build': True, 'query': T
 		dockerModule.remove_neo4j_database(database_name, container_name)
 
 	return container_name
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

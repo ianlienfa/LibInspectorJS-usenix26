@@ -37,7 +37,7 @@ services:
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/node_modules
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/node_modules
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/node_modules
-      - /JAW4C/JAW4C-JAW/tests/pipeline_test
+      #- /JAW4C/JAW4C-JAW/tests/pipeline_test
     # neo4j requests shouldn't go through proxy but all of the others should to use web archive
     environment:
       HTTP_PROXY: http://proxy:8002

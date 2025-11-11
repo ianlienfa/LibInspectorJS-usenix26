@@ -35,6 +35,7 @@ import hpg_neo4j.db_utility as DU
 from utils.logging import logger
 import time
 import shutil
+import json
 
 # set up neo4j volume folder
 VOLUME_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "volume")
@@ -223,6 +224,30 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 	logger.info('%s: Docker container removing lock.'%str(container_name))
 
 
+def clear_neo4j_containers(network_name, database_name):
+	try:
+		network = json.loads(subprocess.check_output(
+			["docker", "network", "inspect", network_name],
+			stderr=subprocess.DEVNULL))
+	except subprocess.CalledProcessError:
+		logger.error(f"Couldn't inspect network jaw4c-network — does it exist?")
+		return
+	except json.JSONDecodeError as e:
+		logger.error(f"Failed to parse docker network inspect output: {e}")
+		return
+
+	containers = network[0].get("Containers", {}) if network else {}
+
+	# Remove old neo4j containers in network
+	for container_id, info in containers.items():
+		cname = info.get("Name") or ""
+		if cname.startswith("neo4j_container_"):  # neo4j container
+			logger.warning(f"Removing existing neo4j container {cname}")	
+			stop_neo4j_container(cname)
+			remove_neo4j_container(cname)
+			remove_neo4j_database(database_name, cname)
+
+
 def remove_neo4j_database(database_name, container_name, all=False):
 	path_db = os.path.join(VOLUME_HOME, container_name)
 	if os.path.exists(path_db):
@@ -255,7 +280,6 @@ def restart_neo4j_container(container_name, cleanup=True):
 
 
 def remove_neo4j_container(container_name):
-
 	command = "docker rm %s"%str(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.warning('Docker container %s is being removed.'%str(container_name))
@@ -348,10 +372,3 @@ if __name__ == '__main__':
 
 	logger.info('running neo4j docker tests...')
 	_test_import()
-
-
-
-
-
-
-
