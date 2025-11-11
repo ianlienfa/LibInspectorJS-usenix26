@@ -42,6 +42,7 @@ import traceback
 
 import constants as constantsModule
 import utils.utility as utilityModule
+from utils.utility import Tee
 import hpg_neo4j.db_utility as neo4jDatabaseUtilityModule
 import hpg_neo4j.query_utility as neo4jQueryUtilityModule
 from hpg_neo4j.query_utility import get_ast_parent, get_ast_topmost, getChildsOf, get_node_by_id, getAdvancedCodeExpression, getCodeOf
@@ -79,8 +80,9 @@ MAIN_QUERY_ACTIVE = True
 
 
 class EarlyHaltException(Exception):
-    def __init__(self, args=""):
-        self.args = args
+    def __init__(self, message=""):
+        super().__init__(message)
+        self.message = message
 
 
 def _unquote_url(url):
@@ -1603,8 +1605,8 @@ def getSinkExpression(tx, vuln_info):
 									max_lv_matches[constuctKey] = matched_nodes
 									print(f"[MaxLevel] Added construct {constuctKey} at level {max_lv} with {len(matched_nodes)} nodes")
 				except EarlyHaltException as e:
-					print(f"Early halt due to none matching for construct", e)
-					print("poc['constructs']", poc['constructs'])
+					print(f"Early halt due to none matching for construct: {str(e)}")
+					print(f"poc['constructs']: {poc['constructs']}")
 
 			# Store max level info for this POC (after all libobj pairs processed)
 			if max_lv > 0 and max_lv_matches:
@@ -2071,7 +2073,7 @@ def getSinkByTagTainting(tx, vuln_info):
 					case _:
 						# Could be all kinds of CFG nodes here
 						print(f"taintThroughEdgeProperty not implemented for node type: {currASTNode['Type']}")
-						breakpoint()
+						# breakpoint()
 						raise NotImplementedError("taintThroughEdgeProperty not implemented for node type: " + currASTNode['Type'])
 						
 			else:   
@@ -2280,7 +2282,8 @@ def getSinkByTagTainting(tx, vuln_info):
 					# When currentASTNode reaches topMost AST node, calls taintThroughEdgeProperty again for further propagation
 					# identify the alias node in the dependent node
 					alias = _get_alias_node_from_b_via_edge(varname, iteratorNode) # find alias node in iteratorNode that matches 'node'
-					taintPropTilASTTopmost(alias, alias, iteratorNode, taintTag, nodeid_to_matches, out_values, context_scope)				
+					if alias:
+						taintPropTilASTTopmost(alias, alias, iteratorNode, taintTag, nodeid_to_matches, out_values, context_scope)				
 		@make_hashable_decorator
 		@lru_cache(maxsize=1000)
 		def nodeTagTainting(node, contextNode, taintTag, graphTagging=True):
@@ -2375,7 +2378,7 @@ def getSinkByTagTainting(tx, vuln_info):
 					matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
 					print(f"codeMatchingNodes of {code}: {matching_nodes}")					
 					if not matching_nodes:
-						print(f"No matching nodes found for code: {code} in libObjScope: {libObjScope}")
+						print(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
 						raise EarlyHaltException(f"curr_construct: {curr_construct}")
 
 					# For each matching node, do construct comparison, if match, do tainting
@@ -2396,15 +2399,15 @@ def getSinkByTagTainting(tx, vuln_info):
 								print(f"Error in nodeTagTainting: {e}")
 								# print traceback
 								traceback.print_exc()
-								breakpoint()  # Drop into debugger on exception
+								# breakpoint()  # Drop into debugger on exception
 								raise e
 
 		except EarlyHaltException as e:
-			print(f"Early halt due to none matching for construct", e)
-			print("poc['constructs']", poc['constructs'])
+			print(f"Early halt due to none matching for construct: {str(e)}")
+			print(f"poc['constructs']: {poc['constructs']}")
 		except Exception as e:
 			print(f"Exception in processPocMatch: {e}")
-			breakpoint()
+			# breakpoint()
 			raise e
 			
 		all_poc_max_levels = []
@@ -2465,6 +2468,7 @@ def getSinkByTagTainting(tx, vuln_info):
 # ----------------------------------------------------------------------- #
 
 def run_traversals_simple(tx, vuln_info):
+
 	"""
 	@param {string} navigation_url: base url to test 
 	@param {string} webpage_directory: path to save analyzer template
@@ -2556,6 +2560,7 @@ def run_traversals_simple(tx, vuln_info):
 									fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
 					fd.write('\n')
 
+				print(f"request_storage: {request_storage}")
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node
 					location = _get_location_part(each_request_key)
@@ -2631,7 +2636,7 @@ def run_traversals_simple(tx, vuln_info):
 						fd.write('[*] Location: %s\n'%location)
 						fd.write('[*] Function: %s\n'%request_fn)
 						fd.write('[*] Template: %s\n'%(request_variable))
-						fd.write('[*] Top Expression: %s\n'%(request_top_expression_code))
+						fd.write('[*] Top Expression: %s\n'%(request_top_expression_code)) # TODO: we need the location of top expression as well
 
 
 						gt_fd.write(sep_templates)
@@ -2695,13 +2700,12 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 	#	i.e., is any sink value traces back to the defined semantic types
 	if MAIN_QUERY_ACTIVE:
 		# different kinds of call expressions (sinks)
-		print("===================================================================")
-		print("Starting tainting-based sink detection, processing vuln_info:", vuln_info)
-		print("===================================================================")
-		breakpoint()  # Debug point before tainting-based sink detection
+		# breakpoint()  # Debug point before tainting-based sink detection
 		r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info)
 		# DEBUG PRINT ALARM THAT TAINTING IS DONE
-		print("Tainting-based sink detection completed. Results:", r1)		
+		print("------------------------------------------------------------------------------------------------")
+		print("Tainting-based sink detection completed.\nvuln_info: ", vuln_info, "\nResults:", r1)		
+		print("------------------------------------------------------------------------------------------------")
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
 		# For cve sink...
@@ -2730,7 +2734,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 					if ident in ce[0]:
 						logger.info(f"[debug] varname: {ident}, rootContextNode: {t}")
 						# vals = getValueOfWithLocationChain(tx, ident, t)					
-						vals = DF._get_varname_value_from_context(tx, ident, t)
+						vals = DF._get_varname_value_from_context(tx, ident, t)						
 						request_storage[nid]['expected_values'][ident] = vals
 
 
@@ -2800,6 +2804,9 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 						logger.info(f"unique tags: {tags}")
 						request_tags.extend(tags)
 
+						# Add the top_expression into program slices for better readability
+						program_slices.append([request_top_expression_code, None, None, _get_location_part(each_request_key)])
+
 						for i in range(num_slices):
 							program_slice = program_slices[i]
 							loc = _get_line_of_location(program_slice[3])
@@ -2831,25 +2838,31 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 					out.append(tag_set)
 					logger.info(f"tag_set: {tag_set}")
 					if not ( len(tag_set) == 1 and CSRFSemanticTypes.SEM_TYPE_NON_REACHABLE in tag_set ):
-						fd.write(sep_templates)
-						fd.write('[*] Tags: %s\n'%(str(tag_set)))
-						fd.write('[*] Vuln Info: %s\n'%(json.dumps(vuln_info)))
-						fd.write('[*] NodeId: %s\n'%str(id_set))
-						fd.write('[*] Location: %s\n'%location)
-						fd.write('[*] Function: %s\n'%request_fn)
-						fd.write('[*] Template: %s\n'%(request_variable))
-						fd.write('[*] Top Expression: %s\n'%(request_top_expression_code))
+						# Write to fd and stdout
+						tee_fd = Tee(fd, sys.stdout)
+						tee_fd.write(sep_templates)
+						tee_fd.write('[*] Tags: %s\n'%(str(tag_set)))
+						tee_fd.write('[*] Vuln Info: %s\n'%(json.dumps(vuln_info)))
+						tee_fd.write('[*] NodeId: %s\n'%str(id_set))
+						tee_fd.write('[*] Location: %s\n'%location)
+						tee_fd.write('[*] Function: %s\n'%request_fn)
+						tee_fd.write('[*] Template: %s\n'%(request_variable))
+						tee_fd.write('[*] Top Expression: %s\n'%(request_top_expression_code))
 
+						# Write to gt_fd and stdout
+						tee_gt = Tee(gt_fd, sys.stdout)
+						tee_gt.write(sep_templates)
+						tee_gt.write('[*] NavigationURL: %s\n'%navigation_url)
+						tee_gt.write('[*] Hash: %s\n'%folder_name_of_url)
+						tee_gt.write('[*] Tags: %s\n'%(str(tag_set)))
+						tee_gt.write('[*] NodeId: %s\n'%str(id_set))
+						tee_gt.write('[*] Location: %s\n'%location)
+						tee_gt.write('[*] Function: %s\n'%request_fn)
+						tee_gt.write('[*] Template: %s\n'%(request_variable))
+						tee_gt.write('[*] Top Expression: %s\n'%(request_top_expression_code))
 
-						gt_fd.write(sep_templates)
-						gt_fd.write('[*] NavigationURL: %s\n'%navigation_url)
-						gt_fd.write('[*] Hash: %s\n'%folder_name_of_url)
-						gt_fd.write('[*] Tags: %s\n'%(str(tag_set)))
-						gt_fd.write('[*] NodeId: %s\n'%str(id_set))
-						gt_fd.write('[*] Location: %s\n'%location)
-						gt_fd.write('[*] Function: %s\n'%request_fn)
-						gt_fd.write('[*] Template: %s\n'%(request_variable))
-						gt_fd.write('[*] Top Expression: %s\n'%(request_top_expression_code))
+						# Write buffer items to both fd, gt_fd and stdout
+						tee_all = Tee(fd, gt_fd, sys.stdout)
 						i = 0
 						for item in print_buffer:
 							if item.startswith('(loc:'):
@@ -2857,18 +2870,20 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 								i = i + 1
 							else:
 								i = 0
-							fd.write(item)
-							gt_fd.write(item)
-						fd.write(sep_templates+'\n') # add two newlines
+							tee_all.write(item)
+
+						tee_fd.write(sep_templates+'\n') # add two newlines
 						gt_fd.write(sep_templates)
 					else:
-						fd.write(sep_templates)
-						fd.write('[*] Tags: %s\n'%(str(tag_set)))
-						fd.write('[*] NodeId: %s\n'%str(id_set))
-						fd.write('[*] Location: %s\n'%location)
-						fd.write('[*] Function: %s\n'%request_fn)
-						fd.write('[*] Template: %s\n'%(request_variable))
-						fd.write('[*] Top Expression: %s\n'%(request_top_expression_code))
+						# Write to fd and stdout
+						tee_fd = Tee(fd, sys.stdout)
+						tee_fd.write(sep_templates)
+						tee_fd.write('[*] Tags: %s\n'%(str(tag_set)))
+						tee_fd.write('[*] NodeId: %s\n'%str(id_set))
+						tee_fd.write('[*] Location: %s\n'%location)
+						tee_fd.write('[*] Function: %s\n'%request_fn)
+						tee_fd.write('[*] Template: %s\n'%(request_variable))
+						tee_fd.write('[*] Top Expression: %s\n'%(request_top_expression_code))
 
 						i = 0
 						for item in print_buffer:
@@ -2877,8 +2892,8 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 								i = i + 1
 							else:
 								i = 0
-							fd.write(item)
-						fd.write(sep_templates+'\n') # add two newlines
+							tee_fd.write(item)
+						tee_fd.write(sep_templates+'\n') # add two newlines
 
 	hashSymbol = "#"
 	return out

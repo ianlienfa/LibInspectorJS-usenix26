@@ -379,7 +379,21 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
         function (input) { /// input = ReachIn(n)
 
             var currentNode = this;
-            
+
+            // Support global var def-use for scoped access: Propagate parent scope definitions at ENTRY nodes
+            // e.g. x = ...; function f() { ... x ... }
+            if (currentNode.type === FlowNode.ENTRY_NODE_TYPE &&
+                currentNode.scope && currentNode.scope.parent) {
+                var parentReachIns = currentNode.scope.parent.lastReachIns;
+                if (parentReachIns && parentReachIns.size > 0) {
+                    if (!!input) {
+                        input = Set.union(input, parentReachIns);
+                    } else {
+                        input = new Set(parentReachIns);
+                    }
+                }
+            }
+
             if (!!currentNode.extraReachIns) {
                 if (!!input) {
                     input = Set.union(input, currentNode.extraReachIns);
@@ -390,9 +404,9 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
 
             var kill = currentNode.kill || thisAnalyzer.findKILLSet(currentNode);
             var UseSet = thisAnalyzer.findUSESet(currentNode); // set c-use & p-use on flow node
-            
-            var generate = currentNode.generate || thisAnalyzer.findGENSet(currentNode);   
-          
+
+            var generate = currentNode.generate || thisAnalyzer.findGENSet(currentNode);
+
             // console.log('useset', UseSet.cuse.values().toString());
             // console.log('generate', generate.values().toString());
             // console.log('---')
@@ -400,7 +414,7 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
             if (!!currentNode.scope) {
                 currentNode.scope.lastReachIns = new Set(input);
             }
-           
+
             return  Set.union(Set.minus(input, kill), generate);
             // return  Set.union(input, generate);
         },
@@ -810,7 +824,7 @@ DefUseAnalyzer.prototype.findUSESet = function (cfgNode) {
         },
         Identifier: function (node) {
             if (cfgNode.astNode.type !== 'Identifier') {
-                var usedVar = currentScope.getVariable(node.name);
+                var usedVar = currentScope.getVariable(node.name);  
                 if (!!usedVar) {
                     if (!isPUse) {
                         cuseVars.add(usedVar);

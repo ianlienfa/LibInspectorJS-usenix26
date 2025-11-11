@@ -28,6 +28,8 @@ function splitSequence(code) {
   traverse(ast, {
     ExpressionStatement(path) {
       const expr = path.get("expression");
+
+      // Handle sequence expressions
       if (expr.isSequenceExpression()) {
         const parts = expr.node.expressions;
         const stmts = parts.map((subExpr, i) => {
@@ -35,6 +37,41 @@ function splitSequence(code) {
           return t.expressionStatement(subExpr);
         });
         path.replaceWithMultiple(stmts);
+        return;
+      }
+
+      // Handle Object IIFE pattern: ({...}).method(args)
+      // Example: ({target: "...", render: function(e) {...}}).render(r)
+      if (expr.isCallExpression()) {
+        const callee = expr.node.callee;
+
+        // Check if it's a member expression like (objectExpr).method
+        if (t.isMemberExpression(callee)) {
+          const object = callee.object;
+
+          // Check if the object is an ObjectExpression (literal object)
+          if (t.isObjectExpression(object)) {
+            // Generate unique temp variable
+            const tempId = path.scope.generateUidIdentifier("tmp");
+
+            // Create: const tmp = {...}
+            const varDecl = t.variableDeclaration("const", [
+              t.variableDeclarator(tempId, object)
+            ]);
+
+            // Create: tmp.method(args)
+            const newCall = t.callExpression(
+              t.memberExpression(tempId, callee.property, callee.computed),
+              expr.node.arguments
+            );
+
+            path.replaceWithMultiple([
+              varDecl,
+              t.expressionStatement(newCall)
+            ]);
+            return;
+          }
+        }
       }
     },
 
@@ -64,6 +101,67 @@ function splitSequence(code) {
 
         path.replaceWithMultiple(stmts);
         }
+    },
+
+    VariableDeclaration(path) {
+      const kind = path.node.kind; // 'const', 'let', or 'var'
+
+      // Handle ALL Function Expression IIFE patterns:
+      // - const n = function n(r) {...}(692)
+      // - const x = function() {...}()
+      // - const foo = function bar() {...}()
+      // Transform to: function tmp_fn(r) {...}; const varName = tmp_fn(692);
+      // This keeps the result in the original variable name to avoid breaking other call sites
+      if (path.node.declarations.length === 1) {
+        const declarator = path.node.declarations[0];
+        const init = declarator.init;
+
+        // Check if init is a CallExpression
+        if (t.isCallExpression(init)) {
+          const callee = init.callee;
+
+          // Check if callee is a FunctionExpression (with or without a name)
+          if (t.isFunctionExpression(callee)) {
+            const varName = declarator.id;
+
+            // Generate unique function name to avoid collision
+            const uniqueFuncName = path.scope.generateUidIdentifier("tmp");
+
+            // Create function declaration with unique name: function _tmp(r) {...}
+            const funcDecl = t.functionDeclaration(
+              uniqueFuncName,
+              callee.params,
+              callee.body,
+              callee.generator,
+              callee.async
+            );
+
+            // Create variable declaration with ORIGINAL variable name: const varName = _tmp(692)
+            // This ensures other code referencing the variable gets the result, not the function
+            const resultVarDecl = t.variableDeclaration(kind, [
+              t.variableDeclarator(
+                varName,
+                t.callExpression(uniqueFuncName, init.arguments)
+              )
+            ]);
+
+            path.replaceWithMultiple([funcDecl, resultVarDecl]);
+            return;
+          }
+        }
+      }
+
+      // Split multiple declarators into separate declarations
+      // e.g., const a = 1, b = 2; -> const a = 1; const b = 2;
+      if (path.node.declarations.length > 1) {
+        // Create separate VariableDeclaration for each declarator
+        const separateDeclarations = path.node.declarations.map(declarator => {
+          return t.variableDeclaration(kind, [declarator]);
+        });
+
+        // Replace with multiple single-declarator statements
+        path.replaceWithMultiple(separateDeclarations);
+      }
     }
   });
 
