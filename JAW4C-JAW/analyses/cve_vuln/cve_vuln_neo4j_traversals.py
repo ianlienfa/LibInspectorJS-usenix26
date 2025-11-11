@@ -207,7 +207,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 				try:
 					location, vuln, mod = entry['location'], entry['vuln'], entry['mod']
 					poc_set = set()
-					for v in vuln:
+					for i, v in enumerate(vuln):
 						if v['poc'] in poc_set:
 							logger.info(f'Skipping duplicate poc: {v["poc"]}')
 							continue
@@ -219,8 +219,6 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f'Skipping {v['poc']} due to grep found not finding poc fragments')
 							continue
 						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
-						logger.info(f"executing vuln: {vuln_info}")
-						# breakpoint()
 
 						# Set up timeout
 						def timeout_handler(signum, frame):
@@ -230,6 +228,9 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 						signal.alarm(container_transaction_timeout * 2)  # Set alarm to 2x conn_timeout
 
 						try:
+							print("=======================================================================================================")
+							print(f"[{i+1}/{len(vuln)}] Starting tainting-based sink detection\n vuln_info:", vuln_info)
+							print("=======================================================================================================")
 							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=container_transaction_timeout)
 						finally:
 							signal.alarm(0)  # Cancel the alarm

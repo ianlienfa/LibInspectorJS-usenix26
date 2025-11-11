@@ -37,6 +37,25 @@ import json
 
 
 # -------------------------------------------------------------------------- #
+#  		File I/O Utils
+# -------------------------------------------------------------------------- #
+
+
+class Tee:
+	"""Write to multiple file-like objects simultaneously."""
+	def __init__(self, *files):
+		self.files = files
+
+	def write(self, data):
+		for f in self.files:
+			f.write(data)
+
+	def flush(self):
+		for f in self.files:
+			f.flush()
+
+
+# -------------------------------------------------------------------------- #
 #  		OS Utils
 # -------------------------------------------------------------------------- #
 

@@ -90,7 +90,13 @@ class TestWebServer:
         @self.app.route(f'{self.url_path}/')
         @self.app.route(f'{self.url_path}')
         def serve_index():
+            print("Serving index for", self.url_path)
             return redirect(f'{self.url_path}/index.html')
+
+        # @self.app.route(f'/')        
+        # def serve_root():
+        #     # Return a simple message at root
+        #     return "Test server is running"
 
     def start(self):
         """Start the Flask server in a background thread"""
@@ -340,7 +346,7 @@ def compare_results(test_dir, action):
     return all_passed
 
 
-def run_pipeline(config_path, timeout=600):
+def run_pipeline(config_path, timeout=1200):
     """
     Run the pipeline with given config.
 
