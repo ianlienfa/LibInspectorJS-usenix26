@@ -121,7 +121,7 @@ def grep_matching_pattern(website_url: str, poc_str: str) -> bool:
 	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)
 	website_folder = os.path.join(constantsModule.DATA_DIR, website_folder_name)
 	
-	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split('[,(){};."\s]', poc_str)))
+	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,(){};."\s]', poc_str)))
 	try:
 		matching_strs = {}
 		for poc_pattern in patterns:

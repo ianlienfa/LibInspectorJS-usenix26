@@ -92,7 +92,7 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
     -e NEO4JLABS_PLUGINS='["apoc"]' \
-    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     neo4j:4.4
@@ -201,7 +201,7 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
     -e NEO4JLABS_PLUGINS='["apoc"]' \
-    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     neo4j:4.4""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, webapp_name, base_path)
