@@ -597,6 +597,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 	// Playwright request/response tracking - capture external scripts
 	let httpResponses = {};
 	let externalScriptPromises = [];
+	let seenScriptHashes = new Set();
 	page.on('response', async response => {
 		const url = response.url();
 		httpResponses[''+url] = await response.allHeaders();
@@ -606,6 +607,12 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 
 		if (response.request().resourceType() === 'script') {
 			const scriptPromise = response.text().then(async (script_content) => {
+				let scriptHash = getMD5Hash(script_content);				
+				if(seenScriptHashes.has(scriptHash)){
+					console.log("[response] skipping duplicate script for url:", url)
+					return; // skip duplicate scripts
+				}
+				seenScriptHashes.add(scriptHash);
 				let scriptSourceMappingObject = await getScriptSourceMappingObject(script_content, transform_enabled);
 				externalScripts[url] = scriptSourceMappingObject;
 			}).catch( e => {
@@ -737,6 +744,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 				// i.e., this URL could be a substring of the URL present in the `externalScript`
 				// thus we search for this URL, and replace the external script url with its content				
 				let externalScriptUrls = Object.keys(externalScripts);
+				console.log("[DEBUG] externalScriptUrls:", externalScriptUrls)
 				
 				for(const url of externalScriptUrls){
 					if(url.includes(scriptSrc)){
@@ -745,16 +753,18 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 						// note: if a script is external and does not have the `SCRIPT_SRC_REPLACED_WITH_CONTENT`
 						// item, then the script url has not been replaced with its content.
 						allScripts[index].push('SCRIPT_SRC_REPLACED_WITH_CONTENT');
-						delete externalScripts.url
+						delete externalScripts[url];
 						break;
 					}
 				}
 
 			}
 		}
-
+		
+		debugger;
 		for(const [url, scriptSourceMappingObject] of Object.entries(externalScripts)){
 			allScripts.push(['external', scriptSourceMappingObject, url, 'SCRIPT_SRC_REPLACED_WITH_CONTENT'])
+			console.log("[DEBUG] url:", url)
 		}				
 
 
@@ -762,7 +772,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 			allScripts.forEach((e) => {	
 			debugger		
 			if(e[2]){
-				DEBUG && console.log(`"${e[2]}": ${e[1]['code'].slice(0, 25)}`)
+				DEBUG && console.log(`"[DEBUG] ${e[2]}": ${e[1]['code'].slice(0, 25)}`)
 			}
 		})
 		} catch (error) {}

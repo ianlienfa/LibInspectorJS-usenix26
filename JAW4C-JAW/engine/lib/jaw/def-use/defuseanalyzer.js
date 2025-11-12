@@ -36,51 +36,6 @@ const util = require('util');
 var escodegen = require('escodegen');
 
 /**
- * Helper: Build full dotted name for a MemberExpression if statically resolvable.
- * e.g. for a.b.c returns 'a.b.c'. Returns null for computed properties or dynamic parts.
- * @param {Object} node AST node (Identifier or MemberExpression)
- * @returns {string|null}
- */
-function getMemberExpressionFullName(node, lv) {
-    'use strict';
-    if (lv === undefined) lv = 0;
-    if (!node) return null;
-    if (node.type === 'Identifier') return node.name;
-    if (node.type === 'MemberExpression' && node.computed !== true) {
-        if (lv > 5) return null; // prevent too deep recursion
-        var objectName = getMemberExpressionFullName(node.object, lv+1);
-        if (!objectName) return null;
-        var prop = null;
-        if (node.property && node.property.type === 'Identifier') prop = node.property.name;
-        else if (node.property && node.property.type === 'Literal') prop = String(node.property.value);
-        if (!prop) return null;
-        return objectName + '.' + prop;
-    }
-    return null;
-}
-
-/**
- * Helper: ensure a Var exists in the provided scope for the given dotted name.
- * Adds a local variable if not present and returns the Var object (or null on failure).
- * @param {Scope} scope
- * @param {string} name
- * @returns {Var|null}
- */
-function ensureVarInScope(scope, name) {
-    'use strict';
-    if (!scope || typeof name !== 'string' || name.length === 0) return null;
-    var v = scope.getVariable(name);
-    if (v) return v;
-    try {
-        // addLocalVariable will only add if not present
-        scope.addLocalVariable(name);
-        return scope.getLocalVariable(name);
-    } catch (e) {
-        return null;
-    }
-}
-
-/**
  * DefUseAnalyzer
  * @constructor
  */
@@ -90,6 +45,7 @@ function DefUseAnalyzer() {
     this._testonly_ = {
         _analyzeBuiltInObjects: analyzeBuiltInObjects,
         _analyzeDefaultValueOfLocalVariables: analyzeDefaultValueOfLocalVariables,
+        _analyzeClosureVariables: analyzeClosureVariables,
         _getVarDefsOfLocalVariablesReachingInExitNode: getVarDefsOfLocalVariablesReachingInExitNode,
         _findVariableAndItsDefinitionsFromASet: findVariableAndItsDefinitionsFromASet,
         _getNonReachableVarDefs: getNonReachableVarDefs
@@ -180,6 +136,70 @@ function analyzeFunctionDeclaration(model) {
 
 
 /**
+ * Analyze closure variables: variables used in a function but defined in parent scopes
+ * @param {Model} model
+ */
+function analyzeClosureVariables(model) {
+    "use strict";
+    if(!model.graph) return;
+
+    var scope = model.mainlyRelatedScope;
+
+    // Only function scopes have closures (not Program/domain scopes)
+    if(!scope.parent || scope.type === 'page' || scope.type === 'domain') {
+        return;
+    }
+
+    var scopeEntryNode = model.graph[0];
+    var vardefOfClosureVars = new Set();
+
+    // Use the scope's AST (the function node) to walk the entire function body
+    // For Program scopes, use the entry node's AST, for functions use scope.ast.body
+    var ast = (scope.type === 'page') ? scopeEntryNode.astNode : scope.ast.body;
+
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Analyzing scope:', scope.name);
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Scope type:', scope.type);
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Scope AST type:', scope.ast ? scope.ast.type : 'null');
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] AST to walk type:', ast ? ast.type : 'null');
+
+    // Collect all identifiers used in this scope
+    var usedIdentifiers = new Set();
+    walkes(ast, {
+        Identifier: function (node) {
+            usedIdentifiers.add(node.name);
+        }
+    });
+
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Used identifiers:', Array.from(usedIdentifiers));
+
+    // For each identifier, check if it's a closure variable
+    usedIdentifiers.forEach(function(varName) {
+        // Skip if it's a local variable/param in this scope
+        if(scope.hasLocalVariable(varName)) {
+            constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE]   -', varName, 'is local, skipping');
+            return;
+        }
+
+        // Check if defined in parent scope (getVariable walks up the parent chain)
+        if(scope.hasVariable(varName)) {
+            constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE]   -', varName, 'is closure variable, adding');
+            var closureVar = scope.getVariable(varName);
+            // Create a def for this closure variable at entry node
+            vardefOfClosureVars.add(
+                varDefFactory.create(closureVar,
+                    defFactory.createLiteralDef(scopeEntryNode, scope.ast.range))
+            );
+        } else {
+            constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE]   -', varName, 'not found in any scope');
+        }
+    });
+
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Found', vardefOfClosureVars.size, 'closure variables');
+
+    scopeEntryNode.generate = Set.union(scopeEntryNode.generate, vardefOfClosureVars);
+}
+
+/**
  * Initially analyze intra-procedural models
  */
 DefUseAnalyzer.prototype.initiallyAnalyzeIntraProceduralModels = function () {
@@ -189,18 +209,19 @@ DefUseAnalyzer.prototype.initiallyAnalyzeIntraProceduralModels = function () {
         var scopes = scopeTree.scopes;
         scopes.forEach(function (scope) {
             var model = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
-           
+
             /* Calling this will create ReachIn definitions
              * for Builtin objects (e.g., window, document)
              * specified in scope/pagescope.js. However,
              * since we cannot add PDG edges for such built-in definitions (no definiton node),
              * we do not also need to store the ReachIn definitions in nodes.
              */
-            // analyzeBuiltInObjects(model);  
+            // analyzeBuiltInObjects(model);
             analyzeDefaultValueOfLocalVariables(model);
             analyzeFunctionDeclaration(model);
-            
-            
+            analyzeClosureVariables(model);
+
+
         });
     });
 };
@@ -379,20 +400,21 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
         function (input) { /// input = ReachIn(n)
 
             var currentNode = this;
-
-            // Support global var def-use for scoped access: Propagate parent scope definitions at ENTRY nodes
-            // e.g. x = ...; function f() { ... x ... }
-            if (currentNode.type === FlowNode.ENTRY_NODE_TYPE &&
-                currentNode.scope && currentNode.scope.parent) {
-                var parentReachIns = currentNode.scope.parent.lastReachIns;
-                if (parentReachIns && parentReachIns.size > 0) {
-                    if (!!input) {
-                        input = Set.union(input, parentReachIns);
-                    } else {
-                        input = new Set(parentReachIns);
-                    }
-                }
-            }
+            
+            // THIS IS SUPER SLOW
+            // // Support global var def-use for scoped access: Propagate parent scope definitions at ENTRY nodes
+            // // e.g. x = ...; function f() { ... x ... }
+            // if (currentNode.type === FlowNode.ENTRY_NODE_TYPE &&
+            //     currentNode.scope && currentNode.scope.parent) {
+            //     var parentReachIns = currentNode.scope.parent.lastReachIns;
+            //     if (parentReachIns && parentReachIns.size > 0) {
+            //         if (!!input) {
+            //             input = Set.union(input, parentReachIns);
+            //         } else {
+            //             input = new Set(parentReachIns);
+            //         }
+            //     }
+            // }
 
             if (!!currentNode.extraReachIns) {
                 if (!!input) {
@@ -404,9 +426,9 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
 
             var kill = currentNode.kill || thisAnalyzer.findKILLSet(currentNode);
             var UseSet = thisAnalyzer.findUSESet(currentNode); // set c-use & p-use on flow node
-
-            var generate = currentNode.generate || thisAnalyzer.findGENSet(currentNode);
-
+            
+            var generate = currentNode.generate || thisAnalyzer.findGENSet(currentNode);   
+          
             // console.log('useset', UseSet.cuse.values().toString());
             // console.log('generate', generate.values().toString());
             // console.log('---')
@@ -414,7 +436,7 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
             if (!!currentNode.scope) {
                 currentNode.scope.lastReachIns = new Set(input);
             }
-
+           
             return  Set.union(Set.minus(input, kill), generate);
             // return  Set.union(input, generate);
         },
@@ -516,46 +538,25 @@ DefUseAnalyzer.prototype.findKILLSet = function (cfgNode) {
                 FunctionDeclaration: function () {},
                 FunctionExpression: function () {},
                 AssignmentExpression: function (node, recurse) {
-                    if (node.left.type === 'MemberExpression') {
-                        // kill base variable defs (e.g., `a` in `a.b = ...`) for backward compatibility
-                        var baseVar = (node.left.object && node.left.object.type === 'Identifier') ? currentScope.getVariable(node.left.object.name) : null;
-                        if (baseVar) {
-                            killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, baseVar));
-                        }
-                        // also kill full property var defs (e.g., `a.b.c`) if present
-                        var fullName = getMemberExpressionFullName(node.left);
-                        if (fullName) {
-                            var propVar = currentScope.getVariable(fullName);
-                            if (propVar) {
-                                killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, propVar));
-                            }
-                        }
-                    } else {
-                        killedVarDef = Set.union(
-                            killedVarDef,
-                            findVariableAndItsDefinitionsFromASet(reachIns, currentScope.getVariable(node.left.name))
-                        );
-                    }
+                    killedVarDef = Set.union(
+                        killedVarDef,
+                        findVariableAndItsDefinitionsFromASet(
+                            reachIns,
+                            (node.left.type === 'MemberExpression') ? currentScope.getVariable(node.left.object.name) : currentScope.getVariable(node.left.name)
+                        )
+                    );
                     if (node.right.type === 'AssignmentExpression' || node.right.type === 'UpdateExpression') {/// Sequential assignment
                         recurse(node.right);
                     }
                 },
                 UpdateExpression: function (node) {
-                    if (node.argument.type === 'MemberExpression') {
-                        var fullName = getMemberExpressionFullName(node.argument);
-                        if (fullName) {
-                            var propVar = currentScope.getVariable(fullName);
-                            if (propVar) {
-                                killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, propVar));
-                            }
-                        }
-                        var baseVar = (node.argument.object && node.argument.object.type === 'Identifier') ? currentScope.getVariable(node.argument.object.name) : null;
-                        if (baseVar) {
-                            killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, baseVar));
-                        }
-                    } else {
-                        killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, currentScope.getVariable(node.argument.name)));
-                    }
+                    killedVarDef = Set.union(
+                        killedVarDef,
+                        findVariableAndItsDefinitionsFromASet(
+                            reachIns,
+                            currentScope.getVariable(node.argument.name)
+                        )
+                    );
                 },
                 SwitchCase: function () {},
                 VariableDeclaration: function (node, recurse) {
@@ -564,8 +565,13 @@ DefUseAnalyzer.prototype.findKILLSet = function (cfgNode) {
                     };
                 },
                 VariableDeclarator: function (node) {
-                    // variable declarator id is usually an Identifier; treat normally
-                    killedVarDef = Set.union(killedVarDef, findVariableAndItsDefinitionsFromASet(reachIns, currentScope.getVariable(node.id.name)));
+                    killedVarDef = Set.union(
+                        killedVarDef,
+                        findVariableAndItsDefinitionsFromASet(
+                            reachIns,
+                            currentScope.getVariable(node.id.name)
+                        )
+                    );
                 }
             });
         }
@@ -623,13 +629,7 @@ DefUseAnalyzer.prototype.findGENSet = function (cfgNode) {
                 }
             },
             AssignmentExpression: function (node, recurse) {
-                var definedVar = null;
-                if (node.left.type === 'MemberExpression') {
-                    // keep base variable for backward compatibility (e.g., `a` in `a.b = ...`)
-                    definedVar = (node.left.object && node.left.object.type === 'Identifier') ? currentScope.getVariable(node.left.object.name) : null;
-                } else {
-                    definedVar = currentScope.getVariable(node.left.name);
-                }
+                var definedVar = (node.left.type === 'MemberExpression') ? currentScope.getVariable(node.left.object.name) : currentScope.getVariable(node.left.name);
                 if (!!definedVar) {
                     if (node.right.type === 'FunctionExpression') {
                         generatedVarDef.add(varDefFactory.create(definedVar, defFactory.createFunctionDef(cfgNode, node.right.range)));
@@ -640,39 +640,11 @@ DefUseAnalyzer.prototype.findGENSet = function (cfgNode) {
                         }
                     }
                 }
-                // Also create a VarDef for the full dotted property (e.g., `a.b.c`) when possible
-                if (node.left.type === 'MemberExpression') {
-                    var fullName = getMemberExpressionFullName(node.left);
-                    if (fullName) {
-                        var propVar = ensureVarInScope(currentScope, fullName);
-                        if (propVar) {
-                            if (node.right.type === 'FunctionExpression') {
-                                generatedVarDef.add(varDefFactory.create(propVar, defFactory.createFunctionDef(cfgNode, node.right.range)));
-                            } else {
-                                generatedVarDef.add(varDefFactory.create(propVar, defFactory.createLiteralDef(cfgNode, node.right.range)));
-                            }
-                        }
-                    }
-                }
             },
             UpdateExpression: function (node) {
-                if (node.argument.type === 'MemberExpression') {
-                    var fullName = getMemberExpressionFullName(node.argument);
-                    if (fullName) {
-                        var propVar = ensureVarInScope(currentScope, fullName);
-                        if (propVar) {
-                            generatedVarDef.add(varDefFactory.create(propVar, defFactory.createLiteralDef(cfgNode, node.range)));
-                        }
-                    }
-                    var baseVar = (node.argument.object && node.argument.object.type === 'Identifier') ? currentScope.getVariable(node.argument.object.name) : null;
-                    if (baseVar) {
-                        generatedVarDef.add(varDefFactory.create(baseVar, defFactory.createLiteralDef(cfgNode, node.range)));
-                    }
-                } else {
-                    var definedVar = currentScope.getVariable(node.argument.name);
-                    if (!!definedVar) {
-                        generatedVarDef.add(varDefFactory.create(definedVar, defFactory.createLiteralDef(cfgNode, node.range)));
-                    }
+                var definedVar = currentScope.getVariable(node.argument.name);
+                if (!!definedVar) {
+                    generatedVarDef.add(varDefFactory.create(definedVar, defFactory.createLiteralDef(cfgNode, node.range)));
                 }
             },
             CallExpression: function (node) {
@@ -804,27 +776,14 @@ DefUseAnalyzer.prototype.findUSESet = function (cfgNode) {
             recurse(node.alternate);
         },
         MemberExpression: function (node, recurse) {
-            // recurse into the object part (e.g., for a.b.c recurse into a.b)
             recurse(node.object);
-            // Also treat the full dotted property as a used variable when statically resolvable
-            var fullName = getMemberExpressionFullName(node);
-            if (fullName) {
-                var usedVar = currentScope.getVariable(fullName);
-                if (!!usedVar) {
-                    if (!isPUse) {
-                        cuseVars.add(usedVar);
-                    } else {
-                        puseVars.add(usedVar);
-                    }
-                }
-            }
         },
         ReturnStatement: function(node, recurse){
             recurse(node.argument);
         },
         Identifier: function (node) {
             if (cfgNode.astNode.type !== 'Identifier') {
-                var usedVar = currentScope.getVariable(node.name);  
+                var usedVar = currentScope.getVariable(node.name);
                 if (!!usedVar) {
                     if (!isPUse) {
                         cuseVars.add(usedVar);

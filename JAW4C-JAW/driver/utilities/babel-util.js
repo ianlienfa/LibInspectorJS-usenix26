@@ -186,6 +186,9 @@ function splitSequence(code) {
       }]
     ],
     plugins: [
+      // ES2015 (for CFG compatibility)
+      resolvePlugin("@babel/plugin-transform-for-of"),                         // for...of → for loops
+
       // ES2020+
       resolvePlugin("@babel/plugin-transform-optional-chaining"),              // a?.b, a?.[x], a?.()
       resolvePlugin("@babel/plugin-transform-nullish-coalescing-operator"),    // a ?? b

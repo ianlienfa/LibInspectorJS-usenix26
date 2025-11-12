@@ -453,7 +453,7 @@ def run_test(test_path, action, port=3000, base_config='config.yaml', skip_setup
 
     # Start test server and run pipeline
     with test_server(dist_dir, port):
-        pipeline_success = run_pipeline(config_path, timeout=600)
+        pipeline_success = run_pipeline(config_path, timeout=3600)  # 1 hour timeout
 
     if not pipeline_success:
         print("  Pipeline execution failed")

@@ -199,8 +199,8 @@ function checkForAliasingNative(aliasPairs, functionMap) {
  */
 async function checkFunctionMapForPartialAliasing(pairs) {
     
-    true && DEBUG && console.log('pairs: ', JSON.stringify(pairs))
-    true && console.log('functionMap before: ', JSON.stringify(Object.keys(functionMap)))
+    // true && DEBUG && console.log('pairs: ', JSON.stringify(pairs))
+    // true && console.log('functionMap before: ', JSON.stringify(Object.keys(functionMap)))
 
     /**
      * searches for aliases using the native executable in engine/lib/jaw/aliasing in a subprocess

@@ -253,10 +253,10 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 				}
 			}
 	
-			console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
+			// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
 			let script_content = await readFile(script_full_name);
 			if(script_content != -1){
-				console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name} success`)
+				// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name} success`)
 				scripts.push({
 					scriptId: i,
 					source: script_content,
