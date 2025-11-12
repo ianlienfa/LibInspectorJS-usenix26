@@ -210,7 +210,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			navigation_url = get_url_for_webpage(webpage)
 			for entry in vuln_list:
 				try:
-					location, vuln, mod = entry['location'], entry['vuln'], entry['mod']
+					location, vuln, mod, libname = entry['location'], entry['vuln'], entry['mod'], entry['libname']
 					poc_set = set()
 					for i, v in enumerate(vuln):
 						if v['poc'] in poc_set:
@@ -223,7 +223,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 						if not v['grep_found']:
 							logger.info(f'Skipping {v['poc']} due to grep found not finding poc fragments')
 							continue
-						vuln_info = {"mod": mod, "location": location, "poc_str": v['poc']}
+						vuln_info = {"mod": mod, "libname": libname, "location": location, "poc_str": v['poc']}
 
 						# Set up timeout
 						def timeout_handler(signum, frame):

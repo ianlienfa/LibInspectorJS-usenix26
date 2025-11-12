@@ -80,6 +80,11 @@ ModelBuilder.prototype.buildIntraProceduralModels = function () {
                 if (scope.ast.type === 'FunctionDeclaration' || scope.ast.type === 'FunctionExpression' || scope.ast.type === 'ArrowFunctionExpression') {
                     
                     model.graph = cfgBuilder.getCFG(scope.ast.body);
+					if(!model.graph){
+						console.log('[-] CFG generation failed for function at range:', scope.ast.range);
+						// print code
+						console.log(escodegen.generate(scope.ast));
+					}
                     if(model.graph && model.graph.length){ // ensure CFG construction succeeds
                         // generate definitions for the function nodes on the entry `BlockStatement`
                         var generatedVarDef = new Set();

@@ -244,14 +244,19 @@ constantsModule.verboseMode = false;
 /**
  * Supported languages
  */
-const LANG = { 
-	js: 'js', // client-side JS 
+const LANG = {
+	js: 'js', // client-side JS
 	python: 'python',
 	php: 'php',
 	nodejs: 'nodejs',
 }
 
 constantsModule.LANG = LANG;
+
+/**
+ * Debug flag for closure variable analysis
+ */
+constantsModule.DEBUG_CLOSURE_ANALYSIS = false;
 
 
 module.exports = constantsModule;

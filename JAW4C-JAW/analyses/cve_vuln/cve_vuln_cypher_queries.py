@@ -1880,7 +1880,7 @@ def getSinkByTagTainting(tx, vuln_info):
 		@return {object} function definition AST node | None
 		"""
 		func_def_query = """
-			MATCH (ret_stmt {Id: '%s'})<-[:AST_parentOf*1..50]-(func_def)
+			MATCH path=(ret_stmt {Id: '%s'})<-[:AST_parentOf*1..50]-(func_def)
 			WHERE func_def.Type IN ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
 			RETURN func_def
 			ORDER BY length(path) ASC
@@ -2022,7 +2022,7 @@ def getSinkByTagTainting(tx, vuln_info):
 
 								# FILTER: Only propagate if this call site is in visited_set (current taint path)
 								if call_expr['Id'] not in visited_set:
-									print(f"Skipping call site {call_expr['Id']} - not in current taint path (visited_set)")
+									# print(f"Skipping call site {call_expr['Id']} - not in current taint path (visited_set)")
 									continue
 
 								# Find what receives the return value
@@ -2286,7 +2286,7 @@ def getSinkByTagTainting(tx, vuln_info):
 						taintPropTilASTTopmost(alias, alias, iteratorNode, taintTag, nodeid_to_matches, out_values, context_scope)				
 		@make_hashable_decorator
 		@lru_cache(maxsize=1000)
-		def nodeTagTainting(node, contextNode, taintTag, graphTagging=True):
+		def nodeTagTainting(node, contextNode, taintTag, graphTagging=False):
 			"""
 			Tag a PDG node with tainting information.
 			@param {object} node: the node to tag
@@ -2410,16 +2410,8 @@ def getSinkByTagTainting(tx, vuln_info):
 			# breakpoint()
 			raise e
 			
-		all_poc_max_levels = []
-		# order the nodeid_to_matches by size of sets (descending)
-		max_match_size = max([len(v) for v in nodeid_to_matches.values()] + [0])
-		items_with_max_size = dict(filter(lambda item: len(item[1]) == max_match_size, nodeid_to_matches.items()))
-		for nodeId, matchSet in items_with_max_size.items():
-			all_poc_max_levels.append({
-				'node': get_node_by_id(tx, nodeId),
-				'matchSet': list(matchSet)
-			})
-
+		all_poc_max_levels = []		
+		
 		# Identify the root nodes from the matches
 		if 'root' in nodeid_to_matches:
 			# return the root nodes
@@ -2437,9 +2429,36 @@ def getSinkByTagTainting(tx, vuln_info):
 
 			return res, all_poc_max_levels
 		else:
+			# order the nodeid_to_matches by size of sets (descending)
+			max_match_size = max([len(v) for v in nodeid_to_matches.values()] + [0])
+			items_with_max_size = dict(filter(lambda item: len(item[1]) == max_match_size, nodeid_to_matches.items()))
+			for nodeId, matchSet in items_with_max_size.items():
+				node = get_node_by_id(tx, nodeId)
+				if node:
+					all_poc_max_levels.append({
+						'node': node,
+						'matchSet': list(matchSet),
+						'file': getTopMostProgramPath(tx, node),
+						'location': node['Location'] if 'Location' in node else None
+					})
 			return [], all_poc_max_levels
 
-								
+	def getTopMostProgramPath(tx, node):
+		"""
+		Get the topmost Program node path for a given node.
+		@param {pointer} tx: neo4j transaction pointer
+		@param {object} node: AST node
+		@return {list} list of nodes from the given node up to the Program node
+		"""
+		query = """
+			MATCH (n {Id: '%s'})<-[:AST_parentOf*]-(topNode {Type: 'Program'})
+			RETURN topNode
+			LIMIT 1
+		""" % (node['Id'])
+		results = tx.run(query)
+		for record in results:
+			return record['topNode']['Value'] if 'Value' in record['topNode'] else None
+		return None
 	try:
 		flatPoc = pocPreprocess(vuln_info)
 		libObjectList = getLibObjList(tx, vuln_info)		
@@ -2536,6 +2555,14 @@ def run_traversals_simple(tx, vuln_info):
 				fd.write(sep+'\n')
 				fd.write('[*] NavigationURL: %s\n\n'%"tmp")
 
+				# Print vuln_info
+				if vuln_info:
+					fd.write(sep_templates)
+					fd.write('[*] Vulnerability Information:\n')
+					for key, value in vuln_info.items():
+						fd.write(f"  - {key}: {value}\n")
+					fd.write('\n')
+
 				# Write POC max matched levels
 				if all_poc_max_levels:
 					print(f"all_poc_max_levels", all_poc_max_levels)
@@ -2550,11 +2577,9 @@ def run_traversals_simple(tx, vuln_info):
 									if not isinstance(node, dict):
 										fd.write(f"    - Invalid node type: {type(node).__name__} = {node}\n")
 										continue
-									code = getCodeOf(tx, node)
 									location = node.get('Location', 'unknown')
 									fd.write(f"    - Node ID: {node['Id']}\n")
 									fd.write(f"      Location: {location}\n")
-									fd.write(f"      Code: {code}\n")
 								except Exception as e:
 									node_id = node.get('Id', 'unknown') if isinstance(node, dict) else str(node)
 									fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
@@ -2747,23 +2772,36 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		template_output_pathname = os.path.join(webpage_directory, "sink.flows.out")
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "a+") as fd:
+				# Use tee here too
+				tee_fd = Tee(fd, sys.stdout)
+
 				timestamp = _get_current_timestamp()
 				sep = utilityModule.get_output_header_sep()
 				sep_templates = utilityModule.get_output_subheader_sep()
-				fd.write(sep)
-				fd.write('[timestamp] generated on %s\n'%timestamp)
-				fd.write(sep+'\n')
-				fd.write('[*] NavigationURL: %s\n\n'%navigation_url)
+				tee_fd.write(sep)
+				tee_fd.write('[timestamp] generated on %s\n'%timestamp)
+				tee_fd.write(sep+'\n')
+				tee_fd.write('[*] NavigationURL: %s\n\n'%navigation_url)
+
+				# Print vuln_info
+				if vuln_info:	
+					tee_fd.write(sep_templates)
+					tee_fd.write('[*] Vulnerability Information:\n')
+					for key, value in vuln_info.items():
+						tee_fd.write(f"  - {key}: {value}\n")
+					tee_fd.write('\n')
 
 				# Write POC max matched levels
 				if all_poc_max_levels:
-					fd.write(sep_templates)
-					fd.write('[*] POC Maximum Matched Levels:\n')
+					tee_fd.write(sep_templates)
+					tee_fd.write('[*] POC Maximum Matched Levels:\n')
 					for poc_info in all_poc_max_levels:
 						# Write based on the previous definition of getSinkByTagTainting
-						fd.write(f"-- node: {poc_info['node']}\n")
-						fd.write(f" - match_set: {poc_info['matchSet']}\n")
-					fd.write('\n')
+						tee_fd.write(f"-- node: {poc_info['node']}\n")
+						tee_fd.write(f" - match_set: {poc_info['matchSet']}\n")
+						tee_fd.write(f" - file: {poc_info['file']}\n")
+						tee_fd.write(f" - location: {poc_info['location']}\n")
+					tee_fd.write('\n')
 
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node
@@ -2839,7 +2877,6 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 					logger.info(f"tag_set: {tag_set}")
 					if not ( len(tag_set) == 1 and CSRFSemanticTypes.SEM_TYPE_NON_REACHABLE in tag_set ):
 						# Write to fd and stdout
-						tee_fd = Tee(fd, sys.stdout)
 						tee_fd.write(sep_templates)
 						tee_fd.write('[*] Tags: %s\n'%(str(tag_set)))
 						tee_fd.write('[*] Vuln Info: %s\n'%(json.dumps(vuln_info)))
