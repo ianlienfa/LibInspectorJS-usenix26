@@ -367,11 +367,12 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
+							vuln = []
 							if detection_info['accurate']:
 								version = detection_info['version'].split(', ')
 								vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
-							else:
-								vuln = vuln_db.package_vuln_search(lib) # type: ignore
+							# else:
+							# 	vuln = vuln_db.package_vuln_search(lib) # type: ignore
 
 							if not vuln:
 								LOGGER.info(f"No vulnerability matched for {lib}, continue...")
