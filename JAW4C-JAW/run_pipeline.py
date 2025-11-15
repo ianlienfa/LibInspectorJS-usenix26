@@ -142,7 +142,7 @@ def add_url_logging_handlers(url, webpage_folder, log_level='info'):
 	# Create info file handler if log_level includes info
 	if log_level.lower() in ['info', 'debug']:
 		info_handler = logging.FileHandler(info_log_path)
-		info_handler.setLevel(logging.INFO)
+		info_handler.setLevel(logging.DEBUG)
 		info_handler.setFormatter(LogFormatter())
 		handlers.append(info_handler)
 

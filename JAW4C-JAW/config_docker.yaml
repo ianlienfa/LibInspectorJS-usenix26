@@ -64,7 +64,7 @@ staticpass:
   # time budget for static analysis of each site (in seconds)
   sitetimeout: 10800 # 3 hrs
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
-  pagetimeout: 900 # 15min
+  pagetimeout: 3600 # 1 hr
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process

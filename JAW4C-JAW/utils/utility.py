@@ -49,6 +49,7 @@ class Tee:
 	def write(self, data):
 		for f in self.files:
 			f.write(data)
+		logger.debug(data)
 
 	def flush(self):
 		for f in self.files:
