@@ -142,7 +142,7 @@ def add_url_logging_handlers(url, webpage_folder, log_level='info'):
 	# Create info file handler if log_level includes info
 	if log_level.lower() in ['info', 'debug']:
 		info_handler = logging.FileHandler(info_log_path)
-		info_handler.setLevel(logging.INFO)
+		info_handler.setLevel(logging.DEBUG)
 		info_handler.setFormatter(LogFormatter())
 		handlers.append(info_handler)
 
@@ -386,11 +386,12 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
+							vuln = []
 							if detection_info['accurate']:
 								version = detection_info['version'].split(', ')
 								vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
-							else:
-								vuln = vuln_db.package_vuln_search(lib) # type: ignore
+							# else:
+							# 	vuln = vuln_db.package_vuln_search(lib) # type: ignore
 
 							if not vuln:
 								LOGGER.info(f"No vulnerability matched for {lib}, continue...")

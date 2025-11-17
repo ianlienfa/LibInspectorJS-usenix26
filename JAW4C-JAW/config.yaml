@@ -2,14 +2,14 @@
 # to enable archive, remember to comment the 'site' tag
 testbed: 
   ## option 1: test a specifc website
-  # site: http://240.240.240.240/\?target\=https%3A%2F%2Fwww.google.com.pr%2Fimghp%3Fhl%3Den%26ogbl\&type\=soak
+  site: http://240.240.240.240/?target=https%3A%2F%2Fwww.ebay.de%2Fsch%2Fi.html%3F_from%3DR40%26_nkw%3D%2520%26_sacat%3D131090%26LH_TitleDesc%3D0%26_fspt%3D1%26LH_PrefLoc%3D99%26_sadis%3D25%26LH_LPickup%3D1&type=soak
   ## option 2: provide a top-site list (e.g., Alexa, Tranco, etc)
   # sitelist: /input/tranco_Z2QWG_unique.csv
   archive: 
-    enable: true
+    enable: false
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
   from_row: 245
-  to_row: end # row number or 'end'
+  to_row: 245 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -73,7 +73,7 @@ staticpass:
   # time budget for static analysis of each site (in seconds)
   sitetimeout: 10800 # 3 hrs
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
-  pagetimeout: 900 # 15min
+  pagetimeout: 3600 # 1 hr
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process

@@ -10,114 +10,6 @@ const {urlToDirectoryName} = require('./utilities/webtools');
 const { Command } = require('commander');
 const { exit } = require('process');
 
-// Configuration building functions
-function createPTVPlaywrightConfig(ptvExtensionPath, proxyServerPath, headless = true, ignoreCertErrors = true, diskCacheDir = '/dev/null', diskCacheSize = 1) {
-  const config = {
-    channel: 'chromium',
-    bypassCSP: true,
-    headless: headless,
-    ignoreHTTPSErrors: ignoreCertErrors,
-    args: [              
-        `--disable-extensions-except=${ptvExtensionPath}`,
-        `--load-extension=${ptvExtensionPath}`,
-    ]
-  };
-  
-  // Only add proxy if proxyServerPath is provided and not null
-  if (proxyServerPath && proxyServerPath !== null) {
-    config.proxy = {
-      server: `${proxyServerPath}`
-    };
-  }
-  
-  return config;
-}
-
-function createPTVOriginalPlaywrightConfig(ptvOriginalExtensionPath, proxyServerPath, headless = true, ignoreCertErrors = true, diskCacheDir = '/dev/null', diskCacheSize = 1) {
-  const config = {
-    channel: 'chromium',
-    bypassCSP: true,
-    headless: headless,
-    ignoreHTTPSErrors: ignoreCertErrors,
-    args: [              
-        `--disable-extensions-except=${ptvOriginalExtensionPath}`,
-        `--load-extension=${ptvOriginalExtensionPath}`,
-    ]
-  };
-  
-  // Only add proxy if proxyServerPath is provided and not null
-  if (proxyServerPath && proxyServerPath !== null) {
-    config.proxy = {
-      server: `${proxyServerPath}`
-    };
-  }
-  
-  return config;
-}
-
-// Utility function to launch playwright with proper configuration
-async function launch_playwright(headless_mode, additional_args = undefined) {
-    // Create temp user data directory for session isolation
-    const os = require('os');
-    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'playwright-'));
-    
-    console.log('additional_args', JSON.stringify(additional_args, null, 4));
-
-    let options = {
-        channel: 'chromium',
-        bypassCSP: true,
-        headless: headless_mode,
-        ignoreHTTPSErrors: true,        
-    };
-
-    options = {...options, ...additional_args}; // additional args will override this setting if provided
-
-    console.log("playwright options: ", JSON.stringify(options, null, 4));
-
-    // Use launchPersistentContext for isolated sessions
-    var browser = await chromium.launchPersistentContext(userDataDir, options);
-
-    // Attach temp directory path to browser object for cleanup later
-    browser._tempUserDataDir = userDataDir;
-
-    return browser;
-}
-
-// helper functions
-const is_vuln_lib_osv = async(libname, version) => {
-  const requestData = {
-    package: {
-      name: `${libname}`
-    },
-    version: `${version}`
-  };
-
-  try {
-    const res = await fetch('https://api.osv.dev/v1/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    });
-    const data = await res.json();
-    let vuln_summary = []
-    for(vuln of data['vulns']){
-      vuln_summary.push(
-        {
-          "id": vuln['id'],
-          "aliases": vuln['aliases'],
-          "summary": vuln['summary'],
-          "details": vuln['details'],
-        }
-      )
-    }    
-    return vuln_summary;
-  } catch (error) {
-    console.error('Error checking vulnerabilities:', error);
-  }
-}
-
 function createStartCrawlUrl(url) {
   const condition = 'soak';
   const query = new URLSearchParams({
@@ -128,33 +20,73 @@ function createStartCrawlUrl(url) {
   return `http://240.240.240.240/%3F${q}`;
 }
 
-
-const PTVOriginal = async (url, playwrightConfig, crawlJs=true) => {
-  // visit a page
+const PTVOriginal = async (url, launchConfig, dataDir = "") => {
+  // visit a page with original (non-lifted) scripts
   let result = {}
   try {
-    console.log("ptv-original playwrightConfig", JSON.stringify(playwrightConfig))
-    const browser = await launch_playwright(playwrightConfig.headless, playwrightConfig);
+    // Create temp user data directory for extension support
+    const os = require('os');
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'playwright-'));
+
+    // Convert Puppeteer config to Playwright config
+    const playwrightConfig = {
+      channel: 'chromium',
+      headless: launchConfig.headless !== false,
+      args: launchConfig.args || [],
+      ignoreHTTPSErrors: true
+    };
+
+    const browser = await chromium.launchPersistentContext(userDataDir, playwrightConfig);
     const page = await browser.newPage();
 
     await page.addInitScript(() => {
       window._eventLog = [];
       window.addEventListener("message", e => {
-          console.log("data", JSON.stringify(e.data))
           if (e.data.type == 'response') {
-            console.log("PTV Original message received!");
+            console.log("PTV Original message received!", JSON.stringify(e.data));
             _eventLog.push(e.data.detected_libs);
             window.detectionReady = true;
           }
       });
     });
 
-    // page.on('console', msg => {
-    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
-    // });
+    page.on('console', msg => {
+      LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
+    });
+
+    // Request interception with Playwright
+    if(fs.existsSync(dataDir)){
+      const overrideMappingPath = path.join(dataDir, 'override_mapping.json')
+      const overrideMappingData = JSON.parse(fs.readFileSync(overrideMappingPath, 'utf8'))
+
+      // PTVOriginal should use original mapping (not lift or transform)
+      let overrideMapping = {};
+      if(overrideMappingData.original) {
+        overrideMapping = overrideMappingData.original;
+      } else {
+        overrideMapping = overrideMappingData;
+      }
+
+      // Playwright request interception
+      await page.route('**/*', async (route) => {
+        const requestUrl = route.request().url();
+        logger.info(`[PTVOriginal] Requested URL: ${requestUrl}`);
+        if (requestUrl in overrideMapping) {
+          logger.info(`[PTVOriginal] Intercepting ${requestUrl} -> ${overrideMapping[requestUrl]}`);
+          const fileContent = fs.readFileSync(overrideMapping[requestUrl]);
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: fileContent
+          });
+        } else {
+          await route.continue();
+        }
+      });
+    }
 
     try {
-      await page.goto(url, {waitUntil: 'networkidle'});
+      await page.goto(url, {waitUntil: 'load'});
     } catch (error) {
       logger.error(`Failed visiting ${url}: ${error}`)
     }
@@ -167,7 +99,7 @@ const PTVOriginal = async (url, playwrightConfig, crawlJs=true) => {
         return window._eventLog
       });
     } catch (timeoutError) {
-      logger.warn(`PTV Original extension detection timeout for ${url} - continuing with available data`);
+      logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
       result["detection"] = [];
     }
 
@@ -175,14 +107,10 @@ const PTVOriginal = async (url, playwrightConfig, crawlJs=true) => {
 
     // Clean up temp user data directory
     try {
-      fs.rmSync(browser._tempUserDataDir, { recursive: true, force: true });
+      fs.rmSync(userDataDir, { recursive: true, force: true });
     } catch (cleanupError) {
-      logger.warn(`Failed to clean up temp directory ${browser._tempUserDataDir}: ${cleanupError}`);
+      logger.warn(`Failed to clean up temp directory ${userDataDir}: ${cleanupError}`);
     }
-
-    // ptv_original_result = path.join(__dirname,  '/site-js/', urlToDirectoryName(url), 'ptv-original-result.json')
-    // LOGGER("writing result to ", ptv_original_result)
-    // fs.writeFileSync(ptv_original_result, JSON.stringify(result))
 
     return result;
 
@@ -256,6 +184,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
       // Playwright request interception
       await page.route('**/*', async (route) => {
         const requestUrl = route.request().url();
+        // logger.info(`[Playwright] Requested URL: ${requestUrl}`);
         if (requestUrl in overrideMapping) {
           logger.info(`[Playwright] Intercepting ${requestUrl} -> ${overrideMapping[requestUrl]}`);
           const fileContent = fs.readFileSync(overrideMapping[requestUrl]);
@@ -276,59 +205,60 @@ const PTV = async (url, launchConfig, dataDir = "") => {
       logger.error(`Failed visiting ${url}: ${error}`)
     }
 
-    // Collect lift_arr_str
-    result["lift_arr_str"] = await page.evaluate(() => {
-      try {
-        if (typeof lift_arr !== 'undefined') {
-          console.log("lift_arr:", JSON.stringify(lift_arr));
-          return lift_arr;
-        } else {
-          console.log("lift_arr is not defined on this page.");
-        }
-      } catch (e) {
-        console.log("Error checking lift_arr:", e.toString());
-      }
-      return "";
-    });
-
-    // Collect webpackObjStr
-    result["webpackObjStr"] = await page.evaluate(() => {
-      const webpackObjs = Object.getOwnPropertyNames(window).filter(x => x.includes('webpack'));
-      let returnObj = {};
-      str = ""
-      for (const i of webpackObjs) {
-        let mod_wrap;
+      // Collect lift_arr_str
+      result["lift_arr_str"] = await page.evaluate(() => {
         try {
-          mod_wrap = eval(`window.${i}`);
-        } catch (e) {
-          console.log(`Failed to eval window.${i}:`, e.message);
-          continue;
-        }
-
-        returnObj["mod_wrap"] = mod_wrap;
-
-        if (mod_wrap && typeof mod_wrap[Symbol.iterator] === 'function') {
-          for (const j of mod_wrap) {
-            if (j?.[1]) {
-              const keys = Object.keys(j[1]);
-              str += JSON.stringify(keys) + ";";
-            }
+          if (typeof lift_arr !== 'undefined') {
+            console.log("lift_arr:", JSON.stringify(lift_arr));
+            return lift_arr;
+          } else {
+            console.log("lift_arr is not defined on this page.");
           }
-        } else {
-          str += `[non-iterable:${i}];`;
+        } catch (e) {
+          console.log("Error checking lift_arr:", e.toString());
         }
-      }
-      returnObj["str"] = str;
-      return returnObj;
-    });
+        return "";
+      });
+
+      // Collect webpackObjStr
+      result["webpackObjStr"] = await page.evaluate(() => {
+        const webpackObjs = Object.getOwnPropertyNames(window).filter(x => x.includes('webpack'));
+        let returnObj = {};
+        str = ""
+        for (const i of webpackObjs) {
+          let mod_wrap;
+          try {
+            mod_wrap = eval(`window.${i}`);
+          } catch (e) {
+            console.log(`Failed to eval window.${i}:`, e.message);
+            continue;
+          }
+
+          returnObj["mod_wrap"] = mod_wrap;
+
+          if (mod_wrap && typeof mod_wrap[Symbol.iterator] === 'function') {
+            for (const j of mod_wrap) {
+              if (j?.[1]) {
+                const keys = Object.keys(j[1]);
+                str += JSON.stringify(keys) + ";";
+              }
+            }
+          } else {
+            str += `[non-iterable:${i}];`;
+          }
+        }
+        returnObj["str"] = str;
+        return returnObj;
+      });
 
     // Wait for detection with timeout handling
     LOGGER("waiting for extension detection...")
     try {
-      await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
+      await page.waitForFunction(() => window.detectionReady === true, { timeout: 60000 });
 
       LOGGER("waiting for eventLog")
       result["detection"] = await page.evaluate(() => {
+        console.log("Evaluating event log...", window._eventLog);
         return window._eventLog
       });
     } catch (timeoutError) {
@@ -427,10 +357,10 @@ if (require.main === module) {
       LOGGER(`urlList: ${urlList}`)
       for(const url of urlList){
         LOGGER(`url: ${url}`)
-        res[url] = {}        
-        res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalPlaywrightConfig, crawlJs=false)
-        if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))        
-        res[url]['PTV'] = await PTV(url, PTVPlaywrightConfig, dataDir=hashdirPath);
+        res[url] = {}
+        res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, hashdirPath)
+        if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
+        res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, hashdirPath);
         if(res[url]['PTV']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV']['detection']))
       }
       fs.writeFileSync(path.join(hashdirPath, "lib.detection.json"), JSON.stringify(res,null, "\t"))

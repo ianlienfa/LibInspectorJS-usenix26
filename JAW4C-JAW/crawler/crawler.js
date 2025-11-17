@@ -447,27 +447,33 @@ function savePageData(url, html, scripts, cookies, webStorageData, httpRequests,
 							// Add to override_mapping for external scripts with .js URLs
 							if(scriptSrc && scriptSrc.endsWith('.js')){			
 								// Save processed version if lifting or transformation is enabled
-								if((lift_enabled || transform_enabled) && scriptSourceMappingObject.original_code){										
+
+								if(scriptSourceMappingObject.original_code){
+									// we want to always save the original version
 									const originalpathToWrite = pathModule.join(originalFolder, `${sid}.js`)
 									fs.writeFileSync(originalpathToWrite, scriptSourceMappingObject.original_code, 'utf8')	// backup
-									if(lift_enabled){
-										let lifted = lift(scriptSourceMappingObject.original_code);
-										if(lifted !== ""){
-											const liftedpathToWrite = pathModule.join(liftedFolder, `${sid}.js`)
-											fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
-											// Update override_mapping to point to lifted version for .js URLs
-											override_mapping.lift[scriptSrc] = liftedpathToWrite;											
-										}
-									} 
+									override_mapping.original[scriptSrc] = originalpathToWrite; // always save original version
 
-									// If transferrable, place transferred file under the website hash directory, else write original
-									if(transform_enabled && scriptSourceMappingObject.transformed){
-										const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
-										fs.writeFileSync(transformedpathToWrite, scriptSourceMappingObject.code, 'utf8')
-										// Update override_mapping to point to transformed version for .js URLs
-										override_mapping.transform[scriptSrc] = transformedpathToWrite;										
-									}
-								}																		
+									if((lift_enabled || transform_enabled)){										
+										if(lift_enabled){
+											let lifted = lift(scriptSourceMappingObject.original_code);
+											if(lifted !== ""){
+												const liftedpathToWrite = pathModule.join(liftedFolder, `${sid}.js`)
+												fs.writeFileSync(liftedpathToWrite, lifted, 'utf8')
+												// Update override_mapping to point to lifted version for .js URLs
+												override_mapping.lift[scriptSrc] = liftedpathToWrite;											
+											}
+										} 
+
+										// If transferrable, place transferred file under the website hash directory, else write original
+										if(transform_enabled && scriptSourceMappingObject.transformed){
+											const transformedpathToWrite = pathModule.join(transformedFolder, `${sid}.js`)
+											fs.writeFileSync(transformedpathToWrite, scriptSourceMappingObject.code, 'utf8')
+											// Update override_mapping to point to transformed version for .js URLs
+											override_mapping.transform[scriptSrc] = transformedpathToWrite;										
+										}
+									}									
+								}									
 							
 							}
 
@@ -675,7 +681,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 
 		finished = true; // lock scripts for saving
 
-		console.log("html:", html)
+		// console.log("html:", html)
 		const virtualDOM = new JSDOM(html);
 		const scriptTagsDOM = virtualDOM.window.document.querySelectorAll('script')
 		// DEBUG && console.log("scriptTags bf slice", JSON.stringify(scriptTags))		

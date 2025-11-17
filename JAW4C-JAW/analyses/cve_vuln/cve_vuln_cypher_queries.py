@@ -1071,26 +1071,42 @@ def getIdentifierAndExprFromArgCode(tx, argCode):
 	return res	
 
 def getObjectMatch(tx, objCode):
-	"""
-		@param {pointer} tx
-		@param {object} objCode: the code of library object
-		@return {list of node object pairs}: [(callExprNode) ...] : 
-			returns all matching identifier and expression having the matching code in the arguments
-    """	
-	components = objCode.split('.')[::-1]
+	# def tree_traverse_get_identifier_names(ast):
+	# 	names = []
+	# 	if isinstance(ast, dict):
+	# 		if 'Type' in ast and ast['Type'] == 'Identifier':
+	# 			names.append(ast['Code'])
+	# 		for key in ast:
+	# 			child = ast[key]
+	# 			names.extend(tree_traverse_get_identifier_names(child))
+	# 	elif isinstance(ast, list):
+	# 		for item in ast:
+	# 			names.extend(tree_traverse_get_identifier_names(item))
+	# 	return names
+	
+	# """
+	# 	@param {pointer} tx
+	# 	@param {object} objCode: the code of library object
+	# 	@return {list of node object pairs}: [(callExprNode) ...] : 
+	# 		returns all matching identifier and expression having the matching code in the arguments
+    # """	
+	# ast = parse(objCode)
+	# components = tree_traverse_get_identifier_names(ast)
+	# res = []
+	# # Get nodes with matching identifier
+	# if len(components):
+	# 	query = """
+	# 		WITH "%s" AS code
+	# 		CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node as ident0, score
+	# 		MATCH (ident0 {Type: 'Identifier'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode:ASTNode {Type: 'MemberExpression'})
+	# 		RETURN memExprNode
+	# 	"""%(components[0])
+	# 	print("[getObjectMatch]: %s"%(query))
+	# 	results = tx.run(query)
+	# 	for record in results:
+	# 		memExprNode = record['memExprNode']
+	# 		res.append(memExprNode)
 	res = []
-	if len(components):
-		query = """
-			WITH "%s" AS code
-			CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node as ident0, score
-			MATCH (ident0 {Type: 'Identifier'})<-[:AST_parentOf {RelationType: 'property'}]-(memExprNode:ASTNode {Type: 'MemberExpression'})
-			RETURN memExprNode
-		"""%(components[0])
-		print("[getObjectMatch]: %s"%(query))
-		results = tx.run(query)
-		for record in results:
-			memExprNode = record['memExprNode']
-			res.append(memExprNode)
 	return res	
 
 
@@ -1333,7 +1349,7 @@ def getSinkExpression(tx, vuln_info):
 			}
 			RETURN DISTINCT(node)
 		"""%(scope['Id'], code)
-		print(f"getCodeMatchInScope query: {query}")
+		logger.debug(f"getCodeMatchInScope query: {query}")
 		# breakpoint()
 		res = []
 		results = tx.run(query)
@@ -1523,7 +1539,7 @@ def getSinkExpression(tx, vuln_info):
 			argIdCode = vuln_info['location']	
 			# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
 			res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
-			print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
+			logger.debug("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
 			# filter out those matches that are not library Objects
 
 			# (Oct 18) Commenting this out since this check is too strict 
@@ -1731,48 +1747,59 @@ def getSinkByTagTainting(tx, vuln_info):
 		@param {object} vuln_info: vulnerability information containing 'mod' and 'location'
 		@return {list} libObjectList: list of library objects
 		"""
-		if vuln_info['mod']:
-			argIdCode = vuln_info['location']	
-			# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
-			res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
-			print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
-			# filter out those matches that are not library Objects
+		# if vuln_info['mod']:
+		# 	argIdCode = vuln_info['location']	
+		# 	# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
+		# 	res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
+		# 	print("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
+		# 	# filter out those matches that are not library Objects
 
-			# (Oct 18) Commenting this out since this check is too strict 
-			libObjectList = res_getIdentifierAndExprFromArgCode
-			# libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
-			# print("libObjectList", libObjectList)
-			vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
-		else:
-			# suppose to get location object for non mod objects
-			# - get top expr from the 'property' edge
-			libObjectList = getObjectMatch(tx, vuln_info['location'])
+		# 	# (Oct 18) Commenting this out since this check is too strict 
+		# 	libObjectList = res_getIdentifierAndExprFromArgCode
+		# 	# libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
+		# 	# print("libObjectList", libObjectList)
+		# 	vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
+		# else:
+		# 	# suppose to get location object for non mod objects
+		# 	# - get top expr from the 'property' edge
+		libObjectList = getObjectMatch(tx, vuln_info['location'])
 		
 		return libObjectList
 
 	def getCodeMatchInScope(tx, code, scope):
-		query = """
-			WITH "%s" AS scopeId, "%s" AS code
-			MATCH (scope:ASTNode {Id: scopeId})
-			CALL {
-				WITH scopeId, code
+		if scope:
+			query = """
+				WITH "%s" AS scopeId, "%s" AS code
 				MATCH (scope:ASTNode {Id: scopeId})
-				CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node, score
-				WHERE (scope)-[:AST_parentOf*]->(node)
-				AND node.Code = code
-				RETURN node
-				UNION
-				WITH scopeId, code
-				MATCH (scope:ASTNode {Id: scopeId})
-				CALL db.index.fulltext.queryNodes("ast_value", code) YIELD node, score
-				WHERE (scope)-[:AST_parentOf*]->(node)
-				AND node.Value = code
-				RETURN node
-			}
-			RETURN DISTINCT(node)
-		"""%(scope['Id'], code)
-		print(f"getCodeMatchInScope query: {query}")
-		# breakpoint()
+				CALL {
+					WITH scopeId, code
+					MATCH (scope:ASTNode {Id: scopeId})
+					CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node, score
+					WHERE (scope)-[:AST_parentOf*]->(node)
+					AND node.Code = code
+					RETURN node
+					UNION
+					WITH scopeId, code
+					MATCH (scope:ASTNode {Id: scopeId})
+					CALL db.index.fulltext.queryNodes("ast_value", code) YIELD node, score
+					WHERE (scope)-[:AST_parentOf*]->(node)
+					AND node.Value = code
+					RETURN node
+				}
+				RETURN DISTINCT(node)
+			"""%(scope['Id'], code)
+		else:
+			query = """				
+				CALL {
+					MATCH (node {Code: '%s'})
+					RETURN node
+					UNION
+					MATCH (node {Value: '%s'})
+					RETURN node
+				}
+				RETURN DISTINCT(node)
+			"""%(code, code)
+		logger.debug(f"getCodeMatchInScope query: {query}")
 		res = []
 		results = tx.run(query)
 		res = [record['node'] for record in results]
@@ -1987,9 +2014,8 @@ def getSinkByTagTainting(tx, vuln_info):
 			@invariant: when currASTNode == topMost, the propagation recurse back to nodeTagTainting
 			@return trace
 			"""
-			print(f"[taintPropTilASTTopmost]\n - node: {node}\n - currASTNode: {currASTNode}\n - topMost: {topMost}\n")
+			logger.debug(f"[taintPropTilASTTopmost]\n - node: {node}\n - currASTNode: {currASTNode}\n - topMost: {topMost}\n")
 			if currASTNode['Id'] == topMost['Id']:
-				# print("Reached topmost AST node", getCodeOf(tx, topMost))				
 				match currASTNode['Type']:
 					case 'Program':
 						return
@@ -2066,15 +2092,15 @@ def getSinkByTagTainting(tx, vuln_info):
 						# the PDG match is at an expression statement
 						# Check if the node here is the lhs of the expression statement, if so, propagate taint by calling nodeTagTainting
 						# ex: a = b + c
-						print("currASTNode", currASTNode)
+						logger.debug(f"currASTNode: {currASTNode}")
 						nodeTagTainting(node, topMost, taintTag)
 					case 'VariableDeclaration':
 						nodeTagTainting(node, currASTNode, taintTag)
 					case _:
 						# Could be all kinds of CFG nodes here
-						print(f"taintThroughEdgeProperty not implemented for node type: {currASTNode['Type']}")
-						# breakpoint()
-						raise NotImplementedError("taintThroughEdgeProperty not implemented for node type: " + currASTNode['Type'])
+						logger.warning(f"taintThroughEdgeProperty not implemented for node type, not implemented for node type: {currASTNode['Type']}")
+						nodeTagTainting(node, topMost, taintTag)
+						# raise NotImplementedError("taintThroughEdgeProperty not implemented for node type: " + currASTNode['Type'])
 						
 			else:   
 				# Query for closest AssignmentExpression or CallExpression
@@ -2091,7 +2117,7 @@ def getSinkByTagTainting(tx, vuln_info):
 				MATCH (closest_node)<-[:AST_parentOf*]-(topMost { Id: '%s' })
 				RETURN closest_node								
 				""" % (currASTNode['Id'], topMost['Id'])
-				print("check_assignexpr_callexpr_query", check_assignexpr_callexpr_query)
+				logger.debug(f"check_assignexpr_callexpr_query: {check_assignexpr_callexpr_query}")
 				# Do double limit 1, if the closest match is not between currASTNode and topMost, then it won't be returned
 
 				# handle Call/Assignment Expression 
@@ -2120,7 +2146,7 @@ def getSinkByTagTainting(tx, vuln_info):
 						elif node['Type'] == 'MemberExpression':
 							argname = _get_full_member_name(tx, node)
 						else:
-							print("argname extraction not implemented for node type: " + node['Type'])
+							logger.debug(f"argname extraction not implemented for node type: {node['Type']}")
 						_handle_call_definition_taint(tx, node, callExpressionNode, argname, taintTag, nodeid_to_matches, out_values, context_scope)
 						# After handling CG edges, call again with the new currASTNode
 						taintPropTilASTTopmost(node, closest_node, topMost, taintTag, nodeid_to_matches, out_values, context_scope)
@@ -2173,9 +2199,9 @@ def getSinkByTagTainting(tx, vuln_info):
 				except:
 					arguments = []
 
-				print(f"Found call definition for CallExpression {callExpressionNode['Id']} -> {func_def_node['Type']} at {func_def_node}")
-				print(f"  Arguments at call site: {arguments}")
-				print(f"  Looking for argname: {argname}")
+				logger.debug(f"Found call definition for CallExpression {callExpressionNode['Id']} -> {func_def_node['Type']} at {func_def_node}")
+				logger.debug(f"  Arguments at call site: {arguments}")
+				logger.debug(f"  Looking for argname: {argname}")
 
 				# Find which parameter the argname maps to
 				# Match argname against the arguments list to find the index
@@ -2185,7 +2211,7 @@ def getSinkByTagTainting(tx, vuln_info):
 						param_indices.append(i)
 
 				if not param_indices:
-					print(f"  No matching parameter found for argument: {argname}")
+					logger.debug(f"  No matching parameter found for argument: {argname}")
 					continue
 
 				# Handle different function types (ArrowFunctionExpression vs regular functions)
@@ -2195,7 +2221,7 @@ def getSinkByTagTainting(tx, vuln_info):
 						if param_idx < len(params):
 							param_node = params[param_idx]
 							param_name = dfModule.get_value_of_identifer_or_literal(param_node)[0]
-							print(f"  Tainting parameter '{param_name}' (index {param_idx}) in arrow function")
+							logger.debug(f"  Tainting parameter '{param_name}' (index {param_idx}) in arrow function")
 
 							# Get the function body as context for PDG queries
 							func_body_node = neo4jQueryUtilityModule.getChildByRelationType(tx, func_def_node, 'body')
@@ -2213,7 +2239,7 @@ def getSinkByTagTainting(tx, vuln_info):
 						if param_idx < len(actual_params):
 							param_node = actual_params[param_idx]
 							param_name = dfModule.get_value_of_identifer_or_literal(param_node)[0]
-							print(f"  Tainting parameter '{param_name}' (index {param_idx}) in function")
+							logger.debug(f"  Tainting parameter '{param_name}' (index {param_idx}) in function")
 
 							# Get the function body as context for PDG queries
 							func_body_node = neo4jQueryUtilityModule.getChildByRelationType(tx, func_def_node, 'body')
@@ -2271,12 +2297,12 @@ def getSinkByTagTainting(tx, vuln_info):
 			query = """ 
 			MATCH (n_s { Id: '%s' })-[:PDG_parentOf { Arguments: '%s' }]->(n_t) RETURN collect(distinct n_t) AS resultset
 			"""%(contextNode['Id'], varname)
-			print("taintThroughEdgeProperty query", query)
+			logger.debug(f"taintThroughEdgeProperty query: {query}")
 			results = tx.run(query) # All PDG nodes that is one edge away via 'varname' argument
 			for item in results:
 				currentNodes = item['resultset']
 				for iteratorNode in currentNodes:
-					print('iteratorNode', iteratorNode)					
+					logger.debug(f"iteratorNode: {iteratorNode}")					
 					# Handle different iteratorNode types from inside out
 					# Starts tainting constructs like CallExpression, AssignmentExpression, etc.
 					# When currentASTNode reaches topMost AST node, calls taintThroughEdgeProperty again for further propagation
@@ -2312,7 +2338,7 @@ def getSinkByTagTainting(tx, vuln_info):
 				6	foo(a)			
 				(line 3, 4, 5 and line 1, 2 will be tainted with '32') 
 			"""		
-			print(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
+			logger.debug(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
 
 			out_values = []
 			if node['Id'] in visited_set:
@@ -2322,7 +2348,7 @@ def getSinkByTagTainting(tx, vuln_info):
 			# Tag current node
 			if contextNode['Id'] not in nodeid_to_matches:
 				nodeid_to_matches[contextNode['Id']] = set()
-			print('taintTag', taintTag)
+			logger.debug(f"taintTag: {taintTag}")
 			nodeid_to_matches[contextNode['Id']].add(taintTag)			
 
 			# Add a tag to neo4j graph db (DEBUG)
@@ -2342,11 +2368,11 @@ def getSinkByTagTainting(tx, vuln_info):
 			var_full_name = _get_full_member_name(tx, node) # implement getting full var name from node
 			var_root_name = _get_object_name(tx, node) # implement getting var name from node
 			# Add debug print here
-			print(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
+			logger.debug(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
 			if var_full_name:
 				taintThroughEdgeProperty(node, contextNode, var_full_name, taintTag, nodeid_to_matches, out_values)
 			# Add debug print here
-			print(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
+			logger.debug(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
 			if var_root_name:
 				taintThroughEdgeProperty(node, contextNode, var_root_name, taintTag, nodeid_to_matches, out_values)	
 
@@ -2358,10 +2384,9 @@ def getSinkByTagTainting(tx, vuln_info):
 
 			return nodeid_to_matches
 			
-
-		libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
-		if not libObjScope:
-			raise RuntimeError(f"Library object scope not found for libObj: {libObj}")
+		libObjScope = None
+		if(libObj):
+			libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)
 		
 		try:			
 			# Follow the search order, trying to match each Identifier/Literal			
@@ -2370,28 +2395,28 @@ def getSinkByTagTainting(tx, vuln_info):
 					# get code of current construct, we skip non-leaf nodes here
 					curr_construct = poc['constructs'][constructKey]
 					code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
-					print(f"code: {code}, curr_construct: {curr_construct}")
+					logger.debug(f"code: {code}, curr_construct: {curr_construct}")
 					if 'type' in curr_construct and curr_construct['type'] not in ['Identifier', 'Literal'] or code in constantsModule.POC_PRESERVED:
 						continue  # skip non-leaf nodes, preserved nodes, ex: (LIBOBJ, PAYLOAD, WILDCARD)				
 					
 					# match leaf nodes in the libObjScope
 					matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
-					print(f"codeMatchingNodes of {code}: {matching_nodes}")					
+					logger.debug(f"codeMatchingNodes of {code}: {matching_nodes}")					
 					if not matching_nodes:
-						print(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
+						logger.debug(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
 						raise EarlyHaltException(f"curr_construct: {curr_construct}")
 
 					# For each matching node, do construct comparison, if match, do tainting
 					for matchingNode in matching_nodes:
 						if pureContentCompare(matchingNode, curr_construct):
-							print(f"Pure content match found for node: {matchingNode} with construct: {curr_construct}")
+							logger.debug(f"Pure content match found for node: {matchingNode} with construct: {curr_construct}")
 							# Debug sleeping
 							context_node = neo4jQueryUtilityModule.get_ast_topmost(tx, matchingNode)
-							print(f"context_node found for node: {context_node} ")
+							logger.debug(f"context_node found for node: {context_node} ")
 							try:
 								taintTag = _gen_taint_tag(constructKey, code)
 								nodeid_to_matches = nodeTagTainting(matchingNode, context_node, taintTag)
-								print(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
+								logger.debug(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
 								for k, v in nodeid_to_matches.items():									
 									print(f"nodeid_to_matches [id: {k}] \n - node: {get_node_by_id(tx, k)} \n - value: {v}")
 								# breakpoint()  # Debug point after tainting
@@ -2403,10 +2428,10 @@ def getSinkByTagTainting(tx, vuln_info):
 								raise e
 
 		except EarlyHaltException as e:
-			print(f"Early halt due to none matching for construct: {str(e)}")
-			print(f"poc['constructs']: {poc['constructs']}")
+			logger.info(f"Early halt due to none matching for construct: {str(e)}")
+			logger.info(f"poc['constructs']: {poc['constructs']}")
 		except Exception as e:
-			print(f"Exception in processPocMatch: {e}")
+			logger.error(f"Exception in processPocMatch: {e}")
 			# breakpoint()
 			raise e
 			
@@ -2461,24 +2486,29 @@ def getSinkByTagTainting(tx, vuln_info):
 		return None
 	try:
 		flatPoc = pocPreprocess(vuln_info)
-		libObjectList = getLibObjList(tx, vuln_info)		
+		# libObjectList = getLibObjList(tx, vuln_info)		
 	except Exception as e:
-		print(f"getSinkByTagTainting preprocessing fails, vuln_info: {vuln_info}", e)
+		logger.error(f"getSinkByTagTainting preprocessing fails, vuln_info: {vuln_info}, error: {e}")
 		raise e
 	
+	# Should just be one, for loop is only for unwrapping
 	for poc in flatPoc:
 		addfullset(poc) # this function adds a fullset set into the poc object for tagTainting's use
-		for pair in libObjectList:
-			if vuln_info['mod']:
-				libObj, libIdentNode = pair[0], pair[1]
-			else:
-				libObj = pair
-			try:
-				return processPocMatch(tx, libObj, poc)				
-
-			except Exception as e:
-				print(f"Exception in processing POC match: libObj: {libObj} \n poc: {poc}", e)
-				continue  # Skip to next libObj or poc
+		
+		# if vuln_info['mod']:
+		# 	for pair in libObjectList:
+		# 		try:
+		# 			libObj, libIdentNode = pair[0], pair[1]
+		# 			return processPocMatch(tx, libObj, poc)				
+		# 		except Exception as e:
+		# 			logger.error(f"Exception in processing POC match: libObj: {libObj} \n poc: {poc}, error: {e}")
+		# 			continue  # Skip to next libObj or poc
+		# else:
+		# 	libObj = None
+		try:
+			return processPocMatch(tx, None, poc)				
+		except Exception as e:
+			logger.error(f"Exception in processing POC match: libObj: {libObj} \n poc: {poc}, error: {e}")
 	return [], []
 
 
@@ -2514,7 +2544,7 @@ def run_traversals_simple(tx, vuln_info):
 				n = call_expr['n'] # call expression
 				a = call_expr['a'] # argument: Literal, Identifier, BinaryExpression, etc
 				t = call_expr['t'] # top level expression statement
-				print(f"[n, a, t]: n: {n}, a: {a}, t: {t}")
+				logger.debug(f"[n, a, t]: n: {n}, a: {a}, t: {t}")
 				request_fn = vuln_info['poc_str'] # temporary
 
 				wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
@@ -2585,7 +2615,7 @@ def run_traversals_simple(tx, vuln_info):
 									fd.write(f"    - Node ID: {node_id} (Error getting code: {e})\n")
 					fd.write('\n')
 
-				print(f"request_storage: {request_storage}")
+				logger.debug(f"request_storage: {request_storage}")
 				for each_request_key in request_storage:
 					node_id = _get_node_id_part(each_request_key) # node id of 'CallExpression' node
 					location = _get_location_part(each_request_key)
@@ -2726,11 +2756,11 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 	if MAIN_QUERY_ACTIVE:
 		# different kinds of call expressions (sinks)
 		# breakpoint()  # Debug point before tainting-based sink detection
-		r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info)
-		# DEBUG PRINT ALARM THAT TAINTING IS DONE
-		print("------------------------------------------------------------------------------------------------")
-		print("Tainting-based sink detection completed.\nvuln_info: ", vuln_info, "\nResults:", r1)		
-		print("------------------------------------------------------------------------------------------------")
+		r1, all_poc_max_levels = [], []
+		try:
+			r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info)			
+		except Exception as e:
+			logger.error(f"Error in getSinkByTagTainting: {e}")			
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
 		# For cve sink...
@@ -2743,14 +2773,13 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 				request_fn = vuln_info['poc_str'] # temporary
 				wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, t) # returns all the child of a specific node
 				logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
-				top_expression_code = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)[0]
+				ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)
+				top_expression_code = ce[0]
 				logger.info(f"[debug] top_expression_code: {top_expression_code}")
 
 				if 'function(' in top_expression_code:
 					top_expression_code = jsbeautifier.beautify(top_expression_code)
 
-				wrapper_node = neo4jQueryUtilityModule.getChildsOf(tx, a)
-				ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node)
 				nid = request_fn + '__nid=' + n['Id'] + '__Loc=' + str(n['Location'])
 				logger.info(f"[debug] nid: {nid}")
 				request_storage[nid] = {'reachability':[], 'endpoint_code': ce[0], 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': t['Id'], 'CallExpression': n['Id'], 'Argument': a['Id']}}
@@ -2773,7 +2802,9 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		with open(general_template_output_pathname, 'a+') as gt_fd:
 			with open(template_output_pathname, "a+") as fd:
 				# Use tee here too
-				tee_fd = Tee(fd, sys.stdout)
+				# make this support logger as well
+				logger.info("Using Tee to duplicate output to both file and stdout")					
+				tee_fd = Tee(fd)
 
 				timestamp = _get_current_timestamp()
 				sep = utilityModule.get_output_header_sep()
@@ -2798,9 +2829,9 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 					for poc_info in all_poc_max_levels:
 						# Write based on the previous definition of getSinkByTagTainting
 						tee_fd.write(f"-- node: {poc_info['node']}\n")
-						tee_fd.write(f" - match_set: {poc_info['matchSet']}\n")
-						tee_fd.write(f" - file: {poc_info['file']}\n")
-						tee_fd.write(f" - location: {poc_info['location']}\n")
+						tee_fd.write(f"|- match_set: {poc_info['matchSet']}\n")
+						tee_fd.write(f"|- file: {poc_info['file']}\n")
+						tee_fd.write(f"|- location: {poc_info['location']}\n")
 					tee_fd.write('\n')
 
 				for each_request_key in request_storage:
