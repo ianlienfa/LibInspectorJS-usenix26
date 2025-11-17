@@ -8,6 +8,7 @@ services:
     image: jaw-logic
     container_name: jaw4c-logic    
     volumes:
+      # Mount data to nms
       - /home/rafael/JAW4C:/JAW4C
       - /home/rafael/nms/archives/to_share/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
       # Docker socket for Docker-in-Docker (DinD)
