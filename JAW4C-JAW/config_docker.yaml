@@ -43,7 +43,7 @@ crawler:
     headless: true
     # use foxhound if firefox is enabled (default is true)
     foxhound: true
-    foxhoundpath: /home/ian/project-foxhound/obj-tf-release/dist/bin/foxhound
+    foxhoundpath: /JAW4C/JAW4C-JAW/crawler/foxhound
     
   lib_detection:
     enable: true    
@@ -112,11 +112,11 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: false
-    lib_detection: false  
-    vulndb: false
-    static: false
-    static_neo4j: false  
+    crawling: true
+    lib_detection: true  
+    vulndb: true
+    static: true
+    static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation
     # verification: false

@@ -70,6 +70,11 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
 		shell=True,
 		text=True
 	).strip()
+	nms_path = subprocess.check_output(
+		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C/JAW4C-JAW/data\"}}{{.Source}}{{end}}{{end}}'",
+		shell=True,
+		text=True
+	).strip()
 			
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
@@ -85,7 +90,7 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
     -d \
     -v {7}{1}/{0}/neo4j/data:/data \
     -v {7}{1}/{0}/neo4j/logs:/logs \
-    -v {7}{4}/{5}:/var/lib/neo4j/import/{6} \
+    -v {8}/{5}:/var/lib/neo4j/import/{6} \
 	-v {7}{1}/{0}/neo4j/plugins:/plugins \
 	-v {7}{1}/{0}/neo4j/conf:/conf \
     -e NEO4J_apoc_export_file_enabled=true \
@@ -100,7 +105,7 @@ def create_neo4j_container(container_name, weburl_suffix=None, webapp_name=None,
 	
 	# Format the command with conditional import path
 	if weburl_suffix and webapp_name:
-		command = command.format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, weburl_suffix, webapp_name, base_path)
+		command = command.format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, weburl_suffix, webapp_name, base_path, nms_path)
 	else:
 		# For backward compatibility, create command without import volume
 		command_no_import = """docker run \

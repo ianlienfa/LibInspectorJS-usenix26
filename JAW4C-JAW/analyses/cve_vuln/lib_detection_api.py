@@ -37,28 +37,12 @@ detector_driver_program = 'dlv.js'
 lib_detection_cwd = os.path.join(os.path.dirname(__file__), "..", "..", "driver")
 
 
-def lib_detection_single_url(url, timeout=60, proxy_server_path=None, ptv_extension_path=None, ptv_original_extension_path=None, headless=None, ignore_cert_errors=None, disk_cache_dir=None, disk_cache_size=None):
-    lib_detection_command = "node {0} -u '{1}'".format(
+def lib_detection_single_url(data_dir, url, timeout=60):
+    lib_detection_command = "node {0} -u '{1}' -l {2}".format(
         detector_driver_program,
-        url
-    )
-    
-    # Add additional arguments if provided
-    if proxy_server_path:
-        lib_detection_command += f" --ProxyServerPath {proxy_server_path}"
-    if ptv_extension_path:
-        lib_detection_command += f" --PTVExtensionPath {ptv_extension_path}"
-    if ptv_original_extension_path:
-        lib_detection_command += f" --PTVOriginalExtensionPath {ptv_original_extension_path}"
-    if headless is not None:
-        lib_detection_command += f" --headless {str(headless).lower()}"
-    if ignore_cert_errors is not None:
-        lib_detection_command += f" --ignoreCertErrors {str(ignore_cert_errors).lower()}"
-    if disk_cache_dir:
-        lib_detection_command += f" --diskCacheDir {disk_cache_dir}"
-    if disk_cache_size is not None:
-        lib_detection_command += f" --diskCacheSize {disk_cache_size}"
-    
+        url,
+		data_dir
+    )			
     LOGGER.debug(lib_detection_command)	
     ret = IOModule.run_os_command(lib_detection_command, 
     print_stdout=True, cwd=lib_detection_cwd, timeout=timeout)
@@ -66,7 +50,7 @@ def lib_detection_single_url(url, timeout=60, proxy_server_path=None, ptv_extens
 
 
 # # static analysis without neo4j
-def lib_detection(website_url, iterative_output='false', memory=None, timeout=None, compress_hpg='true', overwrite_hpg='false', proxy_server_path=None, ptv_extension_path=None, ptv_original_extension_path=None, headless=None, ignore_cert_errors=None, disk_cache_dir=None, disk_cache_size=None):
+def lib_detection(website_url, iterative_output='false', memory=None, timeout=None, compress_hpg='true', overwrite_hpg='false'):
 
 	if timeout is None:
 		static_analysis_per_webpage_timeout = 30 # seconds
@@ -102,24 +86,7 @@ def lib_detection(website_url, iterative_output='false', memory=None, timeout=No
 				lib_detection_command = "node {0} -u '{1}'".format(
 					detector_driver_program,
 					url
-				)
-				
-				# Add additional arguments if provided
-				if proxy_server_path:
-					lib_detection_command += f" --ProxyServerPath {proxy_server_path}"
-				if ptv_extension_path:
-					lib_detection_command += f" --PTVExtensionPath {ptv_extension_path}"
-				if ptv_original_extension_path:
-					lib_detection_command += f" --PTVOriginalExtensionPath {ptv_original_extension_path}"
-				if headless is not None:
-					lib_detection_command += f" --headless {str(headless).lower()}"
-				if ignore_cert_errors is not None:
-					lib_detection_command += f" --ignoreCertErrors {str(ignore_cert_errors).lower()}"
-				if disk_cache_dir:
-					lib_detection_command += f" --diskCacheDir {disk_cache_dir}"
-				if disk_cache_size is not None:
-					lib_detection_command += f" --diskCacheSize {disk_cache_size}"
-				
+				)			
 				ret = IOModule.run_os_command(lib_detection_command, cwd=lib_detection_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
 				LOGGER.info("successfully detected libraries on %s, return code: %s"%(url, ret)) 
 
@@ -141,4 +108,3 @@ def lib_detection(website_url, iterative_output='false', memory=None, timeout=No
 	else:
 		message = 'no webpages.json or urls.out file exists in the webapp directory; skipping analysis...'
 		LOGGER.warning(message)
-	

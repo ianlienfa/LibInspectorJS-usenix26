@@ -119,6 +119,9 @@ RUN cd /JAW4C/JAW4C-JAW/driver && npx puppeteer browsers install chrome
 RUN groupadd -f docker && \
     usermod -aG docker root
 
+# Set Docker API version for compatibility
+ENV DOCKER_API_VERSION=1.43
+
 # Post-clean up
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*

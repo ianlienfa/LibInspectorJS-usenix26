@@ -5,12 +5,15 @@ networks:
 services:
   logic:
     build: .
-    image: jaw-logic
-    container_name: jaw4c-logic    
+    image: jaw-logic-alt
+    container_name: jaw4c-logic-alt    
     volumes:
       # Mount data to nms
       - /home/rafael/JAW4C:/JAW4C
       - /home/rafael/nms/archives/to_share/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - /home/rafael/nms/bundler_crawl:/JAW4C/JAW4C-JAW/data
+      # Foxhound
+      - /home/rafael/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
       # Docker socket for Docker-in-Docker (DinD)
       - /var/run/docker.sock:/var/run/docker.sock
       # node_modules (anonymous volumes for faster rebuilds)
@@ -74,7 +77,7 @@ services:
 
   db:
     build: ./vuln_db_llm
-    container_name: jaw4c-vulndb
+    container_name: jaw4c-vulndb-alt
     networks:
       - jaw-network
     environment:
@@ -87,7 +90,7 @@ services:
 
   proxy:
     build: ./JAW4C-WebArchive
-    container_name: jaw4c-webarchive
+    container_name: jaw4c-webarchive-alt
     networks:
       - jaw-network
     volumes:

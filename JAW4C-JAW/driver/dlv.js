@@ -1,3 +1,4 @@
+const puppeteer = require('puppeteer');
 const { chromium } = require('playwright');
 const path = require('path');
 const lift = require('./utilities/lift');
@@ -6,9 +7,11 @@ const crawler = require('../crawler/crawler');
 const fs = require('fs');
 const logger = require('./utilities/logger');
 const LOGGER = logger.info
-const {urlToDirectoryName} = require('./utilities/webtools');
+const {parseUrl} = require('./utilities/webtools');
+const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOriginalExtensionPath, ProxyServerPath, PTVPuppeteerLaunchConfig, PTVOriginalLaunchConfig } = require('./config')
 const { Command } = require('commander');
 const { exit } = require('process');
+const { dir } = require('console');
 
 function createStartCrawlUrl(url) {
   const condition = 'soak';
@@ -50,9 +53,9 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
       });
     });
 
-    page.on('console', msg => {
-      LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
-    });
+    // page.on('console', msg => {
+    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
+    // });
 
     // Request interception with Playwright
     if(fs.existsSync(dataDir)){
@@ -99,7 +102,7 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
         return window._eventLog
       });
     } catch (timeoutError) {
-      logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
+      logger.warn(`PTVOriginal extension detection timeout for ${url} - continuing with available data`);
       result["detection"] = [];
     }
 
@@ -135,17 +138,19 @@ const PTV = async (url, launchConfig, dataDir = "") => {
   let result = {}
 
   try {
+    // Create temp user data directory for extension support
+    const os = require('os');
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'playwright-'));
+
     // Convert Puppeteer config to Playwright config
     const playwrightConfig = {
       channel: 'chromium',
-      bypassCSP: true,
       headless: launchConfig.headless !== false,
       args: launchConfig.args || [],
       ignoreHTTPSErrors: true
     };
 
-    console.log("ptv playwrightConfig", JSON.stringify(playwrightConfig))
-    const browser = await launch_playwright(playwrightConfig.headless, playwrightConfig);
+    const browser = await chromium.launchPersistentContext(userDataDir, playwrightConfig);
     const page = await browser.newPage();
 
     await page.addInitScript(() => {
@@ -254,7 +259,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
     // Wait for detection with timeout handling
     LOGGER("waiting for extension detection...")
     try {
-      await page.waitForFunction(() => window.detectionReady === true, { timeout: 60000 });
+      await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
 
       LOGGER("waiting for eventLog")
       result["detection"] = await page.evaluate(() => {
@@ -271,9 +276,9 @@ const PTV = async (url, launchConfig, dataDir = "") => {
 
     // Clean up temp user data directory
     try {
-      fs.rmSync(browser._tempUserDataDir, { recursive: true, force: true });
+      fs.rmSync(userDataDir, { recursive: true, force: true });
     } catch (cleanupError) {
-      logger.warn(`Failed to clean up temp directory ${browser._tempUserDataDir}: ${cleanupError}`);
+      logger.warn(`Failed to clean up temp directory ${userDataDir}: ${cleanupError}`);
     }
 
     result = Object.fromEntries(
@@ -288,6 +293,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
     return {};
   }
 };
+
 
 
 module.exports = {PTV, PTVOriginal};
@@ -306,41 +312,21 @@ if (require.main === module) {
 
     program
         .option('-l, --path <path>', 'the path to the directory with previously crawled website scripts')        
-        .option('-u, --url <url>', 'the url of the previously crawled website scripts')
-        .option('--ProxyServerPath <path>', 'proxy server path', 'http://localhost:8002')
-        .option('--PTVExtensionPath <path>', 'PTV extension path', '/JAW4C/JAW4C-PTV')
-        .option('--PTVOriginalExtensionPath <path>', 'PTV original extension path', '/JAW4C/JAW4C-PTV-Original')
-        .option('--headless [value]', 'run in headless mode', 'true')
-        .option('--ignoreCertErrors [value]', 'ignore certificate errors', 'true')
-        .option('--diskCacheDir <path>', 'disk cache directory', '/dev/null')
-        .option('--diskCacheSize <size>', 'disk cache size', '1')
+        .option('-u, --url <url>', 'the url of the previously crawled website scripts')        
         .parse(process.argv);
         
     program.parse();
     const options = program.opts();
     const url = options?.['url'];
     dirPath = options?.['path'];
-    
-    // Extract configuration options
-    const proxyServerPath = options.ProxyServerPath;
-    const ptvExtensionPath = options.PTVExtensionPath;
-    const ptvOriginalExtensionPath = options.PTVOriginalExtensionPath;
-    const headless = options.headless === 'true' || options.headless === true;
-    const ignoreCertErrors = options.ignoreCertErrors === 'true' || options.ignoreCertErrors === true;
-    const diskCacheDir = options.diskCacheDir;
-    const diskCacheSize = parseInt(options.diskCacheSize);
-    
-    // Create playwright configurations
-    const PTVPlaywrightConfig = createPTVPlaywrightConfig(ptvExtensionPath, proxyServerPath, headless, ignoreCertErrors, diskCacheDir, diskCacheSize);
-    const PTVOriginalPlaywrightConfig = createPTVOriginalPlaywrightConfig(ptvOriginalExtensionPath, proxyServerPath, headless, ignoreCertErrors, diskCacheDir, diskCacheSize);
-    
     let hashdirPath = ""
     
     if(url){
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
-      const folderName = crawler.getNameFromURL(url);
-      const hashfolderName = crawler.hashURL(url)
+      const parsedUrl = parseUrl(url);
+      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);
+      const hashfolderName = crawler.hashURL(url);
       dirPath = path.join(dataStorageDirectory, folderName)
       hashdirPath = path.join(dataStorageDirectory, folderName, hashfolderName);
       if(!fs.existsSync(dirPath)){

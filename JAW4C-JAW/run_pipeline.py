@@ -307,7 +307,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 	if not config['cve_vuln']['enabled']:
 		return
 
-	webapp_folder_name = get_name_from_url(website_url)
+	parsed_url = utilityModule.parse_url(website_url)
+	webapp_folder_name = get_name_from_url(parsed_url)
 	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
 	if not os.path.exists(webapp_data_directory):
 		LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
@@ -333,30 +334,11 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			# Library detection
 			if lib_detector_enable and lib_detector_lift:
 				try:
-					# Extract library detection arguments from config
-					detector_config = config.get("crawler", {}).get("lib_detection", {}).get("detector", {})
-					proxy_server_path = detector_config.get("proxy-server", "http://localhost:8002")
-					ptv_extension_path = detector_config.get("load-extension", "/JAW4C/JAW4C-PTV")
-					ptv_original_extension_path = detector_config.get("load-extension-original", "/JAW4C/JAW4C-PTV-Original")
-					headless = config.get("crawler", {}).get("browser", {}).get("headless", True)
-					ignore_cert_errors = detector_config.get("ignore-certificate-errors", True)
-					disk_cache_dir = detector_config.get("disk-cache-dir", "/dev/null")
-					disk_cache_size = detector_config.get("disk-cache-size", 1)
-					
-					lib_detection_api.lib_detection_single_url(
-						url, 
-						proxy_server_path=proxy_server_path,
-						ptv_extension_path=ptv_extension_path, 
-						ptv_original_extension_path=ptv_original_extension_path,
-						headless=headless,
-						ignore_cert_errors=ignore_cert_errors,
-						disk_cache_dir=disk_cache_dir,
-						disk_cache_size=disk_cache_size
-					)
+					lib_detection_api.lib_detection_single_url(webapp_folder_name, url)
 				except Exception as e:
 					LOGGER.error(f"Library detection failed for {url}: {e}")
 					continue
-				LOGGER.info("successfully detected libraries on %s."%(url))
+			LOGGER.info("successfully detected libraries on %s."%(url))
 
 			# Detection result and DB querying
 			vuln_list = [] # we often time only do query once
@@ -365,7 +347,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 				try:
-					lib_det_res = DetectorReader.read_raw_result_with_url(url)
+					lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
 				except Exception as e:
 					LOGGER.error(e)
 					continue
@@ -386,7 +368,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
-							vuln = []
+							vuln = None
 							if detection_info['accurate']:
 								version = detection_info['version'].split(', ')
 								vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
@@ -498,6 +480,9 @@ def process_single_website(website_url, config, domain_health_check, crawler_com
 			return
 
 	# Crawling
+	LOGGER.info(config['cve_vuln']['enabled'])
+	LOGGER.info(config['cve_vuln'])
+	LOGGER.info(config)
 	if(config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
 
 		perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory)

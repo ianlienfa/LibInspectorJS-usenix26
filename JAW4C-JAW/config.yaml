@@ -51,14 +51,7 @@ crawler:
     enable: true
     
     detection_timeout: 60 # 60
-    post_cleanup: true  # cleanup lifted file or not
-    detector:    
-      load-extension: /home/ian/JAW4C/JAW4C-PTV
-      load-extension-original: /home/ian/JAW4C/JAW4C-PTV-Original
-      proxy-server: http://127.0.0.1:8002
-      ignore-certificate-errors: true
-      disk-cache-dir: /dev/null
-      disk-cache-size: 1    
+    post_cleanup: true  # cleanup lifted file or not    
 
 vuln_db:
   connect: true 
