@@ -2229,7 +2229,18 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
         DEBUG && console.log("finished inter-procedural model unrolling");
 
     }
+
+    function getScriptNameFromPageScope(scopeTree){
+        let mainAST = scopeTree.scopes[0].ast; // AST of each `Program` node
+        if(mainAST && mainAST.value){
+            let scriptNameInAST = mainAST.value.split('/').pop();
+            return scriptNameInAST;
+        }
+        return "";
+    }
+
     for (const pageScopeTree of pageScopeTrees) {
+        DEBUG && console.log('[GraphBuilder] processing page scope tree for HPG export:', getScriptNameFromPageScope(pageScopeTree));
         await processPageScopeTree(pageScopeTree);
     }
 
