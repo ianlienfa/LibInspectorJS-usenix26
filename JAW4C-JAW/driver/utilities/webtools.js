@@ -1,10 +1,20 @@
 const { URL } = require('url');
 
+function parseUrl(url) {
+  const parsedUrl = new URL(url);
+  if (parsedUrl.host === '240.240.240.240'){
+    // handle archive urls, just take the target part with encoding
+    target = parsedUrl.search.split('target=')[1];
+    return decodeURIComponent(target);
+  }
+  return url;
+}
+
 function urlToDirectoryName(url) {    
     try {
       // Parse the URL
       let dirName = ""
-      const parsedUrl = new URL(url);    
+      const parsedUrl = new URL(url);
       if(parsedUrl.host === '240.240.240.240'){
         // handle archive urls, just take the target part with encoding
         dirName = parsedUrl.search.split('target=')[1];
@@ -53,5 +63,6 @@ function urlToDirectoryName(url) {
   
 
 module.exports = {
+    parseUrl,
     urlToDirectoryName
 };

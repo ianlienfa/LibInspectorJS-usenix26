@@ -42,6 +42,7 @@ const SourceSinkAnalyzer = SourceSinkAnalyzerModule.CVESourceSinkAnalyzer;
 
 const GraphExporter = require('./../../engine/core/io/graphexporter');
 const logger = require('../../engine/core/io/logging.js');
+const {parseUrl} = require('../../driver/utilities/webtools');
 
 /**
  * ------------------------------------------------
@@ -105,7 +106,8 @@ function readFile(file_path_name){
  * @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 **/
 function getNameFromURL(url){
-	return url.replace(/\:/g, '-').replace(/\//g, '');
+	const parsedUrl = parseUrl(url);
+	return parsedUrl.replace(/\:/g, '-').replace(/\//g, '');
 }
 
 

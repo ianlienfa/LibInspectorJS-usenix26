@@ -7,10 +7,11 @@ const crawler = require('../crawler/crawler');
 const fs = require('fs');
 const logger = require('./utilities/logger');
 const LOGGER = logger.info
-const {urlToDirectoryName} = require('./utilities/webtools');
+const {parseUrl} = require('./utilities/webtools');
 const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOriginalExtensionPath, ProxyServerPath, PTVPuppeteerLaunchConfig, PTVOriginalLaunchConfig } = require('./config')
 const { Command } = require('commander');
 const { exit } = require('process');
+const { dir } = require('console');
 
 function createStartCrawlUrl(url) {
   const condition = 'soak';
@@ -52,9 +53,9 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
       });
     });
 
-    page.on('console', msg => {
-      LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
-    });
+    // page.on('console', msg => {
+    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
+    // });
 
     // Request interception with Playwright
     if(fs.existsSync(dataDir)){
@@ -101,7 +102,7 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
         return window._eventLog
       });
     } catch (timeoutError) {
-      logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
+      logger.warn(`PTVOriginal extension detection timeout for ${url} - continuing with available data`);
       result["detection"] = [];
     }
 
@@ -258,7 +259,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
     // Wait for detection with timeout handling
     LOGGER("waiting for extension detection...")
     try {
-      await page.waitForFunction(() => window.detectionReady === true, { timeout: 60000 });
+      await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
 
       LOGGER("waiting for eventLog")
       result["detection"] = await page.evaluate(() => {
@@ -323,8 +324,9 @@ if (require.main === module) {
     if(url){
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
-      const folderName = crawler.getNameFromURL(url);
-      const hashfolderName = crawler.hashURL(url)
+      const parsedUrl = parseUrl(url);
+      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);
+      const hashfolderName = crawler.hashURL(url);
       dirPath = path.join(dataStorageDirectory, folderName)
       hashdirPath = path.join(dataStorageDirectory, folderName, hashfolderName);
       if(!fs.existsSync(dirPath)){

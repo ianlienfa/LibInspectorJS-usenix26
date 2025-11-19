@@ -39,6 +39,8 @@ const { JSDOM } = jsdom;
 
 const lift = require('../driver/utilities/lift');
 const transform = require('../driver/utilities/transform');
+const {parseUrl} = require('../driver/utilities/webtools');
+const { exit } = require('process');
 
 /**
  * ------------------------------------------------
@@ -208,7 +210,8 @@ function hashURL(url){
  * @return creates a directory to store the data of the input url and returns the directory name.
 **/
 function getOrCreateDataDirectoryForWebsite(url){
-	const folderName = getNameFromURL(url);
+	const parsedUrl = parseUrl(url);
+	const folderName = getNameFromURL(parsedUrl);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(!fs.existsSync(folderPath)){
 		fs.mkdirSync(folderPath);
@@ -218,8 +221,8 @@ function getOrCreateDataDirectoryForWebsite(url){
 
 
 function directoryExists(url){
-
-	const folderName = getNameFromURL(url);
+	const parsedUrl = parseUrl(url);
+	const folderName = getNameFromURL(parsedUrl);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(fs.existsSync(folderPath) && fs.existsSync(pathModule.join(folderPath, "urls.out"))){
 		return true;
@@ -232,8 +235,8 @@ function directoryExists(url){
 
 
 function cleanDirectory(url){
-
-	const folderName = getNameFromURL(url);
+	const parsedUrl = parseUrl(url);
+	const folderName = getNameFromURL(parsedUrl);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(fs.existsSync(folderPath)){
 		// Recursively remove everything inside folderPath

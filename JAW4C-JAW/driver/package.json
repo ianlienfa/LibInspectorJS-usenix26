@@ -28,12 +28,12 @@
     "base-x": "^5.0.1",
     "commander": "^14.0.0",
     "compare-versions": "^6.1.1",
+    "playwright": "1.49.1",
     "puppeteer": "^23.9.0",
     "typo-js": "1.2.5",
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.1",
     "@types/node": "^24.6.2"
   }
 }
