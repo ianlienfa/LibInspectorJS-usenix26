@@ -13,7 +13,210 @@ app.use(express.static(path.join(__dirname, 'public')));
 const JAW4C_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
 
+// --- Server-Side Parsing Functions ---
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function highlightJSON(text) {
+    try {
+        const obj = JSON.parse(text);
+        const formatted = JSON.stringify(obj, null, 2);
+        return formatted
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+    } catch (e) {
+        return escapeHtml(text);
+    }
+}
+
+function highlightLog(text) {
+    return escapeHtml(text)
+        .replace(/^(ERROR|FATAL|CRITICAL).*$/gm, '<span class="log-error">$&</span>')
+        .replace(/^(WARN|WARNING).*$/gm, '<span class="log-warn">$&</span>')
+        .replace(/^(INFO).*$/gm, '<span class="log-info">$&</span>')
+        .replace(/^(DEBUG|TRACE).*$/gm, '<span class="log-debug">$&</span>')
+        .replace(/\[.*?\]/g, '<span class="log-timestamp">$&</span>');
+}
+
+function formatLibDetectionTable(data) {
+    let html = '<div class="table-view">';
+
+    for (const [url, methods] of Object.entries(data)) {
+        for (const [method, detections] of Object.entries(methods)) {
+            if (method === 'detection' || Array.isArray(detections)) continue;
+
+            html += `<h5>Method: ${method}</h5>`;
+
+            const detectionData = detections.detection || detections;
+            if (Array.isArray(detectionData) && detectionData.length > 0) {
+                html += '<table class="detection-table">';
+                html += '<thead><tr><th>Library</th><th>Version</th><th>Location</th><th>Accurate</th><th>URL</th></tr></thead>';
+                html += '<tbody>';
+
+                const flatDetections = detectionData.flat();
+                flatDetections.forEach(lib => {
+                    const accurateClass = lib.accurate ? 'accurate-yes' : 'accurate-no';
+                    html += `<tr>
+                        <td class="lib-name">${escapeHtml(lib.libname || 'N/A')}</td>
+                        <td>${escapeHtml(lib.version || 'unknown')}</td>
+                        <td class="lib-location">${escapeHtml(lib.location || 'N/A')}</td>
+                        <td class="${accurateClass}">${lib.accurate ? 'Yes' : 'No'}</td>
+                        <td><a href="${escapeHtml(lib.url || '#')}" target="_blank" class="lib-url">Link</a></td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table>';
+            } else {
+                html += '<p class="no-detections">No detections found</p>';
+            }
+        }
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function formatVulnTable(text) {
+    let html = '<div class="table-view">';
+
+    try {
+        const lines = text.trim().split('\n');
+        let hasContent = false;
+
+        lines.forEach(line => {
+            if (!line.trim()) return;
+
+            try {
+                const data = JSON.parse(line);
+
+                for (const [url, libraries] of Object.entries(data)) {
+                    hasContent = true;
+
+                    if (Array.isArray(libraries) && libraries.length > 0) {
+                        libraries.forEach(lib => {
+                            const libname = lib.libname || 'Unknown';
+                            const version = lib.version || 'unknown';
+                            const location = lib.location || 'N/A';
+                            const vulns = lib.vuln || [];
+
+                            html += `<h5>Library: ${escapeHtml(libname)} v${escapeHtml(version)} (Location: ${escapeHtml(location)})</h5>`;
+
+                            if (vulns.length > 0) {
+                                html += '<table class="vuln-table">';
+                                html += '<thead><tr><th>Type</th><th>Confidence</th><th>POC</th><th>Payload</th><th>Validated</th></tr></thead>';
+                                html += '<tbody>';
+
+                                vulns.forEach(vuln => {
+                                    const vulnType = vuln.vulnerability_type || 'unknown';
+                                    const confidence = vuln.confidence_score || 0;
+                                    const poc = vuln.poc || 'N/A';
+                                    const payload = vuln.payload || 'N/A';
+                                    const validated = vuln.validated ? 'Yes' : 'No';
+
+                                    const typeClass = `vuln-type-${vulnType.toLowerCase().replace(/[^a-z]/g, '')}`;
+                                    const confidencePercent = Math.round(confidence * 100);
+
+                                    html += `<tr>
+                                        <td class="vuln-type ${typeClass}">${escapeHtml(vulnType.toUpperCase())}</td>
+                                        <td class="confidence-score">${confidencePercent}%</td>
+                                        <td class="poc-code">${escapeHtml(poc)}</td>
+                                        <td class="payload-code">${escapeHtml(payload)}</td>
+                                        <td class="${validated === 'Yes' ? 'validated-yes' : 'validated-no'}">${validated}</td>
+                                    </tr>`;
+                                });
+
+                                html += '</tbody></table>';
+                            } else {
+                                html += '<p class="no-vulnerabilities">No vulnerabilities found for this library</p>';
+                            }
+                        });
+                    } else {
+                        html += '<p class="no-vulnerabilities">No vulnerabilities found</p>';
+                    }
+                }
+            } catch (lineError) {
+                console.error('Error parsing line:', lineError);
+            }
+        });
+
+        if (!hasContent) {
+            html += '<p class="no-vulnerabilities">No vulnerability data found</p>';
+        }
+    } catch (e) {
+        html += `<p class="error">Error parsing vulnerability data: ${escapeHtml(e.message)}</p>`;
+    }
+
+    html += '</div>';
+    return html;
+}
+
 // --- Data Fetching and Processing ---
+
+// Helper function to format URL for display
+function formatUrlForDisplay(url) {
+    try {
+        // Check if this is a proxy URL with a target parameter
+        const urlObj = new URL(url);
+        const targetParam = urlObj.searchParams.get('target');
+
+        let actualUrl = url;
+        if (targetParam) {
+            // Decode the target parameter to get the real URL
+            actualUrl = decodeURIComponent(targetParam);
+        }
+
+        // Parse the actual URL
+        const actualUrlObj = new URL(actualUrl);
+        const domain = actualUrlObj.hostname;
+
+        // Get the path/query/hash part
+        const pathname = actualUrlObj.pathname;
+        const search = actualUrlObj.search;
+        const hash = actualUrlObj.hash;
+        const pathPart = pathname + search + hash;
+
+        // Remove leading slash for cleaner display
+        const cleanPath = pathPart.startsWith('/') ? pathPart.substring(1) : pathPart;
+
+        // Take up to 100 characters for path
+        const truncatedPath = cleanPath.substring(0, 100);
+
+        return {
+            domain: domain,
+            path: truncatedPath
+        };
+    } catch (e) {
+        // If URL parsing fails, return a simple object
+        const truncated = url.length > 100 ? url.substring(0, 100) + '...' : url;
+        return {
+            domain: truncated,
+            path: ''
+        };
+    }
+}
 
 async function getSiteData() {
     let parentDirs = [];
@@ -33,29 +236,44 @@ async function getSiteData() {
         const parentStats = await fs.stat(parentPath);
         if (!parentStats.isDirectory()) continue;
 
-        // Try to read the hash mapping file for this parent directory
-        let hashToUrlMap = new Map();
-        try {
-            const mappingContent = await fs.readFile(path.join(parentPath, 'urls.hashes.out'), 'utf8');
-            mappingContent.split('\n').forEach(line => {
-                if (line) {
-                    const [hash, url] = line.split(' ');
-                    if (hash && url) {
-                        hashToUrlMap.set(hash, url);
-                    }
-                }
-            });
-        } catch (e) {
-            // If urls.hashes.out doesn't exist, we'll just use hashes as names
-        }
-        
         const siteHashes = await fs.readdir(parentPath);
         for (const hash of siteHashes) {
             const sitePath = path.join(parentPath, hash);
             const siteStats = await fs.stat(sitePath);
             if (!siteStats.isDirectory()) continue;
 
-            const siteName = hashToUrlMap.get(hash) || `${parentDir}/${hash}`;
+            // Read the original URL from url.out
+            let siteDomain = `${parentDir}/${hash}`; // fallback
+            let siteUrlPath = ''; // path component
+            let originalUrl = '';
+            let displayUrl = '';
+            try {
+                const urlContent = await fs.readFile(path.join(sitePath, 'url.out'), 'utf8');
+                const rawUrl = urlContent.trim();
+
+                // Check if this is a proxy URL with a target parameter
+                try {
+                    const urlObj = new URL(rawUrl);
+                    const targetParam = urlObj.searchParams.get('target');
+                    if (targetParam) {
+                        // Decode the target parameter to get the real URL
+                        displayUrl = decodeURIComponent(targetParam);
+                        originalUrl = displayUrl; // Use the decoded URL as the original
+                    } else {
+                        displayUrl = rawUrl;
+                        originalUrl = rawUrl;
+                    }
+                } catch (e) {
+                    displayUrl = rawUrl;
+                    originalUrl = rawUrl;
+                }
+
+                const formatted = formatUrlForDisplay(rawUrl);
+                siteDomain = formatted.domain;
+                siteUrlPath = formatted.path;
+            } catch (e) {
+                // If url.out doesn't exist, use the fallback
+            }
 
             const flowsFile = path.join(sitePath, 'sink.flows.out');
             let hasFlows = false;
@@ -86,22 +304,42 @@ async function getSiteData() {
                 'sink.flows.out', 'vuln.out', 'lib.detection.json', 'urls.out',
                 'errors.log', 'warnings.log', 'info.log'
             ];
-            
+
             let availableFiles = [];
+            let hasLibDetection = false;
+            let hasVulnOut = false;
+            let hasSinkFlows = false;
+            let hasErrorLog = false;
+            let hasWarningLog = false;
+
             for (const file of importantFiles) {
                 try {
                     await fs.access(path.join(sitePath, file));
                     availableFiles.push(file);
+
+                    // Track specific files for filtering
+                    if (file === 'lib.detection.json') hasLibDetection = true;
+                    if (file === 'vuln.out') hasVulnOut = true;
+                    if (file === 'sink.flows.out') hasSinkFlows = true;
+                    if (file === 'errors.log') hasErrorLog = true;
+                    if (file === 'warnings.log') hasWarningLog = true;
                 } catch (e) { /* File doesn't exist */ }
             }
 
             allSitesData.push({
                 hash: `${parentDir}/${hash}`, // Use a composite hash for uniqueness
-                name: siteName,
+                domain: siteDomain,
+                urlPath: siteUrlPath,
+                originalUrl,
                 hasFlows,
                 pocMatches,
                 vulnerableLibs,
                 files: availableFiles,
+                hasLibDetection,
+                hasVulnOut,
+                hasSinkFlows,
+                hasErrorLog,
+                hasWarningLog,
             });
         }
     }
@@ -130,17 +368,54 @@ app.get('/', async (req, res) => {
 });
 
 app.get('/api/file-content', async (req, res) => {
-    const { hash, file } = req.query;
+    const { hash, file, view } = req.query;
     if (!hash || !file || file.includes('..') || hash.includes('..')) {
-        return res.status(400).send('Invalid request');
+        return res.status(400).json({ error: 'Invalid request' });
     }
 
     const filePath = path.join(DATA_DIR, hash, file);
     try {
         const content = await fs.readFile(filePath, 'utf8');
-        res.type('text/plain').send(content);
+
+        // If raw view is requested, return plain text
+        if (view === 'raw') {
+            return res.json({
+                type: 'text',
+                content: content
+            });
+        }
+
+        // Server-side parsing based on file type
+        let formattedContent;
+        let contentType = 'html';
+
+        if (file === 'lib.detection.json') {
+            try {
+                const data = JSON.parse(content);
+                formattedContent = formatLibDetectionTable(data);
+            } catch (e) {
+                formattedContent = `<p class="error">Error parsing library detection data: ${escapeHtml(e.message)}</p><pre>${escapeHtml(content)}</pre>`;
+            }
+        } else if (file === 'vuln.out') {
+            formattedContent = formatVulnTable(content);
+        } else if (file.endsWith('.json')) {
+            formattedContent = highlightJSON(content);
+        } else if (file.endsWith('.log')) {
+            formattedContent = highlightLog(content);
+        } else {
+            // Plain text - escape for safety
+            formattedContent = escapeHtml(content);
+            contentType = 'text';
+        }
+
+        res.json({
+            type: contentType,
+            content: formattedContent,
+            rawContent: content,
+            hasTableView: file === 'lib.detection.json' || file === 'vuln.out'
+        });
     } catch (error) {
-        res.status(404).send('File not found or could not be read.');
+        res.status(404).json({ error: 'File not found or could not be read.' });
     }
 });
 

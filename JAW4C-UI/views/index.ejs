@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAW4C Analysis Dashboard</title>
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css?v=3">
 </head>
 <body>
     <div class="container">
@@ -32,11 +32,79 @@
             </div>
         </section>
 
+        <!-- Filter Controls -->
+        <section class="filter-section">
+            <h3>Filters & Search</h3>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="applyFilters()">
+            </div>
+            <div class="filter-controls">
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-flows" onchange="applyFilters()">
+                    <span>Has Flows</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-lib-detection" onchange="applyFilters()">
+                    <span>Has lib.detection.json</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-sink-flows" onchange="applyFilters()">
+                    <span>Has sink.flows.out</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-vuln-out" onchange="applyFilters()">
+                    <span>Has vuln.out</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-error-log" onchange="applyFilters()">
+                    <span>Has errors.log</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-warning-log" onchange="applyFilters()">
+                    <span>Has warnings.log</span>
+                </label>
+                <button onclick="clearFilters()" class="clear-filters-btn">Clear All Filters</button>
+            </div>
+            <div class="sort-controls">
+                <label>Sort by:</label>
+                <select id="sort-select" onchange="applySorting()">
+                    <option value="default">Default</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="flows-desc">Flows (High to Low)</option>
+                    <option value="vulns-desc">Vulnerable Libraries (High to Low)</option>
+                    <option value="pocs-desc">POC Matches (High to Low)</option>
+                </select>
+            </div>
+            <div class="results-count">
+                Showing <span id="visible-count">0</span> of <%= sites.length %> sites
+            </div>
+        </section>
+
         <section class="site-list">
             <% sites.forEach(site => { %>
-                <div class="site-item">
+                <div class="site-item"
+                     data-has-lib-detection="<%= site.hasLibDetection %>"
+                     data-has-sink-flows="<%= site.hasSinkFlows %>"
+                     data-has-vuln-out="<%= site.hasVulnOut %>"
+                     data-has-error-log="<%= site.hasErrorLog %>"
+                     data-has-warning-log="<%= site.hasWarningLog %>"
+                     data-search-text="<%= (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase() %>"
+                     data-name="<%= site.domain %>"
+                     data-flows="<%= site.hasFlows ? 1 : 0 %>"
+                     data-vulns="<%= site.vulnerableLibs %>"
+                     data-pocs="<%= site.pocMatches %>">
                     <div class="site-header" onclick="toggleDetails('<%= site.hash %>')">
-                        <span class="site-name"><%= site.name %></span>
+                        <div class="site-name-wrapper">
+                            <div class="site-domain" title="<%= site.originalUrl %>"><%= site.domain %></div>
+                            <% if (site.urlPath) { %><div class="site-path"><%= site.urlPath %></div><% } %>
+                            <div class="file-badges">
+                                <% if (site.hasLibDetection) { %><span class="badge badge-lib">LIB</span><% } %>
+                                <% if (site.hasSinkFlows) { %><span class="badge badge-flows">FLOWS</span><% } %>
+                                <% if (site.hasVulnOut) { %><span class="badge badge-vuln">VULN</span><% } %>
+                                <% if (site.hasErrorLog) { %><span class="badge badge-error">ERR</span><% } %>
+                                <% if (site.hasWarningLog) { %><span class="badge badge-warn">WARN</span><% } %>
+                            </div>
+                        </div>
                         <div class="site-summary">
                             <span>Flows: <span class="indicator <%= site.hasFlows ? 'yes' : 'no' %>"><%= site.hasFlows ? 'Yes' : 'No' %></span></span>
                             <span>Vuln Libs: <%= site.vulnerableLibs %></span>
@@ -45,14 +113,21 @@
                         <span class="expand-icon" id="icon-<%= site.hash %>">+</span>
                     </div>
                     <div class="site-details" id="details-<%= site.hash %>">
-                        <p><strong>Hash:</strong> <%= site.hash %></p>
+                        <p><strong>Original URL:</strong><br><a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
+                        <p><strong>Hash:</strong><br><%= site.hash %></p>
                         <ul class="file-list">
                             <% site.files.forEach(file => { %>
-                                <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>')"><%= file %></a></li>
+                                <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a></li>
                             <% }); %>
                         </ul>
-                        <div class="file-content-wrapper">
-                             <pre class="file-content" id="content-<%= site.hash %>"></pre>
+                        <div class="file-content-wrapper" id="wrapper-<%= site.hash %>" style="display: none;">
+                            <div class="file-header">
+                                <span class="current-file" id="current-file-<%= site.hash %>"></span>
+                                <button class="view-toggle-btn" id="toggle-<%= site.hash %>" onclick="toggleView('<%= site.hash %>'); return false;" style="display: none;">
+                                    Switch to Raw View
+                                </button>
+                            </div>
+                            <pre class="file-content" id="content-<%= site.hash %>"></pre>
                         </div>
                     </div>
                 </div>
@@ -60,6 +135,6 @@
         </section>
     </div>
 
-    <script src="/main.js"></script>
+    <script src="/main.js?v=2"></script>
 </body>
 </html>
