@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAW4C Analysis Dashboard</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JAW4C Analysis Dashboard</h1>
+            <a href="<%= neo4jUrl %>" target="_blank" class="neo4j-link">Open Neo4j Browser</a>
+        </header>
+
+        <section class="global-stats">
+            <div class="stat-card">
+                <h2><%= globalStats.sites %></h2>
+                <p>Sites Analyzed</p>
+            </div>
+            <div class="stat-card">
+                <h2><%= globalStats.sitesWithFlows %></h2>
+                <p>Sites with Flows</p>
+            </div>
+            <div class="stat-card">
+                <h2><%= globalStats.vulnerableLibs %></h2>
+                <p>Vulnerable Libraries</p>
+            </div>
+            <div class="stat-card">
+                <h2><%= globalStats.pocMatches %></h2>
+                <p>POC Matches</p>
+            </div>
+        </section>
+
+        <section class="site-list">
+            <% sites.forEach(site => { %>
+                <div class="site-item">
+                    <div class="site-header" onclick="toggleDetails('<%= site.hash %>')">
+                        <span class="site-name"><%= site.name %></span>
+                        <div class="site-summary">
+                            <span>Flows: <span class="indicator <%= site.hasFlows ? 'yes' : 'no' %>"><%= site.hasFlows ? 'Yes' : 'No' %></span></span>
+                            <span>Vuln Libs: <%= site.vulnerableLibs %></span>
+                            <span>POCs: <%= site.pocMatches %></span>
+                        </div>
+                        <span class="expand-icon" id="icon-<%= site.hash %>">+</span>
+                    </div>
+                    <div class="site-details" id="details-<%= site.hash %>">
+                        <p><strong>Hash:</strong> <%= site.hash %></p>
+                        <ul class="file-list">
+                            <% site.files.forEach(file => { %>
+                                <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>')"><%= file %></a></li>
+                            <% }); %>
+                        </ul>
+                        <div class="file-content-wrapper">
+                             <pre class="file-content" id="content-<%= site.hash %>"></pre>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </section>
+    </div>
+
+    <script src="/main.js"></script>
+</body>
+</html>
