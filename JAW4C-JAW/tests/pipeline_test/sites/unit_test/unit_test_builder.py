@@ -125,6 +125,7 @@ def build_graph(test_dir, memory="8192", timeout=180):
     # Prepare static analysis command
     cmd = [
         "node",
+        # "--inspect", # DEBUGGING only
         f"--max-old-space-size={memory}",
         str(STATIC_ANALYSIS_JS),
         f"--singlefolder={test_dir}",

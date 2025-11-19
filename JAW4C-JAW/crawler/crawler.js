@@ -588,7 +588,7 @@ async function getSourceFromScriptId(session, scriptId) {
  */
 async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirectory, debug_run, wait_before_next_url, lift_enabled, transform_enabled, pure_crawl){
 
-	DEBUG && console.log("crawlWebsitePlaywright called on ", url)
+	DEBUG && console.log("[Crawler] crawlWebsitePlaywright called on ", url)
 
 	var externalScripts = {};
 	let finished = false;

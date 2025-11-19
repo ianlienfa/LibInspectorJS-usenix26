@@ -18,6 +18,7 @@
 	Control Flow Graph
 */
 
+const { debug } = require('util');
 var walker = require('walkes'),
 	factoryFlowNode = require('./flownodefactory'),
 	FlowNode = require('./flownode');
@@ -35,6 +36,7 @@ module.exports.factoryFlowNode = factoryFlowNode;
 function ControlFlowGraph(astNode) {
 	'use strict';
 	var parentStack = [];
+	var labeledStatementIdNodeMap = new Map();
 
 	var exitNode = factoryFlowNode.create(FlowNode.EXIT_NODE_TYPE);
 	var catchStack = [exitNode];
@@ -137,7 +139,7 @@ function ControlFlowGraph(astNode) {
 			}else{
 				if (node.finalizer){
 					var handler = getEntry(node.finalizer);
-				}	
+				}
 			}
 			if(handler) catchStack.push(handler);
 			recurse(node.block);
@@ -158,12 +160,17 @@ function ControlFlowGraph(astNode) {
 				.connect(getEntry(node.body), FlowNode.TRUE_BRANCH_CONNECTION_TYPE)
 				.connect(getSuccessor(node), FlowNode.FALSE_BRANCH_CONNECTION_TYPE);
 			recurse(node.body);
-		}
+		},				
+		LabeledStatement: function (node, recurse) {
+          // Connect the label to its body statement
+          node.cfg.connect(getEntry(node.body));
+          recurse(node.body);
+      },
 	});
 
 	var entryNode = factoryFlowNode.create(FlowNode.ENTRY_NODE_TYPE, astNode);
 	entryNode.connect(getEntry(astNode), FlowNode.NORMAL_CONNECTION_TYPE);
-	walker(astNode, {default: function (node, recurse) {
+	walker(astNode, {default: function (node, recurse) {	
 		if (!node.cfg) {
 			return;
 		}
@@ -172,6 +179,8 @@ function ControlFlowGraph(astNode) {
 			node.cfg.astNode = node.expression;
 		}
 		delete node.cfg;
+
+		// for other nodes, recurse
 		walker.checkProps(node, recurse);
 	}});
 
@@ -258,8 +267,22 @@ function ControlFlowGraph(astNode) {
 		}
 		switch (astNode.type) {
 			case 'BreakStatement':
-				target = getJumpTarget(astNode, breakTargets);
-				return target ? getSuccessor(target) : exitNode;
+				// if labeled, find the labeled statement, jump to its successor
+				// else jump to the successor of the break target
+				if(!astNode.label){
+					target = getJumpTarget(astNode, breakTargets);
+					return (!!target) ? getSuccessor(target) : exitNode; 
+				}
+				else{
+					let labeledNode = labeledStatementIdNodeMap.get(astNode.label.name);
+					if(labeledNode !== undefined){
+						return getSuccessor(labeledNode);
+					}
+					else{
+						console.error('[warning] getEntry: BreakStatement to unknown LabeledStatement: ' + astNode.label.name);
+						return exitNode;
+					}					
+				}
 			case 'ContinueStatement':
 				target = getJumpTarget(astNode, continueTargets);
 				if(target){
@@ -301,6 +324,8 @@ function ControlFlowGraph(astNode) {
 				return getEntry(astNode.block);
 			case 'WhileStatement':
 				return astNode.test.cfg;
+			case 'LabeledStatement':
+              return getEntry(astNode.body); 
 			default:
 				return astNode.cfg;
 		}
@@ -358,6 +383,10 @@ function ControlFlowGraph(astNode) {
 			// do not recurse for FunctionDeclaration or any sub-expression
 			if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ClassDeclaration' || node.type.indexOf('Expression') !== -1) {
 				return;
+			}
+			// fill labeled statement map
+			if(node.type === "LabeledStatement"){
+				labeledStatementIdNodeMap.set(node.label.name, node);
 			}
 			parentStack.push(node);
 			walker.checkProps(node, recurse);
@@ -432,7 +461,7 @@ var continueTargets = [
 	'ForInStatement',
 	'DoWhileStatement',
 	'WhileStatement'];
-var breakTargets = continueTargets.concat(['SwitchStatement']);
+var breakTargets = continueTargets.concat(['SwitchStatement', 'LabeledStatement']);
 var throwTypes = [
 	'AssignmentExpression', // assigning to undef or non-writable prop
 	'BinaryExpression', // instanceof and in on non-objects

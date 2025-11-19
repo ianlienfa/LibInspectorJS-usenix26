@@ -1,0 +1,8 @@
+{
+  "description": "Test labeled statement handling in CFG generation - should skip unsupported LabeledStatement nodes gracefully without crashes",
+  "expected_behavior": {
+    "cfg_generation": "should complete without errors",
+    "labeled_statements_skipped": true,
+    "warning_logged": "[CFG] Skipping unsupported node type: LabeledStatement"
+  }
+}
