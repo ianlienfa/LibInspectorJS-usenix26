@@ -52,7 +52,9 @@ services:
       - db
       - proxy
     command: >
-      sh -c "python3 -m run_pipeline --conf=config_docker.yaml; while [ 1 ]; do echo '' > /dev/null; done"
+      sh -c "while [ 1 ]; do echo '' > /dev/null; done"
+
+# sh -c "python3 -m run_pipeline --conf=config_docker.yaml; while [ 1 ]; do echo '' > /dev/null; done"
 
   # neo4j:
   #   image: neo4j:4.4
