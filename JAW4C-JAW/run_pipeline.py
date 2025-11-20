@@ -332,8 +332,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 			# Library detection
 			if lib_detector_enable and lib_detector_lift:
-				try:
-					lib_detection_api.lib_detection_single_url(url)
+				try:					
+					lib_detection_api.lib_detection_single_url(webapp_folder_name, url)
 				except Exception as e:
 					LOGGER.error(f"Library detection failed for {url}: {e}")
 					continue
@@ -347,7 +347,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 				try:
-					lib_det_res = DetectorReader.read_raw_result_with_url(url)
+					lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
 				except Exception as e:
 					LOGGER.error(e)
 					continue
@@ -360,7 +360,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					os.remove(ground_truth_pathname)
 
 				
-				for affiliatedurl, _ in lib_det_res.items():
+				for affiliatedurl, _ in lib_det_res.items():					
 					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
 					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
 
@@ -401,7 +401,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					# Some vulnerabilities is similar, leading to duplicate vuln_info, remove them for better performance
 					vuln_list = utilityModule.get_unique_nested_list(vuln_list)
 					if not vuln_list:
-						LOGGER.error("No vuln found, early quitting")
+						LOGGER.warning("No vuln found, early quitting")
 					with open(vuln_info_pathname, 'a') as vuln_fd:
 						LOGGER.info(f"Wring vuln to: {vuln_info_pathname}")
 						json.dump({affiliatedurl: vuln_list}, vuln_fd)

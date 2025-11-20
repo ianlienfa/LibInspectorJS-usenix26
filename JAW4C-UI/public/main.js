@@ -189,6 +189,8 @@ function applySorting() {
 
     siteItems.sort((a, b) => {
         switch(sortValue) {
+            case 'modified-desc':
+                return parseInt(b.dataset.modifiedTime) - parseInt(a.dataset.modifiedTime);
             case 'name':
                 return a.dataset.name.localeCompare(b.dataset.name);
             case 'flows-desc':

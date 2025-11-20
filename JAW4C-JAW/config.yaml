@@ -113,7 +113,7 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: true
+    crawling: false
     lib_detection: true  
     vulndb: true
     static: true

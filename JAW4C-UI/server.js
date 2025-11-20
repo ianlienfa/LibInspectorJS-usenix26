@@ -242,6 +242,9 @@ async function getSiteData() {
             const siteStats = await fs.stat(sitePath);
             if (!siteStats.isDirectory()) continue;
 
+            // Capture modification time
+            const modifiedTime = siteStats.mtime.getTime();
+
             // Read the original URL from url.out
             let siteDomain = `${parentDir}/${hash}`; // fallback
             let siteUrlPath = ''; // path component
@@ -331,6 +334,7 @@ async function getSiteData() {
                 domain: siteDomain,
                 urlPath: siteUrlPath,
                 originalUrl,
+                modifiedTime,
                 hasFlows,
                 pocMatches,
                 vulnerableLibs,

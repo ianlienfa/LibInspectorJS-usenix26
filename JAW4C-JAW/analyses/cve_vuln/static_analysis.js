@@ -42,6 +42,7 @@ const SourceSinkAnalyzer = SourceSinkAnalyzerModule.CVESourceSinkAnalyzer;
 
 const GraphExporter = require('./../../engine/core/io/graphexporter');
 const logger = require('../../engine/core/io/logging.js');
+const { has } = require('core-js/core/dict');
 
 /**
  * ------------------------------------------------
@@ -311,7 +312,10 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		}
 
 		if(script_content !== -1 && has_pattern_in_script){
-			// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name} success`)
+			if(!has_pattern_in_script){
+				DEBUG && console.log(`[Analyzer] Skipping ${script_short_name}: no pattern match found`)
+				continue;
+			}
 			scripts.push({
 				scriptId: i,
 				source: script_content,

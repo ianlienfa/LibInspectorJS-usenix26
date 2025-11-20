@@ -17,7 +17,7 @@ import re
 import json
 from utils.utility import get_name_from_url
 
-def read_raw_result_with_url(url):
+def read_raw_result_with_url(data_dir, url):
     """
     @return  
     {
@@ -33,11 +33,11 @@ def read_raw_result_with_url(url):
     """
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     data_storage_directory = os.path.join(BASE_DIR, 'data')
-    hash_mapping_path = os.path.join(data_storage_directory, get_name_from_url(url), 'urls.hashes.out')
+    hash_mapping_path = os.path.join(data_storage_directory, data_dir, 'urls.hashes.out')
     with open(hash_mapping_path, 'r') as f:
         hash_mapping = json.load(f)
     if hash_mapping and (url_hash := hash_mapping.get(url, None)):
-        detection_res_path = os.path.join(data_storage_directory, get_name_from_url(url), url_hash, 'lib.detection.json')    
+        detection_res_path = os.path.join(data_storage_directory, data_dir, url_hash, 'lib.detection.json')    
     try:
         with open(detection_res_path, 'r') as f: # type: ignore
             obj = json.load(f)

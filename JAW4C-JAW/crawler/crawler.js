@@ -102,8 +102,12 @@ function readFile(file_path_name){
 	}
 }
 
-
-
+function createStartCrawlUrl(url) {
+	const condition = 'soak';
+	const query = { target: url, type: condition };
+	const params = new URLSearchParams(query);
+	return `http://240.240.240.240/?${params.toString()}`;
+}
 
 const stringIsAValidUrl = (s, protocols) => {
     try {
@@ -811,6 +815,11 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 
 		try{
 			// save the collected data
+			// probably have to cast the url to be the archive supported format
+			// Get's this msg instead: 2025-11-20 06:42:26,385 - JAW - INFO - 11-20 06:42:26 [error]: Failed visiting http://240.240.240.240/?target=https%3A%2F%2Fwww.ebay.de%2Fmyb%2FWatchListAdd%3Fitem%3D356600483502%26pt%3Dnull%26srt%3D01000a0000005045a7c6d77bfb126df373cddb6082560c92d21fe6d5d61f94c301de37e7d458fe23a8c532f3552aa922d49c4d21fb28607b713b0146cb4287881604bf8ee5792c2520578898edcde98f3d1991d2f42700%26ru%3Dhttps%253A%252F%252Fwww.ebay.de%252Fsch%252Fi.html%253F_from%253DR40%2526_nkw%253D%252B%2526_sacat%253D267%2526_fspt%253D1%2526LH_PrefLoc%253D99%2526
+			// if(!url.startsWith('http://240.240.240.240/')){
+			// 	url = createStartCrawlUrl(url);
+			// }
 			await savePageData(url, html, allScripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled, transform_enabled);
 		}catch(e){
 			DEBUG && console.log('[PageSaveError] error while saving the webpage data');

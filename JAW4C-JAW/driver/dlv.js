@@ -7,7 +7,7 @@ const crawler = require('../crawler/crawler');
 const fs = require('fs');
 const logger = require('./utilities/logger');
 const LOGGER = logger.info
-const {urlToDirectoryName} = require('./utilities/webtools');
+const {parseUrl} = require('./utilities/webtools');
 const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOriginalExtensionPath, ProxyServerPath, PTVPuppeteerLaunchConfig, PTVOriginalLaunchConfig } = require('./config')
 const { Command } = require('commander');
 const { exit } = require('process');
@@ -323,8 +323,8 @@ if (require.main === module) {
     if(url){
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
-      const folderName = crawler.getNameFromURL(url);
-      const hashfolderName = crawler.hashURL(url)
+      const parsedUrl = parseUrl(url);
+      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);      const hashfolderName = crawler.hashURL(url)
       dirPath = path.join(dataStorageDirectory, folderName)
       hashdirPath = path.join(dataStorageDirectory, folderName, hashfolderName);
       if(!fs.existsSync(dirPath)){
