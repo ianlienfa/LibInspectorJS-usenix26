@@ -1,22 +1,87 @@
+networks:
+  jaw-network:
+    name: jaw4c-network
+
 services:
   logic:
     build: .
-    container_name: jaw4c-logic
+    image: jaw-logic-alt
+    container_name: jaw4c-logic-alt    
     volumes:
-      - ./JAW4C-JAW:/JAW4C/JAW4C-JAW
-      - ./JAW4C-WebArchive/archive/archive-70:/JAW4C/JAW4C-WebArchive/archive # change based on the path to the archive
+      # Mount data to nms
+      - /home/rafael/JAW4C:/JAW4C
+      - /home/rafael/nms/archives/to_share/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - /home/rafael/nms/bundler_crawl:/JAW4C/JAW4C-JAW/data
+      # Foxhound
+      - /home/rafael/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
+      # Docker socket for Docker-in-Docker (DinD)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # node_modules (anonymous volumes for faster rebuilds)
+      - /JAW4C/JAW4C-JAW/crawler/node_modules
+      - /JAW4C/JAW4C-JAW/dynamic/node_modules
+      - /JAW4C/JAW4C-JAW/engine/node_modules
+      - /JAW4C/JAW4C-JAW/engine/lib/jaw/dom-points-to
+      - /JAW4C/JAW4C-JAW/engine/lib/jaw/normalization
+      - /JAW4C/JAW4C-JAW/driver/node_modules      
+      - /JAW4C/JAW4C-JAW/analyses/cve_vuln/node_modules
+      - /JAW4C/JAW4C-JAW/engine/lib/jaw/aliasing
+      # test node_modules (anonymous volumes for faster test rebuilds)
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_lodash_bundle/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_assignment/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/node_modules
+      - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/node_modules
+      #- /JAW4C/JAW4C-JAW/tests/pipeline_test
+    # neo4j requests shouldn't go through proxy but all of the others should to use web archive
     environment:
       HTTP_PROXY: http://proxy:8002
       HTTPS_PROXY: http://proxy:8002
+    networks:
+      - jaw-network
     depends_on:
       - db
       - proxy
     command: >
-      sh -c "python3 -m run_pipeline --conf=config_docker.yaml; while [ 1 ]; do echo '' > /dev/null; done"
+      sh -c "while [ 1 ]; do echo '' > /dev/null; done"
+
+# sh -c "python3 -m run_pipeline --conf=config_docker.yaml; while [ 1 ]; do echo '' > /dev/null; done"
+
+  # neo4j:
+  #   image: neo4j:4.4
+  #   container_name: neo4j
+  #   environment:
+  #     NEO4J_AUTH: "neo4j/root"
+  #     NEO4J_apoc_export_file_enabled: "true"
+  #     NEO4J_apoc_import_file_enabled: "true"
+  #     NEO4J_apoc_import_file_use__neo4j__config: "true"
+  #     NEO4JLABS_PLUGINS: '["apoc"]'
+  #     NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+  #   volumes:
+  #     - ./neo4j/data:/data
+  #     - ./neo4j/logs:/logs
+  #   #   # Only mount import files if needed
+  #   #   - ./import:/var/lib/neo4j/import:ro
+  #   ports:
+  #     - "7474:7474"  # HTTP
+  #     - "7687:7687"  # Bolt
+  #   networks:
+  #     - jaw-network
 
   db:
     build: ./vuln_db_llm
-    container_name: jaw4c-vulndb
+    container_name: jaw4c-vulndb-alt
+    networks:
+      - jaw-network
     environment:
       POSTGRES_USER: vulndb_annotated
       POSTGRES_PASSWORD: vulndb_pwd
@@ -27,11 +92,13 @@ services:
 
   proxy:
     build: ./JAW4C-WebArchive
-    container_name: jaw4c-webarchive
+    container_name: jaw4c-webarchive-alt
+    networks:
+      - jaw-network
     volumes:
-      - ./JAW4C-WebArchive/archive/archive-70:/proxy/archive-70
-    ports:
-      - "8002:8002"
+      - /home/rafael/nms/archives/to_share:/proxy/archive-70:ro      
+    # ports:
+    #   - "8002:8002"
     environment:
       - PROXY_VOLUME_PATH=/proxy
       - PROXY_ARCHIVE=archive-70

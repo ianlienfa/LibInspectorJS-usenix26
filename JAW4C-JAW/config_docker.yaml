@@ -25,9 +25,9 @@ crawler:
   domain_health_check: false
   # puppeteer additional args
   puppeteer:    
-    disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
-    load-extension: /home/ian/JAW4C/JAW4C-PTV
-    proxy-server: proxy:8002
+    load-extension: /JAW4C/JAW4C-PTV
+    load-extension-original: /JAW4C/JAW4C-PTV-Original
+    proxy-server: http://proxy:8002
     ignore-certificate-errors: true
     disk-cache-dir: /dev/null
     disk-cache-size: 1
@@ -43,18 +43,21 @@ crawler:
     headless: true
     # use foxhound if firefox is enabled (default is true)
     foxhound: true
-    foxhoundpath: /home/ian/project-foxhound/obj-tf-release/dist/bin/foxhound
+    foxhoundpath: /JAW4C/JAW4C-JAW/crawler/foxhound
     
   lib_detection:
-    enable: true
-    
+    enable: true    
     detection_timeout: 60 # 60
-    post_cleanup: true  # cleanup lifted file or not    
+    post_cleanup: true  # cleanup lifted file or not
+    detector:    
+      load-extension: /JAW4C/JAW4C-PTV
+      load-extension-original: /JAW4C/JAW4C-PTV-Original
+      proxy-server: http://proxy:8002
 
 vuln_db:
   connect: true 
-  host: localhost
-  port: 5430
+  host: db
+  port: 5432
   dbname: vulndb_annotated
   user: vulndb_annotated
   password: vulndb_pwd

@@ -113,8 +113,8 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: false
-    lib_detection: false  
+    crawling: true
+    lib_detection: true  
     vulndb: true
     static: true
     static_neo4j: true  

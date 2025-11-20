@@ -108,4 +108,3 @@ def lib_detection(website_url, iterative_output='false', memory=None, timeout=No
 	else:
 		message = 'no webpages.json or urls.out file exists in the webapp directory; skipping analysis...'
 		LOGGER.warning(message)
-	

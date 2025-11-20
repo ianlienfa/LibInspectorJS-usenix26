@@ -59,11 +59,11 @@ else:
 NEO4J_HTTP_PORT = '7474'
 NEO4J_BOLT_PORT = '7476'
 
-# http connection string
+# http connection string - will be dynamically set to container name in manage_container.py
 NEO4J_CONN_HTTP_STRING = "http://127.0.0.1:%s"%str(NEO4J_HTTP_PORT)
-# bolt connection string
+# bolt connection string - will be dynamically set to container name in manage_container.py  
 NEO4J_CONN_STRING = "bolt://127.0.0.1:%s"%str(NEO4J_BOLT_PORT)
-# NeoModel connection string
+# NeoModel connection string - will be dynamically set to container name in manage_container.py
 NEOMODEL_NEO4J_CONN_STRING = "bolt://%s:%s@127.0.0.1:%s"%(NEO4J_USER, NEO4J_PASS, NEO4J_BOLT_PORT)
 
 # use docker for neo4j 

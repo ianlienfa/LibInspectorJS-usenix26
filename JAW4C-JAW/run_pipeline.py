@@ -309,6 +309,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 	parsed_url = utilityModule.parse_url(website_url)
 	webapp_folder_name = get_name_from_url(parsed_url)
+	parsed_url = utilityModule.parse_url(website_url)
+	webapp_folder_name = get_name_from_url(parsed_url)
 	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
 	if not os.path.exists(webapp_data_directory):
 		LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
@@ -349,6 +351,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 				try:
 					lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
+					lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
 				except Exception as e:
 					LOGGER.error(e)
 					continue
@@ -369,6 +372,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
+							vuln = None
 							vuln = None
 							if detection_info['accurate']:
 								version = detection_info['version'].split(', ')

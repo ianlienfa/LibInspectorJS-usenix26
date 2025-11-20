@@ -1,0 +1,14 @@
+{
+  "name": "jaw4c-ui-readonly",
+  "version": "1.0.0",
+  "description": "A read-only UI for analyzing JAW4C data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ejs": "^3.1.9",
+    "glob": "^10.3.10"
+  }
+}

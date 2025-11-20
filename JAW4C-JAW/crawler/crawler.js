@@ -4,7 +4,6 @@
  *   			third-party imports
  * ------------------------------------------------
 **/
-const puppeteer = require('puppeteer');
 const { chromium } = require('playwright');
 const fs = require('fs');
 const pathModule = require('path');
@@ -21,6 +20,7 @@ const { URL } = require('url');
 const lift = require('../driver/utilities/lift');
 const transform = require('../driver/utilities/transform');
 const logger = require('../driver/utilities/logger');
+const {parseUrl} = require('../driver/utilities/webtools');
 
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
@@ -184,7 +184,8 @@ function hashURL(url){
  * @return creates a directory to store the data of the input url and returns the directory name.
 **/
 function getOrCreateDataDirectoryForWebsite(url){
-	const folderName = getNameFromURL(url);
+	const parsedUrl = parseUrl(url);
+	const folderName = getNameFromURL(parsedUrl);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	console.log("folderPath", folderPath)
 	if(!fs.existsSync(folderPath)){
@@ -195,8 +196,8 @@ function getOrCreateDataDirectoryForWebsite(url){
 
 
 function directoryExists(url){
-
-	const folderName = getNameFromURL(url);
+	const parsedUrl = parseUrl(url);
+	const folderName = getNameFromURL(parsedUrl);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(fs.existsSync(folderPath)){
 		return true;
@@ -209,8 +210,8 @@ function directoryExists(url){
 
 
 function cleanDirectory(url){
-
-	const folderName = getNameFromURL(url);
+	const parsedUrl = parseUrl(url);
+	const folderName = getNameFromURL(parsedUrl);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(fs.existsSync(folderPath)){
 		// Recursively remove everything inside folderPath
