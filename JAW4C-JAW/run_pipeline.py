@@ -288,7 +288,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 
 	LOGGER.info("successfully crawled %s."%(website_url))
 
-def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout):
+def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode):
 	"""
 	Performs CVE vulnerability analysis for a given website URL
 
@@ -307,7 +307,8 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 	if not config['cve_vuln']['enabled']:
 		return
 
-	webapp_folder_name = get_name_from_url(website_url)
+	parsed_url = utilityModule.parse_url(website_url)
+	webapp_folder_name = get_name_from_url(parsed_url)
 	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
 	if not os.path.exists(webapp_data_directory):
 		LOGGER.error("[Traversals] did not found the directory for HPG analysis: "+str(webapp_data_directory))
@@ -333,7 +334,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 			# Library detection
 			if lib_detector_enable and lib_detector_lift:
 				try:
-					lib_detection_api.lib_detection_single_url(url)
+					lib_detection_api.lib_detection_single_url(website_url, url)
 				except Exception as e:
 					LOGGER.error(f"Library detection failed for {url}: {e}")
 					continue
@@ -341,12 +342,13 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 			# Detection result and DB querying
 			vuln_list = [] # we often time only do query once
+			all_patterns = set()
 			vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
 			
 			if config['cve_vuln']["passes"]["vulndb"]:
 				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
 				try:
-					lib_det_res = DetectorReader.read_raw_result_with_url(url)
+					lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
 				except Exception as e:
 					LOGGER.error(e)
 					continue
@@ -358,7 +360,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 				if os.path.exists(ground_truth_pathname):
 					os.remove(ground_truth_pathname)
 
-				
+								
 				for affiliatedurl, _ in lib_det_res.items():
 					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
 					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
@@ -367,7 +369,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
-							vuln = []
+							vuln = None
 							if detection_info['accurate']:
 								version = detection_info['version'].split(', ')
 								vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
@@ -386,6 +388,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 										poc_str = poc['poc']
 										# grep for the poc fragments existence in the files
 										grep_found = cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str) 
+										all_patterns.update(cve_stat_model_construction_api.get_patterns_from_poc_str(poc_str))
 										poc['grep_found'] = True if grep_found else False
 
 									except Exception as e:
@@ -405,9 +408,9 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 						vuln_fd.write('\n')			
 
 	
-			if config['cve_vuln']["passes"]["static"]:					
-				try:
-					cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg)
+			if config['cve_vuln']["passes"]["static"] and vuln_list:					
+				try:															
+					cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg, debug=static_analysis_debug_mode, all_patterns=all_patterns)
 				except Exception as e:
 					LOGGER.error("Error building node/edges for %s."%(url))
 					continue
@@ -452,7 +455,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 						dockerModule.stop_neo4j_container(container_name)
 						dockerModule.remove_neo4j_container(container_name)
 
-def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout):
+def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode):
 	"""
 	Processes a single website through the entire analysis pipeline
 
@@ -479,12 +482,15 @@ def process_single_website(website_url, config, domain_health_check, crawler_com
 			return
 
 	# Crawling
+	LOGGER.info(config['cve_vuln']['enabled'])
+	LOGGER.info(config['cve_vuln'])
+	LOGGER.info(config)
 	if(config['cve_vuln']['enabled'] and config['cve_vuln']["passes"]["crawling"]):
 
 		perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory)
 
 	# CVE vulnerability analysis
-	perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout)
+	perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode)
 
 
 
@@ -661,6 +667,10 @@ def main():
 	if "neo4j_use_docker" in config["staticpass"]:
 		constantsModule.NEO4J_USE_DOCKER = config["staticpass"]["neo4j_use_docker"] 
 
+	if "debug" in config["staticpass"]:
+		static_analysis_debug_mode = config["staticpass"]["debug"]
+	else:
+		static_analysis_debug_mode = False
 
 	# ----------- Sigle Site Analysis Section -----------
 
@@ -683,7 +693,8 @@ def main():
 			static_analysis_per_webpage_timeout=static_analysis_per_webpage_timeout,
 			static_analysis_compress_hpg=static_analysis_compress_hpg,
 			static_analysis_overwrite_hpg=static_analysis_overwrite_hpg,
-			container_transaction_timeout=container_transaction_timeout
+			container_transaction_timeout=container_transaction_timeout,
+			static_analysis_debug_mode=static_analysis_debug_mode,
 		)
 	# ----------- Multiple-sites Analysis Section (Web Archive) -----------
 	else: 
@@ -716,7 +727,8 @@ def main():
 							static_analysis_per_webpage_timeout=static_analysis_per_webpage_timeout,
 							static_analysis_compress_hpg=static_analysis_compress_hpg,
 							static_analysis_overwrite_hpg=static_analysis_overwrite_hpg,
-							container_transaction_timeout=container_transaction_timeout
+							container_transaction_timeout=container_transaction_timeout,
+							static_analysis_debug_mode=static_analysis_debug_mode,
 						)
 					except RuntimeError as r_e:
 						print(f"Runtime error catched for {website_url}: {r_e}, moving on to the next...")

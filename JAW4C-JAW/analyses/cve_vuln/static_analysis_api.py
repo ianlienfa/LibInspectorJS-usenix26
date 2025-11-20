@@ -37,7 +37,7 @@ from pathlib import Path
 
 
 # static analysis without neo4j
-def start_model_construction(website_url, iterative_output='false', memory=None, timeout=None, compress_hpg='true', overwrite_hpg='false', specific_webpage=None):
+def start_model_construction(website_url, iterative_output='false', memory=None, timeout=None, compress_hpg='true', overwrite_hpg='false', specific_webpage=None, debug=False, all_patterns=None):
 
 	# setup defaults
 	if memory is None:
@@ -54,7 +54,21 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 	cve_vuln_analyses_command_cwd = os.path.join(constantsModule.BASE_DIR, "analyses/cve_vuln")
 	cve_vuln_static_analysis_driver_program = os.path.join(cve_vuln_analyses_command_cwd, "static_analysis.js")
 
-	cve_vuln_static_analysis_command = "node --max-old-space-size=%s DRIVER_ENTRY --singlefolder=SINGLE_FOLDER --compresshpg=%s --overwritehpg=%s --iterativeoutput=%s"%(static_analysis_memory, compress_hpg, overwrite_hpg, iterative_output)
+	if debug:
+		debug_flag = "--inspect"
+		disable_heuristic_skip = "--disable_heuristic_skip=True"
+	else:
+		debug_flag = ""
+		disable_heuristic_skip = ""
+
+	if all_patterns is not None and len(all_patterns) > 0:
+		all_patterns_json = f"'{json.dumps(list(all_patterns))}'"
+	else:
+		all_patterns_json = "''"
+
+	
+
+	cve_vuln_static_analysis_command = f"node {debug_flag} --max-old-space-size={static_analysis_memory} DRIVER_ENTRY --singlefolder=SINGLE_FOLDER --compresshpg={compress_hpg} --overwritehpg={overwrite_hpg} --iterativeoutput={iterative_output} --allpatterns={all_patterns_json} {disable_heuristic_skip}"
 	cve_vuln_static_analysis_command = cve_vuln_static_analysis_command.replace("DRIVER_ENTRY", cve_vuln_static_analysis_driver_program)
 
 	# read from directories, prep
@@ -117,11 +131,15 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 """
 poc_str: a str that decribes poc
 """
+def get_patterns_from_poc_str(poc_str: str) -> list:
+	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,(){};."\s]', poc_str)))
+	return patterns
+
 def grep_matching_pattern(website_url: str, poc_str: str) -> bool:			
 	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)
 	website_folder = os.path.join(constantsModule.DATA_DIR, website_folder_name)
 	
-	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split('[,(){};."\s]', poc_str)))
+	patterns = get_patterns_from_poc_str(poc_str)
 	try:
 		matching_strs = {}
 		for poc_pattern in patterns:

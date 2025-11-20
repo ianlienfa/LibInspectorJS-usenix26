@@ -27,7 +27,7 @@ import time
 import os
 import re
 import hashlib
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import constants as constantsModule
 from neo4j import GraphDatabase
 from datetime import datetime
@@ -49,7 +49,7 @@ class Tee:
 	def write(self, data):
 		for f in self.files:
 			f.write(data)
-		logger.debug(data)
+		# logger.debug(data)
 
 	def flush(self):
 		for f in self.files:
@@ -165,7 +165,6 @@ def _get_last_subpath(s):
 #  		Other Utils
 # -------------------------------------------------------------------------- #
 
-
 def getDirectoryNameFromURL(url):
 	"""
 	@param url: eTLD+1 domain name
@@ -175,6 +174,21 @@ def getDirectoryNameFromURL(url):
 	New code should use get_name_from_url() directly.
 	"""
 	return get_name_from_url(url)
+
+
+def parse_url(url: str) -> str:
+	"""
+	Parse archive URLs from host 240.240.240.240
+
+	@param {str} url
+	@return {str} the decoded target URL if the host is 240.240.240.240; otherwise the original URL
+	"""
+	parsed = urlparse(url)
+	if parsed.hostname == '240.240.240.240':
+		target = parsed.query.split('target=')[1]
+		return unquote(target)
+	return url
+
 
 def get_name_from_url(url):
 	"""

@@ -37,10 +37,11 @@ detector_driver_program = 'dlv.js'
 lib_detection_cwd = os.path.join(os.path.dirname(__file__), "..", "..", "driver")
 
 
-def lib_detection_single_url(url, timeout=60):
-    lib_detection_command = "node {0} -u '{1}'".format(
+def lib_detection_single_url(data_dir, url, timeout=60):
+    lib_detection_command = "node {0} -u '{1}' -l {2}".format(
         detector_driver_program,
-        url
+        url,
+		data_dir
     )			
     LOGGER.debug(lib_detection_command)	
     ret = IOModule.run_os_command(lib_detection_command, 
