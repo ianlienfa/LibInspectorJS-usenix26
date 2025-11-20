@@ -42,7 +42,6 @@ const SourceSinkAnalyzer = SourceSinkAnalyzerModule.CVESourceSinkAnalyzer;
 
 const GraphExporter = require('./../../engine/core/io/graphexporter');
 const logger = require('../../engine/core/io/logging.js');
-const {parseUrl} = require('../../driver/utilities/webtools');
 
 /**
  * ------------------------------------------------
@@ -105,8 +104,7 @@ function readFile(file_path_name){
  * @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 **/
 function getNameFromURL(url){
-	const parsedUrl = parseUrl(url);
-	return parsedUrl.replace(/\:/g, '-').replace(/\//g, '');
+	return url.replace(/\:/g, '-').replace(/\//g, '');
 }
 
 
@@ -218,7 +216,6 @@ function isLibraryScript(script, options){
 	if(options.mode === 'src'){
 
 		let script_src = script.toLowerCase();
-		debugger;
 		for(let h of globalsModule.lib_src_heuristics){
 			if(script_src.includes(h)){ // check script src
 				return_flag = true;
@@ -289,7 +286,6 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 				// We only filter out the direct resources from cdn sites
 				
 				let is_cdn_script = isCdnScript(script_object['src'], {mode: 'src'});
-				debugger;
 				let is_library = isLibraryScript(script_object['src'], {mode: 'src'});
 				if((is_cdn_script || is_library) && (!disable_heuristic_skip)){
 					DEBUG && is_cdn_script && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a cdn library object`)
@@ -313,7 +309,6 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 				}
 			}
 		}
-		debugger;
 
 		if(script_content !== -1 && has_pattern_in_script){
 			// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name} success`)
@@ -449,7 +444,6 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
   	iterative_output = (config.iterativeoutput && config.iterativeoutput.toLowerCase() === 'true')? true: false;
 	all_patterns = (config.allpatterns && config.allpatterns.length > 0)? JSON.parse(config.allpatterns): [];	
 	disable_heuristic_skip = (config.disable_heuristic_skip && config.disable_heuristic_skip.toLowerCase() === 'true')? true: false; 
-	debugger;
 
 	if(singleFolder && singleFolder.length > 10){
 

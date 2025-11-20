@@ -203,7 +203,7 @@ def exec_fn_within_transaction(fn, *args, conn=constantsModule.NEO4J_CONN_STRING
 	@param {param-list} *args: positional arguments
 	@return fn output: execute fn with transaction and the list of passed args 
 	"""
-	logger.info('querying on connection: %s'%str(conn))
+	logger.info('quering on connection: %s'%str(conn))
 	out = None
 
 	if conn_timeout is None:
@@ -234,11 +234,9 @@ def wait_for_neo4j_bolt_connection(timeout=60, conn=constantsModule.NEO4J_CONN_H
 	increment = 5
 	RET = False
 
-	logger.info("connecting on %s..."%str(conn))
-
 	while True:
 		try:
-			r = requests.get(conn, proxies={"http": None, "https": None}, verify=False, timeout=3) # 3 seconds timeout
+			r = requests.get(conn, verify=False, timeout=3) # 3 seconds timeout
 			s = str(r.status_code)
 			if s.startswith('2'):
 				logger.info('neo4j is now ready to accept bolt connections.')
@@ -246,7 +244,7 @@ def wait_for_neo4j_bolt_connection(timeout=60, conn=constantsModule.NEO4J_CONN_H
 				break
 		except:
 			time.sleep(increment)
-			timer += increment
+			timer+= increment
 			if timer >= timeout:
 				logger.error('neo4j is not accepting bolt connections.')
 				RET = False

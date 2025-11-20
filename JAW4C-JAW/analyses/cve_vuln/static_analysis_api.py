@@ -78,7 +78,6 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 	webpages_json_file = os.path.join(website_folder, 'webpages.json')
 	urls_file = os.path.join(website_folder, 'urls.out')
 
-
 	if specific_webpage is not None:
 		webpage_folder = os.path.join(constantsModule.DATA_DIR, specific_webpage)
 		if os.path.exists(webpage_folder):
@@ -95,7 +94,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 			webpage_folder = os.path.join(website_folder, webpage)
 			if os.path.exists(webpage_folder):
 				
-				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER',  "'" + webpage_folder + "'")				
+				node_command= cve_vuln_static_analysis_command.replace('SINGLE_FOLDER',  "'" + webpage_folder + "'")								
 				IOModule.run_os_command(node_command, cwd=cve_vuln_analyses_command_cwd, timeout=static_analysis_per_webpage_timeout, print_stdout=True, log_command=True)
 
 
