@@ -76,7 +76,7 @@ staticpass:
   # overwrite the existing graphs or not
   overwrite_hpg: true
   # debug mode (disables isLibrary/isCdn skips, enables node --inspect)
-  debug: true
+  debug: false
   # timeout for neo4j container transactions in seconds (default: 300)
   container_transaction_timeout: 300
   # neo4j instance config
