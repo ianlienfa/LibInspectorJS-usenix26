@@ -232,6 +232,11 @@ async function getSiteData() {
 
     const allSitesData = [];
     for (const parentDir of parentDirs) {
+        // Skip JAW native directories
+        if(parentDir.startsWith('libraries')){
+            continue;
+        }
+
         const parentPath = path.join(DATA_DIR, parentDir);
         const parentStats = await fs.stat(parentPath);
         if (!parentStats.isDirectory()) continue;
