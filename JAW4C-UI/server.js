@@ -407,8 +407,8 @@ app.get('/api/file-content', async (req, res) => {
         } else if (file.endsWith('.log')) {
             formattedContent = highlightLog(content);
         } else {
-            // Plain text - escape for safety
-            formattedContent = escapeHtml(content);
+            // Plain text - no need to escape, textContent handles it client-side
+            formattedContent = content;
             contentType = 'text';
         }
 

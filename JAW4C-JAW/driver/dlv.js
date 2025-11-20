@@ -324,7 +324,8 @@ if (require.main === module) {
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
       const parsedUrl = parseUrl(url);
-      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);      const hashfolderName = crawler.hashURL(url)
+      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);      
+      const hashfolderName = crawler.hashURL(url)
       dirPath = path.join(dataStorageDirectory, folderName)
       hashdirPath = path.join(dataStorageDirectory, folderName, hashfolderName);
       if(!fs.existsSync(dirPath)){

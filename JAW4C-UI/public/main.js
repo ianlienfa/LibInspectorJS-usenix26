@@ -208,7 +208,8 @@ function applySorting() {
     siteItems.forEach(item => siteList.appendChild(item));
 }
 
-// Initialize visible count on page load
+// Initialize visible count and sorting on page load
 document.addEventListener('DOMContentLoaded', () => {
+    applySorting();
     applyFilters();
 });
