@@ -1,0 +1,162 @@
+$(function() {
+  var childMenu = $(".wifi7-landingpage-navgation .ul-menu");
+  $(".wifi7-landingpage-navgation .header").on("click", function() {
+    if ($(this).hasClass('active')) {
+      $(this).removeClass('active');
+      childMenu.removeClass('active');
+    } else {
+      $(this).addClass('active');
+      childMenu.addClass('active');
+    }
+  });
+  if (window.screen.width > 0) {
+    var init = function() {
+      $(".wifi7-landingpage-navgation .ul-menu li").on("click", function() {
+        $(this).siblings().removeClass("active");
+        $(this).addClass("active");
+      });
+      $(".wifi7-landingpage-navgation .ul-menu").wrap("<div class='sticky-box'>");
+    };
+    init();
+    var $box = $(".section-box");
+    var $container = $(".section-container");
+    var $section = $("section");
+    var $sectionNav = $(".wifi7-landingpage-navgation");
+    $(window).scroll(function(e) {
+      var scroll = $(window).scrollTop();
+      var navTop = $(".wifi7-landingpage-navgation .sticky-box").offset().top;
+      var cotTop = $(".section-container").offset().top;
+      var cotHeight = $(".section-container").height();
+      var navHeight = 0;
+      if (navTop <= scroll + navHeight && cotTop > scroll + navHeight - cotHeight) {
+        if ($(".wifi7-landingpage-navgation .ul-menu").attr("class").indexOf("fixed") < 0) {
+          $(".wifi7-landingpage-navgation .ul-menu").addClass("fixed");
+          $(".wifi7-landingpage-navgation .ul-menu.fixed").css("top", navHeight);
+        }
+      } else {
+        if ($(".wifi7-landingpage-navgation .ul-menu").attr("class").indexOf("fixed") > -1) {
+          $(".wifi7-landingpage-navgation .ul-menu").removeClass("fixed");
+        }
+      }
+      $(".wifi7-landingpage-navgation .ul-menu li").eq(minDist()).addClass("active").siblings().removeClass("active");
+    });
+    //tabindex
+    function minDist() {
+      var array = [];
+      $(".section-container .sub-sections").each(function() {
+        var temp = $(this).offset().top - $(window).scrollTop() + $(this).height() - 70;
+        //content50pxcontent
+        if (temp > 0) {
+          array.push(temp);
+        }
+      });
+      return $(".section-container .sub-sections").length - array.length;
+    }
+  }
+});
+$(function() {
+  if (typeof tp === 'undefined') {
+    tapo.playVideo($(".video-content-section .video"));
+  } else {
+    tp.playVideo($(".video-content-section .video"));
+  }
+  var handleClick = function($item) {
+    $item.parent("li").addClass("active").siblings().removeClass("active");
+    $item.parents("ul").find("li").each(function() {
+      if ($(this).hasClass("active")) {
+        $(this).find("p").slideDown();
+      } else {
+        $(this).find("p").slideUp();
+      }
+    });
+  };
+  handleClick($(".questions li .title").eq(0));
+  $(".questions li .title").click(function() {
+    handleClick($(this));
+  });
+});
+$(function() {
+  tp.playVideo($(".video-content-section .video"));
+  $('.overview-content .total-control-one-app').addClass('active');
+  if (window != top) {
+    $('.overview-content .total-control-one-app .img').css({
+      height: 'auto',
+      width: 'auto'
+    });
+    $('.overview-content .total-control-one-app .bg').css({
+      position: 'relative',
+      height: '59.6875em',
+      opacity: '1'
+    });
+    $('.overview-content .total-control-one-app .text').css({
+      opacity: '1'
+    });
+  } else {
+    var $container = $(".section-container");
+    var $section = $container.find("section");
+    var $d = $(".total-control-one-app");
+    var $subtitle = $d.find(".subtitle");
+    var $dBox = $d.find(".c410-box");
+    var $bg = $d.find(".bg");
+    var $imgContent = $d.find('.img-content');
+    var $icon = $d.find('.icon');
+    var $content = $d.find('.content');
+    var $desc = $d.find('.desc-container .desc');
+    var $text = $d.find(".text");
+    var range = 200;
+    var resetHeight = function() {
+      $dBox.removeClass("fixed").removeClass("absolute");
+      $d.height($dBox.outerHeight(true) + range * 2 * $d.find(".bg").length);
+    };
+    var topLength = 0;
+    //tp头部高度
+    if ($('.product-info-nav').length > 0) {
+      topLength = $('.product-info-nav').height();
+    }
+    //tapo头部高度
+    if ($('.sticky-top').length > 0) {
+      topLength = $('.sticky-top').height();
+    }
+    //de shop头部高度
+    if ($('.header').length > 0) {
+      topLength = $('.header').height();
+    }
+    var hardwareScroll = function() {
+      var dTop = $d[0].getBoundingClientRect().top;
+      if (dTop > topLength) {
+        $dBox.removeClass("fixed");
+      } else {
+        if (dTop <= $dBox.outerHeight(true) - $d.outerHeight(true)) {
+          $dBox.removeClass("fixed").addClass("absolute");
+        } else {
+          var index = -dTop / range;
+          index = index > 0 ? Math.floor(index) : 0;
+          index = index >= 2 ? 2 : index;
+          if (index != $bg.index($bg.filter(".active"))) {
+            $imgContent.removeClass("active").eq(index).addClass("active");
+            $subtitle.removeClass("active").eq(index).addClass("active");
+            $icon.removeClass("active").eq(index).addClass("active");
+            $content.removeClass("active").eq(index).addClass("active");
+            $desc.removeClass("active").eq(index).addClass("active");
+          }
+          $dBox.addClass("fixed").removeClass("absolute");
+        }
+      }
+    };
+    var hardwareResize = function() {
+      resetHeight();
+    };
+    if ($(window).width() > 0) {
+      $(window).on("resize", function() {
+        hardwareResize();
+        hardwareScroll();
+      });
+      $(window).on("scroll", function() {
+        hardwareScroll();
+      });
+      setTimeout(function() {
+        hardwareResize();
+      }, 300);
+    }
+  }
+});

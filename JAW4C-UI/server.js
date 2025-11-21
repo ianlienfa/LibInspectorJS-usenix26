@@ -504,6 +504,255 @@ app.post('/api/update-review', async (req, res) => {
     }
 });
 
+app.get('/api/lib-detection-stats', async (req, res) => {
+    try {
+        let parentDirs = [];
+        try {
+            parentDirs = await fs.readdir(DATA_DIR);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                return res.json({
+                    totalDetectedLibs: 0,
+                    uniqueLibs: 0,
+                    sitesWithDetections: 0,
+                    avgLibsPerSite: 0,
+                    topLibs: [],
+                    detectionMethods: {},
+                    versions: {},
+                    accuracyStats: { accurate: 0, inaccurate: 0 }
+                });
+            }
+            throw err;
+        }
+
+        let totalDetectedLibs = 0;
+        const libCounts = {};
+        const detectionMethods = {};
+        const versions = {};
+        let accurateCount = 0;
+        let inaccurateCount = 0;
+        let sitesWithDetections = 0;
+
+        for (const parentDir of parentDirs) {
+            const parentPath = path.join(DATA_DIR, parentDir);
+            const parentStats = await fs.stat(parentPath);
+            if (!parentStats.isDirectory()) continue;
+
+            const siteHashes = await fs.readdir(parentPath);
+            for (const hash of siteHashes) {
+                const sitePath = path.join(parentPath, hash);
+                const siteStats = await fs.stat(sitePath);
+                if (!siteStats.isDirectory()) continue;
+
+                const libDetectionFile = path.join(sitePath, 'lib.detection.json');
+                try {
+                    const libContent = await fs.readFile(libDetectionFile, 'utf8');
+                    const libData = JSON.parse(libContent);
+                    let siteHasDetections = false;
+
+                    // Parse lib.detection.json structure
+                    for (const [url, methods] of Object.entries(libData)) {
+                        for (const [method, detections] of Object.entries(methods)) {
+                            if (method === 'detection' || !detections.detection) continue;
+
+                            const detectionList = detections.detection;
+                            if (Array.isArray(detectionList) && detectionList.length > 0) {
+                                siteHasDetections = true;
+
+                                // Count detection method
+                                detectionMethods[method] = (detectionMethods[method] || 0) + 1;
+
+                                // Flatten nested arrays and process each detection
+                                const flatDetections = detectionList.flat();
+                                flatDetections.forEach(lib => {
+                                    if (!lib || !lib.libname) return;
+
+                                    totalDetectedLibs++;
+                                    const libname = lib.libname;
+                                    const version = lib.version || 'unknown';
+
+                                    // Count libraries
+                                    libCounts[libname] = (libCounts[libname] || 0) + 1;
+
+                                    // Count versions
+                                    const libVersion = `${libname} v${version}`;
+                                    versions[libVersion] = (versions[libVersion] || 0) + 1;
+
+                                    // Count accuracy
+                                    if (lib.accurate) {
+                                        accurateCount++;
+                                    } else {
+                                        inaccurateCount++;
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    if (siteHasDetections) sitesWithDetections++;
+                } catch (e) {
+                    // File not found or error reading
+                }
+            }
+        }
+
+        // Get top 15 libraries
+        const topLibs = Object.entries(libCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 15)
+            .map(([name, count]) => ({ name, count }));
+
+        // Get top 15 versions
+        const topVersions = Object.entries(versions)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 15)
+            .map(([name, count]) => ({ name, count }));
+
+        const avgLibsPerSite = sitesWithDetections > 0 ? (totalDetectedLibs / sitesWithDetections).toFixed(2) : 0;
+
+        res.json({
+            totalDetectedLibs,
+            uniqueLibs: Object.keys(libCounts).length,
+            sitesWithDetections,
+            avgLibsPerSite,
+            topLibs,
+            detectionMethods,
+            versions: topVersions,
+            accuracyStats: {
+                accurate: accurateCount,
+                inaccurate: inaccurateCount
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching library detection stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/vuln-stats', async (req, res) => {
+    try {
+        let parentDirs = [];
+        try {
+            parentDirs = await fs.readdir(DATA_DIR);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                return res.json({
+                    totalVulnLibs: 0,
+                    uniqueLibs: 0,
+                    sitesWithVulns: 0,
+                    avgVulnsPerSite: 0,
+                    topLibs: [],
+                    vulnTypes: {},
+                    versions: {},
+                    confidenceScores: {}
+                });
+            }
+            throw err;
+        }
+
+        let totalVulnLibs = 0;
+        const libCounts = {};
+        const vulnTypes = {};
+        const versions = {};
+        const confidenceScores = { '0-25': 0, '26-50': 0, '51-75': 0, '76-100': 0 };
+        let sitesWithVulns = 0;
+
+        for (const parentDir of parentDirs) {
+            const parentPath = path.join(DATA_DIR, parentDir);
+            const parentStats = await fs.stat(parentPath);
+            if (!parentStats.isDirectory()) continue;
+
+            const siteHashes = await fs.readdir(parentPath);
+            for (const hash of siteHashes) {
+                const sitePath = path.join(parentPath, hash);
+                const siteStats = await fs.stat(sitePath);
+                if (!siteStats.isDirectory()) continue;
+
+                const vulnFile = path.join(sitePath, 'vuln.out');
+                try {
+                    const vulnContent = await fs.readFile(vulnFile, 'utf8');
+                    let siteHasVulns = false;
+
+                    vulnContent.split('\n').forEach(line => {
+                        if (line.trim()) {
+                            try {
+                                const vulnData = JSON.parse(line);
+                                const urlKey = Object.keys(vulnData)[0];
+                                const libraries = vulnData[urlKey];
+
+                                if (Array.isArray(libraries) && libraries.length > 0) {
+                                    siteHasVulns = true;
+                                    libraries.forEach(lib => {
+                                        totalVulnLibs++;
+                                        const libname = lib.libname || 'unknown';
+                                        const version = lib.version || 'unknown';
+
+                                        // Count libraries
+                                        libCounts[libname] = (libCounts[libname] || 0) + 1;
+
+                                        // Count versions
+                                        const libVersion = `${libname} v${version}`;
+                                        versions[libVersion] = (versions[libVersion] || 0) + 1;
+
+                                        // Process vulnerabilities
+                                        if (lib.vuln && Array.isArray(lib.vuln)) {
+                                            lib.vuln.forEach(vuln => {
+                                                const vulnType = vuln.vulnerability_type || 'unknown';
+                                                vulnTypes[vulnType] = (vulnTypes[vulnType] || 0) + 1;
+
+                                                const confidence = vuln.confidence_score || 0;
+                                                const confidencePercent = Math.round(confidence * 100);
+                                                if (confidencePercent <= 25) confidenceScores['0-25']++;
+                                                else if (confidencePercent <= 50) confidenceScores['26-50']++;
+                                                else if (confidencePercent <= 75) confidenceScores['51-75']++;
+                                                else confidenceScores['76-100']++;
+                                            });
+                                        }
+                                    });
+                                }
+                            } catch (lineError) {
+                                console.error('Error parsing vuln line:', lineError);
+                            }
+                        }
+                    });
+
+                    if (siteHasVulns) sitesWithVulns++;
+                } catch (e) {
+                    // File not found or error reading
+                }
+            }
+        }
+
+        // Get top 10 libraries
+        const topLibs = Object.entries(libCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([name, count]) => ({ name, count }));
+
+        // Get top 10 versions
+        const topVersions = Object.entries(versions)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([name, count]) => ({ name, count }));
+
+        const avgVulnsPerSite = sitesWithVulns > 0 ? (totalVulnLibs / sitesWithVulns).toFixed(2) : 0;
+
+        res.json({
+            totalVulnLibs,
+            uniqueLibs: Object.keys(libCounts).length,
+            sitesWithVulns,
+            avgVulnsPerSite,
+            topLibs,
+            vulnTypes,
+            versions: topVersions,
+            confidenceScores
+        });
+    } catch (error) {
+        console.error('Error fetching vulnerability stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`JAW4C Read-Only UI listening at http://localhost:${port}`);
 });

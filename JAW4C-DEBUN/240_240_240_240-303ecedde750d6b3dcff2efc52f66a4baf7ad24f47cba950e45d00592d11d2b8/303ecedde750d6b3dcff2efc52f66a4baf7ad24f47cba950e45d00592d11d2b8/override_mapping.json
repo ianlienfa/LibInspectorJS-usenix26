@@ -1,0 +1,30 @@
+{
+	"lift": {
+		"https://static.tp-link.com/res/js/ada/chunk-vendors.4c9b48af.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/lifted/13.js",
+		"https://static.tp-link.com/res/js/ada/ada.min.559c5995.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/lifted/14.js"
+	},
+	"transform": {
+		"https://static.tp-link.com/assets/js/jquery/jquery-1.9.1.min.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/0.js",
+		"https://www.tapo.com/res/js/jquery/jquery-3.4.1.min.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/1.js",
+		"https://static.tp-link.com/assets/js/plugins/swiper-5.4.1/swiper.min.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/2.js",
+		"https://static-page.tp-link.com/landing/wifi7/us/script.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/4.js",
+		"https://static.tp-link.com/assets/js/params.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/12.js",
+		"https://static.tp-link.com/res/js/ada/chunk-vendors.4c9b48af.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/13.js",
+		"https://static.tp-link.com/res/js/ada/ada.min.559c5995.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/14.js",
+		"https://static.tp-link.com/assets/js/livechat-dialog_v3.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/18.js",
+		"https://static-page.tp-link.com/landing/wifi7/us/product.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/20.js",
+		"https://static.tp-link.com/assets/js/livechat-data_v3.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/transformed/21.js"
+	},
+	"original": {
+		"https://static.tp-link.com/assets/js/jquery/jquery-1.9.1.min.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/0.js",
+		"https://www.tapo.com/res/js/jquery/jquery-3.4.1.min.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/1.js",
+		"https://static.tp-link.com/assets/js/plugins/swiper-5.4.1/swiper.min.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/2.js",
+		"https://static-page.tp-link.com/landing/wifi7/us/script.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/4.js",
+		"https://static.tp-link.com/assets/js/params.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/12.js",
+		"https://static.tp-link.com/res/js/ada/chunk-vendors.4c9b48af.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/13.js",
+		"https://static.tp-link.com/res/js/ada/ada.min.559c5995.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/14.js",
+		"https://static.tp-link.com/assets/js/livechat-dialog_v3.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/18.js",
+		"https://static-page.tp-link.com/landing/wifi7/us/product.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/20.js",
+		"https://static.tp-link.com/assets/js/livechat-data_v3.js": "/home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/original/21.js"
+	}
+}

@@ -14,17 +14,19 @@
         </header>
 
         <section class="global-stats">
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="openLibDetectionModal()">
                 <h2><%= globalStats.sites %></h2>
                 <p>Sites Analyzed</p>
+                <span class="click-hint">Click for library stats</span>
             </div>
             <div class="stat-card">
                 <h2><%= globalStats.sitesWithFlows %></h2>
                 <p>Sites with Flows</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="openVulnLibModal()">
                 <h2><%= globalStats.vulnerableLibs %></h2>
                 <p>Vulnerable Libraries</p>
+                <span class="click-hint">Click for details</span>
             </div>
             <div class="stat-card">
                 <h2><%= globalStats.pocMatches %></h2>
@@ -129,33 +131,35 @@
                         <span class="expand-icon" id="icon-<%= site.hash %>">+</span>
                     </div>
                     <div class="site-details" id="details-<%= site.hash %>">
-                        <p><strong>Original URL:</strong><br><a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
-                        <p><strong>Hash:</strong><br><%= site.hash %></p>
+                        <p><strong>URL:</strong> <a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
+                        <p><strong>Hash:</strong> <%= site.hash %></p>
 
                         <div class="review-section">
                             <h4>Review Status</h4>
-                            <div class="review-controls">
-                                <label class="review-checkbox">
-                                    <input type="checkbox"
-                                           id="reviewed-<%= site.hash %>"
-                                           <%= site.reviewed ? 'checked' : '' %>
-                                           onchange="updateReview('<%= site.hash %>', 'reviewed', this.checked)">
-                                    <span>Reviewed</span>
-                                </label>
-                                <label class="review-checkbox vulnerable-checkbox">
-                                    <input type="checkbox"
-                                           id="vulnerable-<%= site.hash %>"
-                                           <%= site.vulnerable ? 'checked' : '' %>
-                                           onchange="updateReview('<%= site.hash %>', 'vulnerable', this.checked)">
-                                    <span>Vulnerable</span>
-                                </label>
-                            </div>
-                            <div class="memo-section">
-                                <label for="memo-<%= site.hash %>"><strong>Notes:</strong></label>
-                                <textarea id="memo-<%= site.hash %>"
-                                          class="memo-textarea"
-                                          placeholder="Add your review notes here..."
-                                          onchange="updateReview('<%= site.hash %>', 'memo', this.value)"><%= site.memo %></textarea>
+                            <div class="review-controls-inline">
+                                <div class="review-checkboxes">
+                                    <label class="review-checkbox">
+                                        <input type="checkbox"
+                                               id="reviewed-<%= site.hash %>"
+                                               <%= site.reviewed ? 'checked' : '' %>
+                                               onchange="updateReview('<%= site.hash %>', 'reviewed', this.checked)">
+                                        <span>Reviewed</span>
+                                    </label>
+                                    <label class="review-checkbox vulnerable-checkbox">
+                                        <input type="checkbox"
+                                               id="vulnerable-<%= site.hash %>"
+                                               <%= site.vulnerable ? 'checked' : '' %>
+                                               onchange="updateReview('<%= site.hash %>', 'vulnerable', this.checked)">
+                                        <span>Vulnerable</span>
+                                    </label>
+                                </div>
+                                <div class="memo-section-inline">
+                                    <label for="memo-<%= site.hash %>"><strong>Notes:</strong></label>
+                                    <textarea id="memo-<%= site.hash %>"
+                                              class="memo-textarea"
+                                              placeholder="Add notes..."
+                                              onchange="updateReview('<%= site.hash %>', 'memo', this.value)"><%= site.memo %></textarea>
+                                </div>
                             </div>
                         </div>
 
@@ -179,6 +183,105 @@
         </section>
     </div>
 
+    <!-- Library Detection Modal -->
+    <div id="lib-detection-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Library Detection Statistics</h2>
+                <span class="modal-close" onclick="closeLibDetectionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3 id="total-detected-libs">-</h3>
+                        <p>Total Detected Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="unique-detected-libs">-</h3>
+                        <p>Unique Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="sites-with-detections">-</h3>
+                        <p>Sites with Detections</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="avg-libs-per-site">-</h3>
+                        <p>Avg Libraries per Site</p>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Top 15 Detected Libraries</h3>
+                        <canvas id="top-detected-libs-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Detection Method Distribution</h3>
+                        <canvas id="detection-method-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Top Library Versions</h3>
+                        <canvas id="detected-versions-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Accuracy Distribution</h3>
+                        <canvas id="accuracy-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vulnerable Libraries Modal -->
+    <div id="vuln-lib-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Vulnerable Libraries Statistics</h2>
+                <span class="modal-close" onclick="closeVulnLibModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3 id="total-vuln-libs">-</h3>
+                        <p>Total Vulnerable Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="unique-libs">-</h3>
+                        <p>Unique Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="sites-with-vulns">-</h3>
+                        <p>Sites with Vulnerabilities</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="avg-vulns-per-site">-</h3>
+                        <p>Avg Vulns per Site</p>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Top 10 Vulnerable Libraries</h3>
+                        <canvas id="top-libs-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Vulnerability Types Distribution</h3>
+                        <canvas id="vuln-types-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Library Versions Distribution</h3>
+                        <canvas id="versions-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Confidence Score Distribution</h3>
+                        <canvas id="confidence-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="/main.js?v=2"></script>
 </body>
 </html>

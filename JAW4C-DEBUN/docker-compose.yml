@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  lib-detector-gtv:
+    image: lib-detector-gtv
+    expose:
+      - "9000"
+    networks:
+      - debun-network
+
+  debun:
+    image: debun:latest
+    depends_on:
+      - lib-detector-gtv
+    networks:
+      - debun-network
+    environment:
+      - LIB_DETECTOR_URL=http://lib-detector-gtv:9000
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+networks:
+  debun-network:
+    driver: bridge

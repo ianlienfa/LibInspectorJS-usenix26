@@ -8,7 +8,7 @@ testbed:
   archive: 
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 331
+  from_row: 532
   to_row: end # row number or 'end'
 
 
@@ -64,9 +64,9 @@ vuln_db:
 # 3. static analysis configuration
 staticpass:
   # time budget for static analysis of each site (in seconds)
-  sitetimeout: 1200 # 5 min
+  sitetimeout: 600 # 5 min
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
-  pagetimeout: 1200 # 10 min
+  pagetimeout: 600 # 5 min
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process

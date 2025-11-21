@@ -1,0 +1,8 @@
+if (typeof ada != 'undefined' && location.search.indexOf('ada=la') === -1) {
+  ada.default({
+    props: {
+      initposition: 'left',
+      defaultLang: 'en'
+    }
+  });
+}

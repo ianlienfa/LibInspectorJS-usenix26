@@ -1,0 +1,150 @@
+{
+	"cookies": [],
+	"origins": [
+		{
+			"origin": "https://www.tp-link.com",
+			"localStorage": [
+				{
+					"name": "ada_letterspacing_percent",
+					"value": "100"
+				},
+				{
+					"name": "titleColor",
+					"value": "false"
+				},
+				{
+					"name": "saturate",
+					"value": "false"
+				},
+				{
+					"name": "readmask",
+					"value": "false"
+				},
+				{
+					"name": "hideMedia",
+					"value": "false"
+				},
+				{
+					"name": "readguide",
+					"value": "false"
+				},
+				{
+					"name": "stopAnimation",
+					"value": "false"
+				},
+				{
+					"name": "cognitivedisability",
+					"value": "false"
+				},
+				{
+					"name": "ada_lineheight_percent",
+					"value": "100"
+				},
+				{
+					"name": "textColor",
+					"value": "false"
+				},
+				{
+					"name": "highLighTitle",
+					"value": "false"
+				},
+				{
+					"name": "visionImpaired",
+					"value": "false"
+				},
+				{
+					"name": "initbodybgc",
+					"value": "[\"rgb(255, 255, 255)\",false]"
+				},
+				{
+					"name": "initfooterclassname",
+					"value": "footer"
+				},
+				{
+					"name": "highLighLink",
+					"value": "false"
+				},
+				{
+					"name": "textAlign",
+					"value": "false"
+				},
+				{
+					"name": "muted",
+					"value": "false"
+				},
+				{
+					"name": "hlhover",
+					"value": "false"
+				},
+				{
+					"name": "preLang",
+					"value": "en"
+				},
+				{
+					"name": "inittitlecolor",
+					"value": "[[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(0, 0, 0)\",false],[\"rgb(0, 0, 0)\",false],[\"rgb(0, 0, 0)\",false],[\"rgb(0, 0, 0)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false],[\"rgb(255, 255, 255)\",false]]"
+				},
+				{
+					"name": "readableFont",
+					"value": "false"
+				},
+				{
+					"name": "hideImgs",
+					"value": "false"
+				},
+				{
+					"name": "bigcursor",
+					"value": "false"
+				},
+				{
+					"name": "stopAudio",
+					"value": "false"
+				},
+				{
+					"name": "hideAnimation",
+					"value": "false"
+				},
+				{
+					"name": "contrast",
+					"value": "false"
+				},
+				{
+					"name": "ada_scale_percent",
+					"value": "100"
+				},
+				{
+					"name": "magnifier",
+					"value": "false"
+				},
+				{
+					"name": "initnavclassname",
+					"value": "nav"
+				},
+				{
+					"name": "ada_font_percent",
+					"value": "100"
+				},
+				{
+					"name": "stopVideo",
+					"value": "false"
+				},
+				{
+					"name": "seizureSafe",
+					"value": "false"
+				},
+				{
+					"name": "curLang",
+					"value": "en"
+				},
+				{
+					"name": "ADHD",
+					"value": "false"
+				},
+				{
+					"name": "initmainclassname",
+					"value": "#tapo-header~div"
+				}
+			]
+		}
+	]
+}

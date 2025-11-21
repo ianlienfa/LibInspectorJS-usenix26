@@ -263,3 +263,393 @@ document.addEventListener('DOMContentLoaded', () => {
     applySorting();
     applyFilters();
 });
+
+// Library Detection Modal Functions
+let libDetectionCharts = {};
+
+async function openLibDetectionModal() {
+    const modal = document.getElementById('lib-detection-modal');
+    modal.classList.add('show');
+
+    try {
+        const response = await fetch('/api/lib-detection-stats');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const stats = await response.json();
+
+        // Update stats boxes
+        document.getElementById('total-detected-libs').textContent = stats.totalDetectedLibs;
+        document.getElementById('unique-detected-libs').textContent = stats.uniqueLibs;
+        document.getElementById('sites-with-detections').textContent = stats.sitesWithDetections;
+        document.getElementById('avg-libs-per-site').textContent = stats.avgLibsPerSite;
+
+        // Destroy existing charts
+        Object.values(libDetectionCharts).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        libDetectionCharts = {};
+
+        // Create charts
+        createTopDetectedLibsChart(stats.topLibs);
+        createDetectionMethodChart(stats.detectionMethods);
+        createDetectedVersionsChart(stats.versions);
+        createAccuracyChart(stats.accuracyStats);
+
+    } catch (error) {
+        console.error('Error loading library detection stats:', error);
+        alert('Failed to load library detection statistics. Please try again.');
+    }
+}
+
+function closeLibDetectionModal() {
+    const modal = document.getElementById('lib-detection-modal');
+    modal.classList.remove('show');
+}
+
+function createTopDetectedLibsChart(topLibs) {
+    const ctx = document.getElementById('top-detected-libs-chart').getContext('2d');
+
+    libDetectionCharts.topLibs = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topLibs.map(lib => lib.name),
+            datasets: [{
+                label: 'Occurrences',
+                data: topLibs.map(lib => lib.count),
+                backgroundColor: 'rgba(6, 182, 212, 0.7)',
+                borderColor: 'rgba(6, 182, 212, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createDetectionMethodChart(detectionMethods) {
+    const ctx = document.getElementById('detection-method-chart').getContext('2d');
+
+    const sortedMethods = Object.entries(detectionMethods).sort((a, b) => b[1] - a[1]);
+    const colors = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#9333ea',
+        '#ec4899', '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4'
+    ];
+
+    libDetectionCharts.methods = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sortedMethods.map(([method]) => method),
+            datasets: [{
+                data: sortedMethods.map(([, count]) => count),
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+}
+
+function createDetectedVersionsChart(versions) {
+    const ctx = document.getElementById('detected-versions-chart').getContext('2d');
+
+    libDetectionCharts.versions = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: versions.map(v => v.name),
+            datasets: [{
+                label: 'Occurrences',
+                data: versions.map(v => v.count),
+                backgroundColor: 'rgba(147, 51, 234, 0.7)',
+                borderColor: 'rgba(147, 51, 234, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createAccuracyChart(accuracyStats) {
+    const ctx = document.getElementById('accuracy-chart').getContext('2d');
+
+    libDetectionCharts.accuracy = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Accurate', 'Inaccurate'],
+            datasets: [{
+                data: [accuracyStats.accurate, accuracyStats.inaccurate],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.7)',
+                    'rgba(239, 68, 68, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(239, 68, 68, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Vulnerable Libraries Modal Functions
+let vulnCharts = {};
+
+async function openVulnLibModal() {
+    const modal = document.getElementById('vuln-lib-modal');
+    modal.classList.add('show');
+
+    try {
+        const response = await fetch('/api/vuln-stats');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const stats = await response.json();
+
+        // Update stats boxes
+        document.getElementById('total-vuln-libs').textContent = stats.totalVulnLibs;
+        document.getElementById('unique-libs').textContent = stats.uniqueLibs;
+        document.getElementById('sites-with-vulns').textContent = stats.sitesWithVulns;
+        document.getElementById('avg-vulns-per-site').textContent = stats.avgVulnsPerSite;
+
+        // Destroy existing charts
+        Object.values(vulnCharts).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        vulnCharts = {};
+
+        // Create charts
+        createTopLibsChart(stats.topLibs);
+        createVulnTypesChart(stats.vulnTypes);
+        createVersionsChart(stats.versions);
+        createConfidenceChart(stats.confidenceScores);
+
+    } catch (error) {
+        console.error('Error loading vulnerability stats:', error);
+        alert('Failed to load vulnerability statistics. Please try again.');
+    }
+}
+
+function closeVulnLibModal() {
+    const modal = document.getElementById('vuln-lib-modal');
+    modal.classList.remove('show');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const vulnModal = document.getElementById('vuln-lib-modal');
+    const libDetectionModal = document.getElementById('lib-detection-modal');
+
+    if (event.target === vulnModal) {
+        closeVulnLibModal();
+    } else if (event.target === libDetectionModal) {
+        closeLibDetectionModal();
+    }
+}
+
+// Chart creation functions
+function createTopLibsChart(topLibs) {
+    const ctx = document.getElementById('top-libs-chart').getContext('2d');
+
+    vulnCharts.topLibs = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topLibs.map(lib => lib.name),
+            datasets: [{
+                label: 'Occurrences',
+                data: topLibs.map(lib => lib.count),
+                backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                borderColor: 'rgba(37, 99, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createVulnTypesChart(vulnTypes) {
+    const ctx = document.getElementById('vuln-types-chart').getContext('2d');
+
+    const sortedTypes = Object.entries(vulnTypes).sort((a, b) => b[1] - a[1]);
+    const colors = [
+        '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#9333ea',
+        '#ec4899', '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4'
+    ];
+
+    vulnCharts.vulnTypes = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sortedTypes.map(([type]) => type.toUpperCase()),
+            datasets: [{
+                data: sortedTypes.map(([, count]) => count),
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+}
+
+function createVersionsChart(versions) {
+    const ctx = document.getElementById('versions-chart').getContext('2d');
+
+    vulnCharts.versions = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: versions.map(v => v.name),
+            datasets: [{
+                label: 'Occurrences',
+                data: versions.map(v => v.count),
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createConfidenceChart(confidenceScores) {
+    const ctx = document.getElementById('confidence-chart').getContext('2d');
+
+    const labels = ['0-25%', '26-50%', '51-75%', '76-100%'];
+    const data = [
+        confidenceScores['0-25'],
+        confidenceScores['26-50'],
+        confidenceScores['51-75'],
+        confidenceScores['76-100']
+    ];
+
+    vulnCharts.confidence = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Count',
+                data: data,
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',   // Red for low
+                    'rgba(245, 158, 11, 0.7)',  // Amber for medium-low
+                    'rgba(59, 130, 246, 0.7)',  // Blue for medium-high
+                    'rgba(16, 185, 129, 0.7)'   // Green for high
+                ],
+                borderColor: [
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(245, 158, 11, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(16, 185, 129, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}

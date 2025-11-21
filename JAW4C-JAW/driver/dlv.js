@@ -12,6 +12,11 @@ const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOri
 const { Command } = require('commander');
 const { exit } = require('process');
 
+// Import DEBUN library detection
+const debunPath = path.resolve(__dirname, '../../JAW4C-DEBUN');
+const debunLibPath = path.join(debunPath, 'lib-detect.js');
+const { detectLibraries } = require(debunLibPath);
+
 function createStartCrawlUrl(url) {
   const condition = 'soak';
   const query = new URLSearchParams({
@@ -21,6 +26,38 @@ function createStartCrawlUrl(url) {
   const q = encodeURIComponent(query.toString())
   return `http://240.240.240.240/%3F${q}`;
 }
+
+const DEBUN = async (dataDir = "") => {
+  // Run DEBUN library detection on original scripts
+  let result = {};
+
+  try {
+    logger.info(`Running DEBUN detection on ${dataDir}`);
+
+    // DEBUN expects JavaScript files named as 0.js, 1.js, etc.
+    const originalDir = path.join(dataDir, 'original');
+
+    // Use the original directory if it exists, otherwise use dataDir
+    const scriptsDir = fs.existsSync(originalDir) ? originalDir : dataDir;
+
+    logger.info(`Using scripts directory: ${scriptsDir}`);
+
+    // Use DEBUN library detection
+    const detections = detectLibraries(scriptsDir, { threshold: 0.2 });
+
+    logger.info(`DEBUN detected ${detections.length} libraries`);
+
+    result.detection = [detections];
+
+    return result;
+
+  } catch (error) {
+    logger.error(`Error running DEBUN detection: ${error.message}`);
+    console.error('Stack trace:', error.stack);
+    result.detection = [];
+    return result;
+  }
+};
 
 const PTVOriginal = async (url, launchConfig, dataDir = "") => {
   // visit a page with original (non-lifted) scripts
@@ -295,7 +332,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
 
 
 
-module.exports = {PTV, PTVOriginal};
+module.exports = {PTV, PTVOriginal, DEBUN};
 
 
 
@@ -343,6 +380,11 @@ if (require.main === module) {
       for(const url of urlList){
         LOGGER(`url: ${url}`)
         res[url] = {}
+
+        // Run DEBUN detection first (works on static files, no browser needed)
+        res[url]['DEBUN'] = await DEBUN(hashdirPath)
+        if(res[url]['DEBUN']?.['detection'])LOGGER(JSON.stringify(res[url]['DEBUN']['detection']))
+
         res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, hashdirPath)
         if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
         res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, hashdirPath);

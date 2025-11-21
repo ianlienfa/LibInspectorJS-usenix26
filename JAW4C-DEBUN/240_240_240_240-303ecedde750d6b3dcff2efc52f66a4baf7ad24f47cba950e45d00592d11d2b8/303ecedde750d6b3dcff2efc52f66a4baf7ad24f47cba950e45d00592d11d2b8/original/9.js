@@ -1,0 +1,1 @@
+typeof tp !== 'undefined' && tp.subscription($("form.tp-follow-subscribe-form"), $(".tp-follow-subscribe-tpl").html());

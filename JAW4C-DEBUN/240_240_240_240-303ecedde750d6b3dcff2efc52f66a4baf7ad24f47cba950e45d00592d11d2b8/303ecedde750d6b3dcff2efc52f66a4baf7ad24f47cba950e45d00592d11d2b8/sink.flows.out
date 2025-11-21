@@ -1,0 +1,726 @@
+====================================================
+[timestamp] generated on 21/11/2025 04:44:01
+====================================================
+
+[*] NavigationURL: http://240.240.240.240/?target=https%3A%2F%2Fwww.tp-link.com%2Fus%2Flanding%2Fwifi7%2F%3Futm_source%3Dlandingpage%26utm_medium%3Dlaunch_banner%26utm_campaign%3Dwifi7_for_everyone&type=soak
+
+----------------------------------------------------
+[*] Vulnerability Information:
+  - mod: False
+  - libname: jquery
+  - location: $
+  - poc_str: LIBOBJ(WILDCARD).html(PAYLOAD)
+
+----------------------------------------------------
+[*] Tags: ['NON-REACH']
+[*] NodeId: {'TopExpression': '2164', 'CallExpression': '2164', 'Argument': '2165'}
+[*] Location: 1
+[*] Function: LIBOBJ(WILDCARD).html(PAYLOAD)
+[*] Template: tp !== "undefined" && tp.subscription($("form.tp-follow-subscribe-form"), $(".tp-follow-subscribe-tpl").html())
+[*] Top Expression: tp !== "undefined" && tp.subscription($("form.tp-follow-subscribe-form"), $(".tp-follow-subscribe-tpl").html())
+----------------------------------------------------
+
+====================================================
+[timestamp] generated on 21/11/2025 04:44:08
+====================================================
+
+[*] NavigationURL: http://240.240.240.240/?target=https%3A%2F%2Fwww.tp-link.com%2Fus%2Flanding%2Fwifi7%2F%3Futm_source%3Dlandingpage%26utm_medium%3Dlaunch_banner%26utm_campaign%3Dwifi7_for_everyone&type=soak
+
+----------------------------------------------------
+[*] Vulnerability Information:
+  - mod: False
+  - libname: jquery
+  - location: $
+  - poc_str: LIBOBJ.extend(true, {}, PAYLOAD)
+
+----------------------------------------------------
+[*] POC Maximum Matched Levels:
+-- node: <Node id=62 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '8', 'Range': '[35,166]', 'Location': '{start:{line:2,column:2},end:{line:2,column:133}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:2,column:2},end:{line:2,column:133}}
+-- node: <Node id=72 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '18', 'Range': '[169,304]', 'Location': '{start:{line:3,column:2},end:{line:3,column:137}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:3,column:2},end:{line:3,column:137}}
+-- node: <Node id=82 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '28', 'Range': '[307,4093]', 'Location': '{start:{line:5,column:0},end:{line:108,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:5,column:0},end:{line:108,column:3}}
+-- node: <Node id=87 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '33', 'Range': '[324,409]', 'Location': '{start:{line:6,column:2},end:{line:6,column:87}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:6,column:2},end:{line:6,column:87}}
+-- node: <Node id=97 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '43', 'Range': '[412,454]', 'Location': '{start:{line:7,column:2},end:{line:7,column:44}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:7,column:2},end:{line:7,column:44}}
+-- node: <Node id=105 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '51', 'Range': '[457,504]', 'Location': '{start:{line:8,column:2},end:{line:8,column:49}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:8,column:2},end:{line:8,column:49}}
+-- node: <Node id=117 labels=frozenset({'ASTNode'}) properties={'Type': 'BlockStatement', 'Id': '63', 'Range': '[722,957]', 'Location': '{start:{line:14,column:29},end:{line:25,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:14,column:29},end:{line:25,column:3}}
+-- node: <Node id=123 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '69', 'Range': '[744,953]', 'Location': '{start:{line:16,column:4},end:{line:24,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:16,column:4},end:{line:24,column:7}}
+-- node: <Node id=190 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '136', 'Range': '[1013,1103]', 'Location': '{start:{line:28,column:2},end:{line:30,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:28,column:2},end:{line:30,column:5}}
+-- node: <Node id=208 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '154', 'Range': '[1106,1369]', 'Location': '{start:{line:31,column:2},end:{line:38,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:31,column:2},end:{line:38,column:5}}
+-- node: <Node id=253 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '199', 'Range': '[1319,1363]', 'Location': '{start:{line:37,column:4},end:{line:37,column:48}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:37,column:4},end:{line:37,column:48}}
+-- node: <Node id=262 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '208', 'Range': '[1372,1509]', 'Location': '{start:{line:39,column:2},end:{line:42,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:39,column:2},end:{line:42,column:5}}
+-- node: <Node id=274 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '220', 'Range': '[1437,1467]', 'Location': '{start:{line:40,column:4},end:{line:40,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:40,column:4},end:{line:40,column:34}}
+-- node: <Node id=288 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '234', 'Range': '[1512,1561]', 'Location': '{start:{line:43,column:2},end:{line:43,column:51}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:43,column:2},end:{line:43,column:51}}
+-- node: <Node id=296 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '242', 'Range': '[1564,1640]', 'Location': '{start:{line:44,column:2},end:{line:44,column:78}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:44,column:2},end:{line:44,column:78}}
+-- node: <Node id=435 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '381', 'Range': '[2399,3121]', 'Location': '{start:{line:65,column:2},end:{line:85,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:65,column:2},end:{line:85,column:5}}
+-- node: <Node id=304 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '250', 'Range': '[1643,1688]', 'Location': '{start:{line:45,column:2},end:{line:45,column:47}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:45,column:2},end:{line:45,column:47}}
+-- node: <Node id=320 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '266', 'Range': '[1766,1840]', 'Location': '{start:{line:47,column:2},end:{line:47,column:76}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:47,column:2},end:{line:47,column:76}}
+-- node: <Node id=612 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '558', 'Range': '[3365,3573]', 'Location': '{start:{line:91,column:2},end:{line:95,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:91,column:2},end:{line:95,column:5}}
+-- node: <Node id=328 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '274', 'Range': '[1843,1922]', 'Location': '{start:{line:48,column:2},end:{line:48,column:81}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:48,column:2},end:{line:48,column:81}}
+-- node: <Node id=657 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '603', 'Range': '[3576,3806]', 'Location': '{start:{line:96,column:2},end:{line:99,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:96,column:2},end:{line:99,column:5}}
+-- node: <Node id=571 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '517', 'Range': '[3124,3362]', 'Location': '{start:{line:86,column:2},end:{line:90,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:86,column:2},end:{line:90,column:5}}
+-- node: <Node id=603 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '549', 'Range': '[3314,3356]', 'Location': '{start:{line:89,column:4},end:{line:89,column:46}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:89,column:4},end:{line:89,column:46}}
+-- node: <Node id=312 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '258', 'Range': '[1691,1763]', 'Location': '{start:{line:46,column:2},end:{line:46,column:74}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:46,column:2},end:{line:46,column:74}}
+-- node: <Node id=336 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '282', 'Range': '[1925,2396]', 'Location': '{start:{line:49,column:2},end:{line:64,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:49,column:2},end:{line:64,column:5}}
+-- node: <Node id=138 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '84', 'Range': '[800,825]', 'Location': '{start:{line:18,column:8},end:{line:18,column:33}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:18,column:8},end:{line:18,column:33}}
+-- node: <Node id=149 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '95', 'Range': '[839,945]', 'Code': '{type:BinaryExpression,operator:>,left:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[843,844],loc:{start:{line:19,column:17},end:{line:19,column:18}},_id:101},arguments:[{type:ThisExpression,range:[845,849],loc:{start:{line:19,column:19},end:{line:19,column:23}},_id:102}],range:[843,850],loc:{start:{line:19,column:17},end:{line:19,column:24}},_id:100},property:{type:Identifier,name:offset,range:[851,857],loc:{start:{line:19,column:25},end:{line:19,column:31}},_id:103},range:[843,857],loc:{start:{line:19,column:17},end:{line:19,column:31}},_id:99},arguments:[],range:[843,859],loc:{start:{line:19,column:17},end:{line:19,column:33}},_id:98},property:{type:Identifier,name:top,range:[860,863],loc:{start:{line:19,column:34},end:{line:19,column:37}},_id:104},range:[843,863],loc:{start:{line:19,column:17},end:{line:19,column:37}},_id:97},right:{type:BinaryExpression,operator:+,left:{type:Identifier,name:t,range:[866,867],loc:{start:{line:19,column:40},end:{line:19,column:41}},_id:106},right:{type:Literal,value:1,raw:1,range:[870,871],loc:{start:{line:19,column:44},end:{line:19,column:45}},_id:107},range:[866,871],loc:{start:{line:19,column:40},end:{line:19,column:45}},_id:105},range:[843,871],loc:{start:{line:19,column:17},end:{line:19,column:45}},_id:96}', 'Location': '{start:{line:19,column:13},end:{line:23,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:19,column:13},end:{line:23,column:7}}
+-- node: <Node id=163 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '109', 'Range': '[883,898]', 'Location': '{start:{line:20,column:8},end:{line:20,column:23}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:20,column:8},end:{line:20,column:23}}
+-- node: <Node id=171 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '117', 'Range': '[922,937]', 'Location': '{start:{line:22,column:8},end:{line:22,column:23}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:22,column:8},end:{line:22,column:23}}
+-- node: <Node id=181 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '127', 'Range': '[976,1010]', 'Location': '{start:{line:27,column:2},end:{line:27,column:36}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:27,column:2},end:{line:27,column:36}}
+-- node: <Node id=231 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '177', 'Range': '[1226,1249]', 'Location': '{start:{line:34,column:4},end:{line:34,column:27}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:34,column:4},end:{line:34,column:27}}
+-- node: <Node id=239 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '185', 'Range': '[1254,1282]', 'Location': '{start:{line:35,column:4},end:{line:35,column:32}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:35,column:4},end:{line:35,column:32}}
+-- node: <Node id=280 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '226', 'Range': '[1472,1503]', 'Location': '{start:{line:41,column:4},end:{line:41,column:35}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:41,column:4},end:{line:41,column:35}}
+-- node: <Node id=350 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '296', 'Range': '[1991,2146]', 'Code': '{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[1995,1996],loc:{start:{line:51,column:8},end:{line:51,column:9}},_id:300},arguments:[{type:ThisExpression,range:[1997,2001],loc:{start:{line:51,column:10},end:{line:51,column:14}},_id:301}],range:[1995,2002],loc:{start:{line:51,column:8},end:{line:51,column:15}},_id:299},property:{type:Identifier,name:hasClass,range:[2003,2011],loc:{start:{line:51,column:16},end:{line:51,column:24}},_id:302},range:[1995,2011],loc:{start:{line:51,column:8},end:{line:51,column:24}},_id:298},arguments:[{type:Literal,value:active,raw:active,range:[2012,2020],loc:{start:{line:51,column:25},end:{line:51,column:33}},_id:303}],range:[1995,2021],loc:{start:{line:51,column:8},end:{line:51,column:34}},_id:297}', 'Location': '{start:{line:51,column:4},end:{line:56,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:51,column:4},end:{line:56,column:5}}
+-- node: <Node id=359 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '305', 'Range': '[2031,2062]', 'Location': '{start:{line:52,column:6},end:{line:52,column:37}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:52,column:6},end:{line:52,column:37}}
+-- node: <Node id=368 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '314', 'Range': '[2082,2105]', 'Location': '{start:{line:54,column:6},end:{line:54,column:29}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:54,column:6},end:{line:54,column:29}}
+-- node: <Node id=376 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '322', 'Range': '[2112,2140]', 'Location': '{start:{line:55,column:6},end:{line:55,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:55,column:6},end:{line:55,column:34}}
+-- node: <Node id=395 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '341', 'Range': '[2212,2242]', 'Location': '{start:{line:59,column:4},end:{line:59,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:59,column:4},end:{line:59,column:34}}
+-- node: <Node id=417 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '363', 'Range': '[2326,2382]', 'Location': '{start:{line:62,column:6},end:{line:62,column:62}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:62,column:6},end:{line:62,column:62}}
+-- node: <Node id=454 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '400', 'Range': '[2491,2646]', 'Code': '{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[2495,2496],loc:{start:{line:68,column:8},end:{line:68,column:9}},_id:404},arguments:[{type:ThisExpression,range:[2497,2501],loc:{start:{line:68,column:10},end:{line:68,column:14}},_id:405}],range:[2495,2502],loc:{start:{line:68,column:8},end:{line:68,column:15}},_id:403},property:{type:Identifier,name:hasClass,range:[2503,2511],loc:{start:{line:68,column:16},end:{line:68,column:24}},_id:406},range:[2495,2511],loc:{start:{line:68,column:8},end:{line:68,column:24}},_id:402},arguments:[{type:Literal,value:active,raw:active,range:[2512,2520],loc:{start:{line:68,column:25},end:{line:68,column:33}},_id:407}],range:[2495,2521],loc:{start:{line:68,column:8},end:{line:68,column:34}},_id:401}', 'Location': '{start:{line:68,column:4},end:{line:73,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:68,column:4},end:{line:73,column:5}}
+-- node: <Node id=463 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '409', 'Range': '[2531,2562]', 'Location': '{start:{line:69,column:6},end:{line:69,column:37}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:69,column:6},end:{line:69,column:37}}
+-- node: <Node id=472 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '418', 'Range': '[2582,2605]', 'Location': '{start:{line:71,column:6},end:{line:71,column:29}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:71,column:6},end:{line:71,column:29}}
+-- node: <Node id=480 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '426', 'Range': '[2612,2640]', 'Location': '{start:{line:72,column:6},end:{line:72,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:72,column:6},end:{line:72,column:34}}
+-- node: <Node id=520 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '466', 'Range': '[2815,2845]', 'Location': '{start:{line:77,column:4},end:{line:77,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:77,column:4},end:{line:77,column:34}}
+-- node: <Node id=626 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '572', 'Range': '[3431,3491]', 'Location': '{start:{line:93,column:4},end:{line:93,column:64}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:93,column:4},end:{line:93,column:64}}
+-- node: <Node id=641 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '587', 'Range': '[3496,3567]', 'Location': '{start:{line:94,column:4},end:{line:94,column:75}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:94,column:4},end:{line:94,column:75}}
+-- node: <Node id=671 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '617', 'Range': '[3645,3800]', 'Location': '{start:{line:98,column:4},end:{line:98,column:159}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:98,column:4},end:{line:98,column:159}}
+-- node: <Node id=704 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '650', 'Range': '[3809,4089]', 'Location': '{start:{line:100,column:2},end:{line:107,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:100,column:2},end:{line:107,column:5}}
+-- node: <Node id=750 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '696', 'Range': '[4052,4083]', 'Location': '{start:{line:106,column:4},end:{line:106,column:35}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/5.js
+|- location: {start:{line:106,column:4},end:{line:106,column:35}}
+-- node: <Node id=759 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '705', 'Range': '[0,973]', 'Location': '{start:{line:1,column:0},end:{line:29,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:1,column:0},end:{line:29,column:3}}
+-- node: <Node id=764 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '710', 'Range': '[62,472]', 'Location': '{start:{line:3,column:2},end:{line:14,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:3,column:2},end:{line:14,column:5}}
+-- node: <Node id=774 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '720', 'Range': '[117,161]', 'Location': '{start:{line:4,column:4},end:{line:4,column:48}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:4,column:4},end:{line:4,column:48}}
+-- node: <Node id=781 labels=frozenset({'ASTNode'}) properties={'Type': 'MemberExpression', 'Id': '727', 'Range': '[170,192]', 'Location': '{start:{line:5,column:8},end:{line:5,column:30}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:5,column:8},end:{line:5,column:30}}
+-- node: <Node id=813 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ForStatement', 'Id': '759', 'Range': '[527,924]', 'Code': '{type:BinaryExpression,operator:<,left:{type:Identifier,name:i,range:[543,544],loc:{start:{line:17,column:20},end:{line:17,column:21}},_id:765},right:{type:MemberExpression,computed:false,object:{type:Identifier,name:elements,range:[547,555],loc:{start:{line:17,column:24},end:{line:17,column:32}},_id:767},property:{type:Identifier,name:length,range:[556,562],loc:{start:{line:17,column:33},end:{line:17,column:39}},_id:768},range:[547,562],loc:{start:{line:17,column:24},end:{line:17,column:39}},_id:766},range:[543,562],loc:{start:{line:17,column:20},end:{line:17,column:39}},_id:764}', 'Location': '{start:{line:17,column:4},end:{line:26,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:17,column:4},end:{line:26,column:5}}
+-- node: <Node id=826 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '772', 'Range': '[577,606]', 'Location': '{start:{line:18,column:6},end:{line:18,column:35}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:18,column:6},end:{line:18,column:35}}
+-- node: <Node id=834 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '780', 'Range': '[613,736]', 'Code': "{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:Identifier,name:element,range:[617,624],loc:{start:{line:19,column:10},end:{line:19,column:17}},_id:783},property:{type:Identifier,name:is,range:[625,627],loc:{start:{line:19,column:18},end:{line:19,column:20}},_id:784},range:[617,627],loc:{start:{line:19,column:10},end:{line:19,column:20}},_id:782},arguments:[{type:Literal,value::input, a, button, [tabindex], [contenteditable=true],raw:':input, a, button, [tabindex], [contenteditable=true]',range:[628,685],loc:{start:{line:19,column:21},end:{line:19,column:78}},_id:785}],range:[617,686],loc:{start:{line:19,column:10},end:{line:19,column:79}},_id:781}", 'Location': '{start:{line:19,column:6},end:{line:21,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:19,column:6},end:{line:21,column:7}}
+-- node: <Node id=843 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '789', 'Range': '[743,817]', 'Location': '{start:{line:22,column:6},end:{line:22,column:80}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:22,column:6},end:{line:22,column:80}}
+-- node: <Node id=785 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '731', 'Range': '[235,315]', 'Location': '{start:{line:7,column:6},end:{line:7,column:86}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:7,column:6},end:{line:7,column:86}}
+-- node: <Node id=797 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '743', 'Range': '[358,387]', 'Location': '{start:{line:9,column:8},end:{line:9,column:37}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:9,column:8},end:{line:9,column:37}}
+-- node: <Node id=859 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '805', 'Range': '[1001,1380]', 'Location': '{start:{line:32,column:0},end:{line:44,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:32,column:0},end:{line:44,column:3}}
+-- node: <Node id=864 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '810', 'Range': '[1018,1058]', 'Location': '{start:{line:33,column:2},end:{line:33,column:42}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:33,column:2},end:{line:33,column:42}}
+-- node: <Node id=870 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '816', 'Range': '[1061,1114]', 'Location': '{start:{line:34,column:2},end:{line:34,column:55}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:34,column:2},end:{line:34,column:55}}
+-- node: <Node id=886 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '832', 'Range': '[1170,1376]', 'Location': '{start:{line:36,column:2},end:{line:43,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:36,column:2},end:{line:43,column:5}}
+-- node: <Node id=878 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '824', 'Range': '[1117,1167]', 'Location': '{start:{line:35,column:2},end:{line:35,column:52}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:35,column:2},end:{line:35,column:52}}
+-- node: <Node id=919 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '865', 'Range': '[1424,3670]', 'Location': '{start:{line:47,column:0},end:{line:120,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:47,column:0},end:{line:120,column:3}}
+-- node: <Node id=924 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '870', 'Range': '[1441,1751]', 'Location': '{start:{line:48,column:2},end:{line:56,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:48,column:2},end:{line:56,column:5}}
+-- node: <Node id=942 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '888', 'Range': '[1564,1614]', 'Location': '{start:{line:51,column:6},end:{line:51,column:56}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:51,column:6},end:{line:51,column:56}}
+-- node: <Node id=952 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '898', 'Range': '[1621,1678]', 'Location': '{start:{line:52,column:6},end:{line:52,column:63}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:52,column:6},end:{line:52,column:63}}
+-- node: <Node id=964 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '910', 'Range': '[1711,1739]', 'Location': '{start:{line:54,column:6},end:{line:54,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:54,column:6},end:{line:54,column:34}}
+-- node: <Node id=970 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '916', 'Range': '[1754,2008]', 'Location': '{start:{line:57,column:2},end:{line:63,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:57,column:2},end:{line:63,column:5}}
+-- node: <Node id=980 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '926', 'Range': '[1833,1883]', 'Location': '{start:{line:59,column:4},end:{line:59,column:54}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:59,column:4},end:{line:59,column:54}}
+-- node: <Node id=990 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '936', 'Range': '[1888,1945]', 'Location': '{start:{line:60,column:4},end:{line:60,column:61}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:60,column:4},end:{line:60,column:61}}
+-- node: <Node id=1002 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '948', 'Range': '[1974,2002]', 'Location': '{start:{line:62,column:4},end:{line:62,column:32}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:62,column:4},end:{line:62,column:32}}
+-- node: <Node id=1008 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '954', 'Range': '[2024,2058]', 'Location': '{start:{line:65,column:2},end:{line:65,column:36}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:65,column:2},end:{line:65,column:36}}
+-- node: <Node id=1014 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '960', 'Range': '[2079,2150]', 'Location': '{start:{line:68,column:2},end:{line:70,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:68,column:2},end:{line:70,column:5}}
+-- node: <Node id=1051 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '997', 'Range': '[2370,2450]', 'Location': '{start:{line:80,column:2},end:{line:82,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:80,column:2},end:{line:82,column:5}}
+-- node: <Node id=1023 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '969', 'Range': '[2124,2144]', 'Location': '{start:{line:69,column:4},end:{line:69,column:24}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:69,column:4},end:{line:69,column:24}}
+-- node: <Node id=1033 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '979', 'Range': '[2231,2288]', 'Location': '{start:{line:75,column:4},end:{line:75,column:61}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:75,column:4},end:{line:75,column:61}}
+-- node: <Node id=1060 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1006', 'Range': '[2414,2444]', 'Location': '{start:{line:81,column:4},end:{line:81,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:81,column:4},end:{line:81,column:34}}
+-- node: <Node id=1068 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1014', 'Range': '[2453,2493]', 'Location': '{start:{line:83,column:2},end:{line:83,column:42}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:83,column:2},end:{line:83,column:42}}
+-- node: <Node id=1074 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1020', 'Range': '[2522,2598]', 'Location': '{start:{line:85,column:2},end:{line:87,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:85,column:2},end:{line:87,column:5}}
+-- node: <Node id=1083 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1029', 'Range': '[2571,2592]', 'Location': '{start:{line:86,column:4},end:{line:86,column:25}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:86,column:4},end:{line:86,column:25}}
+-- node: <Node id=1111 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1057', 'Range': '[2804,3666]', 'Location': '{start:{line:96,column:2},end:{line:119,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:96,column:2},end:{line:119,column:5}}
+-- node: <Node id=1135 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1081', 'Range': '[2948,3232]', 'Code': "{type:UnaryExpression,operator:!,argument:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[2953,2954],loc:{start:{line:99,column:11},end:{line:99,column:12}},_id:1087},arguments:[{type:Identifier,name:activeElement,range:[2955,2968],loc:{start:{line:99,column:13},end:{line:99,column:26}},_id:1088}],range:[2953,2969],loc:{start:{line:99,column:11},end:{line:99,column:27}},_id:1086},property:{type:Identifier,name:closest,range:[2970,2977],loc:{start:{line:99,column:28},end:{line:99,column:35}},_id:1089},range:[2953,2977],loc:{start:{line:99,column:11},end:{line:99,column:35}},_id:1085},arguments:[{type:Literal,value:.tp-soho-nav-box,raw:'.tp-soho-nav-box',range:[2978,2996],loc:{start:{line:99,column:36},end:{line:99,column:54}},_id:1090}],range:[2953,2997],loc:{start:{line:99,column:11},end:{line:99,column:55}},_id:1084},property:{type:Identifier,name:length,range:[2998,3004],loc:{start:{line:99,column:56},end:{line:99,column:62}},_id:1091},range:[2953,3004],loc:{start:{line:99,column:11},end:{line:99,column:62}},_id:1083},prefix:true,range:[2952,3004],loc:{start:{line:99,column:10},end:{line:99,column:62}},_id:1082}", 'Location': '{start:{line:99,column:6},end:{line:106,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:99,column:6},end:{line:106,column:7}}
+-- node: <Node id=1155 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1101', 'Range': '[3072,3115]', 'Location': '{start:{line:102,column:10},end:{line:102,column:53}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:102,column:10},end:{line:102,column:53}}
+-- node: <Node id=1163 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1109', 'Range': '[3139,3232]', 'Code': "{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[3143,3144],loc:{start:{line:104,column:17},end:{line:104,column:18}},_id:1114},arguments:[{type:Identifier,name:activeElement,range:[3145,3158],loc:{start:{line:104,column:19},end:{line:104,column:32}},_id:1115}],range:[3143,3159],loc:{start:{line:104,column:17},end:{line:104,column:33}},_id:1113},property:{type:Identifier,name:closest,range:[3160,3167],loc:{start:{line:104,column:34},end:{line:104,column:41}},_id:1116},range:[3143,3167],loc:{start:{line:104,column:17},end:{line:104,column:41}},_id:1112},arguments:[{type:Literal,value:.tp-soho-nav-box,raw:'.tp-soho-nav-box',range:[3168,3186],loc:{start:{line:104,column:42},end:{line:104,column:60}},_id:1117}],range:[3143,3187],loc:{start:{line:104,column:17},end:{line:104,column:61}},_id:1111},property:{type:Identifier,name:length,range:[3188,3194],loc:{start:{line:104,column:62},end:{line:104,column:68}},_id:1118},range:[3143,3194],loc:{start:{line:104,column:17},end:{line:104,column:68}},_id:1110}", 'Location': '{start:{line:104,column:13},end:{line:106,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:104,column:13},end:{line:106,column:7}}
+-- node: <Node id=1185 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1131', 'Range': '[3319,3384]', 'Location': '{start:{line:109,column:6},end:{line:109,column:71}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:109,column:6},end:{line:109,column:71}}
+-- node: <Node id=1195 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1141', 'Range': '[3391,3419]', 'Location': '{start:{line:110,column:6},end:{line:110,column:34}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:110,column:6},end:{line:110,column:34}}
+-- node: <Node id=1201 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1147', 'Range': '[3426,3463]', 'Location': '{start:{line:111,column:6},end:{line:111,column:43}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:111,column:6},end:{line:111,column:43}}
+-- node: <Node id=1208 labels=frozenset({'ASTNode'}) properties={'Type': 'MemberExpression', 'Id': '1154', 'Range': '[3474,3495]', 'Location': '{start:{line:112,column:10},end:{line:112,column:31}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:112,column:10},end:{line:112,column:31}}
+-- node: <Node id=1212 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1158', 'Range': '[3507,3559]', 'Location': '{start:{line:113,column:8},end:{line:113,column:60}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/6.js
+|- location: {start:{line:113,column:8},end:{line:113,column:60}}
+-- node: <Node id=1263 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1209', 'Range': '[0,2227]', 'Location': '{start:{line:1,column:0},end:{line:56,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:1,column:0},end:{line:56,column:3}}
+-- node: <Node id=1268 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1214', 'Range': '[17,76]', 'Location': '{start:{line:2,column:2},end:{line:2,column:61}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:2,column:2},end:{line:2,column:61}}
+-- node: <Node id=1274 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1220', 'Range': '[79,354]', 'Location': '{start:{line:3,column:2},end:{line:11,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:3,column:2},end:{line:11,column:5}}
+-- node: <Node id=1284 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1230', 'Range': '[150,348]', 'Code': "{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[154,155],loc:{start:{line:4,column:8},end:{line:4,column:9}},_id:1234},arguments:[{type:ThisExpression,range:[156,160],loc:{start:{line:4,column:10},end:{line:4,column:14}},_id:1235}],range:[154,161],loc:{start:{line:4,column:8},end:{line:4,column:15}},_id:1233},property:{type:Identifier,name:hasClass,range:[162,170],loc:{start:{line:4,column:16},end:{line:4,column:24}},_id:1236},range:[154,170],loc:{start:{line:4,column:8},end:{line:4,column:24}},_id:1232},arguments:[{type:Literal,value:active,raw:'active',range:[171,179],loc:{start:{line:4,column:25},end:{line:4,column:33}},_id:1237}],range:[154,180],loc:{start:{line:4,column:8},end:{line:4,column:34}},_id:1231}", 'Location': '{start:{line:4,column:4},end:{line:10,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:4,column:4},end:{line:10,column:5}}
+-- node: <Node id=1293 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1239', 'Range': '[190,220]', 'Location': '{start:{line:5,column:6},end:{line:5,column:36}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:5,column:6},end:{line:5,column:36}}
+-- node: <Node id=1308 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1254', 'Range': '[279,306]', 'Location': '{start:{line:8,column:6},end:{line:8,column:33}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:8,column:6},end:{line:8,column:33}}
+-- node: <Node id=1336 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1282', 'Range': '[422,588]', 'Location': '{start:{line:14,column:6},end:{line:17,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:14,column:6},end:{line:17,column:9}}
+-- node: <Node id=1346 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1292', 'Range': '[501,542]', 'Location': '{start:{line:15,column:8},end:{line:15,column:49}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:15,column:8},end:{line:15,column:49}}
+-- node: <Node id=1357 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1303', 'Range': '[551,578]', 'Location': '{start:{line:16,column:8},end:{line:16,column:35}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:16,column:8},end:{line:16,column:35}}
+-- node: <Node id=1365 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1311', 'Range': '[595,671]', 'Location': '{start:{line:18,column:6},end:{line:18,column:82}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:18,column:6},end:{line:18,column:82}}
+-- node: <Node id=1376 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1322', 'Range': '[695,724]', 'Location': '{start:{line:21,column:4},end:{line:21,column:33}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:21,column:4},end:{line:21,column:33}}
+-- node: <Node id=1382 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1328', 'Range': '[729,770]', 'Location': '{start:{line:22,column:4},end:{line:22,column:45}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:22,column:4},end:{line:22,column:45}}
+-- node: <Node id=1388 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1334', 'Range': '[775,803]', 'Location': '{start:{line:23,column:4},end:{line:23,column:32}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:23,column:4},end:{line:23,column:32}}
+-- node: <Node id=1394 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1340', 'Range': '[808,860]', 'Location': '{start:{line:24,column:4},end:{line:24,column:56}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:24,column:4},end:{line:24,column:56}}
+-- node: <Node id=1400 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1346', 'Range': '[865,1825]', 'Location': '{start:{line:25,column:4},end:{line:42,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:25,column:4},end:{line:42,column:7}}
+-- node: <Node id=1410 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1356', 'Range': '[902,937]', 'Location': '{start:{line:26,column:6},end:{line:26,column:41}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:26,column:6},end:{line:26,column:41}}
+-- node: <Node id=1454 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1400', 'Range': '[1161,1698]', 'Code': '{type:LogicalExpression,operator:&&,left:{type:BinaryExpression,operator:<=,left:{type:Identifier,name:navTop,range:[1165,1171],loc:{start:{line:31,column:10},end:{line:31,column:16}},_id:1403},right:{type:BinaryExpression,operator:+,left:{type:Identifier,name:scroll,range:[1175,1181],loc:{start:{line:31,column:20},end:{line:31,column:26}},_id:1405},right:{type:Identifier,name:navHeight,range:[1184,1193],loc:{start:{line:31,column:29},end:{line:31,column:38}},_id:1406},range:[1175,1193],loc:{start:{line:31,column:20},end:{line:31,column:38}},_id:1404},range:[1165,1193],loc:{start:{line:31,column:10},end:{line:31,column:38}},_id:1402},right:{type:BinaryExpression,operator:>,left:{type:Identifier,name:cotTop,range:[1197,1203],loc:{start:{line:31,column:42},end:{line:31,column:48}},_id:1408},right:{type:BinaryExpression,operator:-,left:{type:BinaryExpression,operator:+,left:{type:Identifier,name:scroll,range:[1206,1212],loc:{start:{line:31,column:51},end:{line:31,column:57}},_id:1411},right:{type:Identifier,name:navHeight,range:[1215,1224],loc:{start:{line:31,column:60},end:{line:31,column:69}},_id:1412},range:[1206,1224],loc:{start:{line:31,column:51},end:{line:31,column:69}},_id:1410},right:{type:Identifier,name:cotHeight,range:[1227,1236],loc:{start:{line:31,column:72},end:{line:31,column:81}},_id:1413},range:[1206,1236],loc:{start:{line:31,column:51},end:{line:31,column:81}},_id:1409},range:[1197,1236],loc:{start:{line:31,column:42},end:{line:31,column:81}},_id:1407},range:[1165,1236],loc:{start:{line:31,column:10},end:{line:31,column:81}},_id:1401}', 'Location': '{start:{line:31,column:6},end:{line:40,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:31,column:6},end:{line:40,column:7}}
+-- node: <Node id=1419 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1365', 'Range': '[944,1016]', 'Location': '{start:{line:27,column:6},end:{line:27,column:78}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:27,column:6},end:{line:27,column:78}}
+-- node: <Node id=1430 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1376', 'Range': '[1023,1073]', 'Location': '{start:{line:28,column:6},end:{line:28,column:56}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:28,column:6},end:{line:28,column:56}}
+-- node: <Node id=1441 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1387', 'Range': '[1080,1129]', 'Location': '{start:{line:29,column:6},end:{line:29,column:55}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:29,column:6},end:{line:29,column:55}}
+-- node: <Node id=1455 labels=frozenset({'ASTNode'}) properties={'Type': 'LogicalExpression', 'Id': '1401', 'Range': '[1165,1236]', 'Code': '&&', 'Location': '{start:{line:31,column:10},end:{line:31,column:81}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:31,column:10},end:{line:31,column:81}}
+-- node: <Node id=1469 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1415', 'Range': '[1248,1496]', 'Code': '{type:BinaryExpression,operator:<,left:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[1252,1253],loc:{start:{line:32,column:12},end:{line:32,column:13}},_id:1422},arguments:[{type:Literal,value:.wifi7-landingpage-navgation .ul-menu,raw:.wifi7-landingpage-navgation .ul-menu,range:[1254,1293],loc:{start:{line:32,column:14},end:{line:32,column:53}},_id:1423}],range:[1252,1294],loc:{start:{line:32,column:12},end:{line:32,column:54}},_id:1421},property:{type:Identifier,name:attr,range:[1295,1299],loc:{start:{line:32,column:55},end:{line:32,column:59}},_id:1424},range:[1252,1299],loc:{start:{line:32,column:12},end:{line:32,column:59}},_id:1420},arguments:[{type:Literal,value:class,raw:class,range:[1300,1307],loc:{start:{line:32,column:60},end:{line:32,column:67}},_id:1425}],range:[1252,1308],loc:{start:{line:32,column:12},end:{line:32,column:68}},_id:1419},property:{type:Identifier,name:indexOf,range:[1309,1316],loc:{start:{line:32,column:69},end:{line:32,column:76}},_id:1426},range:[1252,1316],loc:{start:{line:32,column:12},end:{line:32,column:76}},_id:1418},arguments:[{type:Literal,value:fixed,raw:fixed,range:[1317,1324],loc:{start:{line:32,column:77},end:{line:32,column:84}},_id:1427}],range:[1252,1325],loc:{start:{line:32,column:12},end:{line:32,column:85}},_id:1417},right:{type:Literal,value:0,raw:0,range:[1328,1329],loc:{start:{line:32,column:88},end:{line:32,column:89}},_id:1428},range:[1252,1329],loc:{start:{line:32,column:12},end:{line:32,column:89}},_id:1416}', 'Location': '{start:{line:32,column:8},end:{line:35,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:32,column:8},end:{line:35,column:9}}
+-- node: <Node id=1484 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1430', 'Range': '[1343,1404]', 'Location': '{start:{line:33,column:10},end:{line:33,column:71}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:33,column:10},end:{line:33,column:71}}
+-- node: <Node id=1492 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1438', 'Range': '[1415,1486]', 'Location': '{start:{line:34,column:10},end:{line:34,column:81}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:34,column:10},end:{line:34,column:81}}
+-- node: <Node id=1502 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1448', 'Range': '[1520,1690]', 'Code': '{type:BinaryExpression,operator:>,left:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[1524,1525],loc:{start:{line:37,column:12},end:{line:37,column:13}},_id:1455},arguments:[{type:Literal,value:.wifi7-landingpage-navgation .ul-menu,raw:.wifi7-landingpage-navgation .ul-menu,range:[1526,1565],loc:{start:{line:37,column:14},end:{line:37,column:53}},_id:1456}],range:[1524,1566],loc:{start:{line:37,column:12},end:{line:37,column:54}},_id:1454},property:{type:Identifier,name:attr,range:[1567,1571],loc:{start:{line:37,column:55},end:{line:37,column:59}},_id:1457},range:[1524,1571],loc:{start:{line:37,column:12},end:{line:37,column:59}},_id:1453},arguments:[{type:Literal,value:class,raw:class,range:[1572,1579],loc:{start:{line:37,column:60},end:{line:37,column:67}},_id:1458}],range:[1524,1580],loc:{start:{line:37,column:12},end:{line:37,column:68}},_id:1452},property:{type:Identifier,name:indexOf,range:[1581,1588],loc:{start:{line:37,column:69},end:{line:37,column:76}},_id:1459},range:[1524,1588],loc:{start:{line:37,column:12},end:{line:37,column:76}},_id:1451},arguments:[{type:Literal,value:fixed,raw:fixed,range:[1589,1596],loc:{start:{line:37,column:77},end:{line:37,column:84}},_id:1460}],range:[1524,1597],loc:{start:{line:37,column:12},end:{line:37,column:85}},_id:1450},right:{type:UnaryExpression,operator:-,argument:{type:Literal,value:1,raw:1,range:[1601,1602],loc:{start:{line:37,column:89},end:{line:37,column:90}},_id:1462},prefix:true,range:[1600,1602],loc:{start:{line:37,column:88},end:{line:37,column:90}},_id:1461},range:[1524,1602],loc:{start:{line:37,column:12},end:{line:37,column:90}},_id:1449}', 'Location': '{start:{line:37,column:8},end:{line:39,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:37,column:8},end:{line:39,column:9}}
+-- node: <Node id=1518 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1464', 'Range': '[1616,1680]', 'Location': '{start:{line:38,column:10},end:{line:38,column:74}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:38,column:10},end:{line:38,column:74}}
+-- node: <Node id=1526 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1472', 'Range': '[1705,1817]', 'Location': '{start:{line:41,column:6},end:{line:41,column:118}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:41,column:6},end:{line:41,column:118}}
+-- node: <Node id=1553 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1499', 'Range': '[1894,2139]', 'Location': '{start:{line:46,column:6},end:{line:52,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:46,column:6},end:{line:52,column:9}}
+-- node: <Node id=1562 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1508', 'Range': '[1958,2038]', 'Location': '{start:{line:47,column:8},end:{line:47,column:88}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:47,column:8},end:{line:47,column:88}}
+-- node: <Node id=1589 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1535', 'Range': '[2076,2129]', 'Code': '{type:BinaryExpression,operator:>,left:{type:Identifier,name:temp,range:[2080,2084],loc:{start:{line:49,column:12},end:{line:49,column:16}},_id:1537},right:{type:Literal,value:0,raw:0,range:[2087,2088],loc:{start:{line:49,column:19},end:{line:49,column:20}},_id:1538},range:[2080,2088],loc:{start:{line:49,column:12},end:{line:49,column:20}},_id:1536}', 'Location': '{start:{line:49,column:8},end:{line:51,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:49,column:8},end:{line:51,column:9}}
+-- node: <Node id=1594 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1540', 'Range': '[2102,2119]', 'Location': '{start:{line:50,column:10},end:{line:50,column:27}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:50,column:10},end:{line:50,column:27}}
+-- node: <Node id=1600 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ReturnStatement', 'Id': '1546', 'Range': '[2146,2213]', 'Location': '{start:{line:53,column:6},end:{line:53,column:73}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:53,column:6},end:{line:53,column:73}}
+-- node: <Node id=1610 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1556', 'Range': '[2228,2852]', 'Location': '{start:{line:57,column:0},end:{line:77,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:57,column:0},end:{line:77,column:3}}
+-- node: <Node id=1621 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1567', 'Range': '[2282,2333]', 'Location': '{start:{line:59,column:4},end:{line:59,column:55}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:59,column:4},end:{line:59,column:55}}
+-- node: <Node id=1630 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1576', 'Range': '[2349,2398]', 'Location': '{start:{line:61,column:4},end:{line:61,column:53}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:61,column:4},end:{line:61,column:53}}
+-- node: <Node id=1676 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1622', 'Range': '[2576,2708]', 'Code': '{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[2580,2581],loc:{start:{line:66,column:10},end:{line:66,column:11}},_id:1626},arguments:[{type:ThisExpression,range:[2582,2586],loc:{start:{line:66,column:12},end:{line:66,column:16}},_id:1627}],range:[2580,2587],loc:{start:{line:66,column:10},end:{line:66,column:17}},_id:1625},property:{type:Identifier,name:hasClass,range:[2588,2596],loc:{start:{line:66,column:18},end:{line:66,column:26}},_id:1628},range:[2580,2596],loc:{start:{line:66,column:10},end:{line:66,column:26}},_id:1624},arguments:[{type:Literal,value:active,raw:active,range:[2597,2605],loc:{start:{line:66,column:27},end:{line:66,column:35}},_id:1629}],range:[2580,2606],loc:{start:{line:66,column:10},end:{line:66,column:36}},_id:1623}', 'Location': '{start:{line:66,column:6},end:{line:70,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:66,column:6},end:{line:70,column:7}}
+-- node: <Node id=1685 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1631', 'Range': '[2618,2648]', 'Location': '{start:{line:67,column:8},end:{line:67,column:38}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:67,column:8},end:{line:67,column:38}}
+-- node: <Node id=1697 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1643', 'Range': '[2672,2700]', 'Location': '{start:{line:69,column:8},end:{line:69,column:36}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:69,column:8},end:{line:69,column:36}}
+-- node: <Node id=1708 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1654', 'Range': '[2724,2769]', 'Location': '{start:{line:73,column:2},end:{line:73,column:47}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:73,column:2},end:{line:73,column:47}}
+-- node: <Node id=1718 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1664', 'Range': '[2772,2848]', 'Location': '{start:{line:74,column:2},end:{line:76,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:74,column:2},end:{line:76,column:5}}
+-- node: <Node id=1727 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1673', 'Range': '[2821,2842]', 'Location': '{start:{line:75,column:4},end:{line:75,column:25}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:75,column:4},end:{line:75,column:25}}
+-- node: <Node id=1733 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1679', 'Range': '[2853,5688]', 'Location': '{start:{line:78,column:0},end:{line:162,column:3}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:78,column:0},end:{line:162,column:3}}
+-- node: <Node id=1738 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1684', 'Range': '[2870,2919]', 'Location': '{start:{line:79,column:2},end:{line:79,column:51}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:79,column:2},end:{line:79,column:51}}
+-- node: <Node id=1746 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1692', 'Range': '[2922,2987]', 'Location': '{start:{line:80,column:2},end:{line:80,column:67}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:80,column:2},end:{line:80,column:67}}
+-- node: <Node id=1759 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1705', 'Range': '[3015,3121]', 'Location': '{start:{line:82,column:4},end:{line:85,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:82,column:4},end:{line:85,column:7}}
+-- node: <Node id=1773 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1719', 'Range': '[3126,3263]', 'Location': '{start:{line:86,column:4},end:{line:90,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:86,column:4},end:{line:90,column:7}}
+-- node: <Node id=1790 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1736', 'Range': '[3268,3352]', 'Location': '{start:{line:91,column:4},end:{line:93,column:7}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:91,column:4},end:{line:93,column:7}}
+-- node: <Node id=1802 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1748', 'Range': '[3368,3409]', 'Location': '{start:{line:95,column:4},end:{line:95,column:45}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:95,column:4},end:{line:95,column:45}}
+-- node: <Node id=1808 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1754', 'Range': '[3414,3456]', 'Location': '{start:{line:96,column:4},end:{line:96,column:46}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:96,column:4},end:{line:96,column:46}}
+-- node: <Node id=1816 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1762', 'Range': '[3461,3498]', 'Location': '{start:{line:97,column:4},end:{line:97,column:41}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:97,column:4},end:{line:97,column:41}}
+-- node: <Node id=1822 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1768', 'Range': '[3503,3540]', 'Location': '{start:{line:98,column:4},end:{line:98,column:41}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:98,column:4},end:{line:98,column:41}}
+-- node: <Node id=1830 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1776', 'Range': '[3545,3578]', 'Location': '{start:{line:99,column:4},end:{line:99,column:37}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:99,column:4},end:{line:99,column:37}}
+-- node: <Node id=1838 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1784', 'Range': '[3583,3608]', 'Location': '{start:{line:100,column:4},end:{line:100,column:29}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:100,column:4},end:{line:100,column:29}}
+-- node: <Node id=1846 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1792', 'Range': '[3613,3655]', 'Location': '{start:{line:101,column:4},end:{line:101,column:46}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:101,column:4},end:{line:101,column:46}}
+-- node: <Node id=1854 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1800', 'Range': '[3660,3689]', 'Location': '{start:{line:102,column:4},end:{line:102,column:33}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:102,column:4},end:{line:102,column:33}}
+-- node: <Node id=1862 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1808', 'Range': '[3694,3729]', 'Location': '{start:{line:103,column:4},end:{line:103,column:39}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:103,column:4},end:{line:103,column:39}}
+-- node: <Node id=1870 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1816', 'Range': '[3734,3779]', 'Location': '{start:{line:104,column:4},end:{line:104,column:49}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:104,column:4},end:{line:104,column:49}}
+-- node: <Node id=1878 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'VariableDeclaration', 'Kind': 'var', 'Id': '1824', 'Range': '[3784,3813]', 'Location': '{start:{line:105,column:4},end:{line:105,column:33}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:105,column:4},end:{line:105,column:33}}
+-- node: <Node id=1931 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1877', 'Range': '[4053,4150]', 'Code': "{type:BinaryExpression,operator:>,left:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[4057,4058],loc:{start:{line:113,column:8},end:{line:113,column:9}},_id:1881},arguments:[{type:Literal,value:.product-info-nav,raw:'.product-info-nav',range:[4059,4078],loc:{start:{line:113,column:10},end:{line:113,column:29}},_id:1882}],range:[4057,4079],loc:{start:{line:113,column:8},end:{line:113,column:30}},_id:1880},property:{type:Identifier,name:length,range:[4080,4086],loc:{start:{line:113,column:31},end:{line:113,column:37}},_id:1883},range:[4057,4086],loc:{start:{line:113,column:8},end:{line:113,column:37}},_id:1879},right:{type:Literal,value:0,raw:0,range:[4089,4090],loc:{start:{line:113,column:40},end:{line:113,column:41}},_id:1884},range:[4057,4090],loc:{start:{line:113,column:8},end:{line:113,column:41}},_id:1878}", 'Location': '{start:{line:113,column:4},end:{line:115,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:113,column:4},end:{line:115,column:5}}
+-- node: <Node id=1940 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1886', 'Range': '[4100,4144]', 'Location': '{start:{line:114,column:6},end:{line:114,column:50}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:114,column:6},end:{line:114,column:50}}
+-- node: <Node id=1949 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1895', 'Range': '[4170,4255]', 'Code': "{type:BinaryExpression,operator:>,left:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[4174,4175],loc:{start:{line:117,column:8},end:{line:117,column:9}},_id:1899},arguments:[{type:Literal,value:.sticky-top,raw:'.sticky-top',range:[4176,4189],loc:{start:{line:117,column:10},end:{line:117,column:23}},_id:1900}],range:[4174,4190],loc:{start:{line:117,column:8},end:{line:117,column:24}},_id:1898},property:{type:Identifier,name:length,range:[4191,4197],loc:{start:{line:117,column:25},end:{line:117,column:31}},_id:1901},range:[4174,4197],loc:{start:{line:117,column:8},end:{line:117,column:31}},_id:1897},right:{type:Literal,value:0,raw:0,range:[4200,4201],loc:{start:{line:117,column:34},end:{line:117,column:35}},_id:1902},range:[4174,4201],loc:{start:{line:117,column:8},end:{line:117,column:35}},_id:1896}", 'Location': '{start:{line:117,column:4},end:{line:119,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:117,column:4},end:{line:119,column:5}}
+-- node: <Node id=1958 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1904', 'Range': '[4211,4249]', 'Location': '{start:{line:118,column:6},end:{line:118,column:44}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:118,column:6},end:{line:118,column:44}}
+-- node: <Node id=1967 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '1913', 'Range': '[4278,4355]', 'Code': "{type:BinaryExpression,operator:>,left:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[4282,4283],loc:{start:{line:121,column:8},end:{line:121,column:9}},_id:1917},arguments:[{type:Literal,value:.header,raw:'.header',range:[4284,4293],loc:{start:{line:121,column:10},end:{line:121,column:19}},_id:1918}],range:[4282,4294],loc:{start:{line:121,column:8},end:{line:121,column:20}},_id:1916},property:{type:Identifier,name:length,range:[4295,4301],loc:{start:{line:121,column:21},end:{line:121,column:27}},_id:1919},range:[4282,4301],loc:{start:{line:121,column:8},end:{line:121,column:27}},_id:1915},right:{type:Literal,value:0,raw:0,range:[4304,4305],loc:{start:{line:121,column:30},end:{line:121,column:31}},_id:1920},range:[4282,4305],loc:{start:{line:121,column:8},end:{line:121,column:31}},_id:1914}", 'Location': '{start:{line:121,column:4},end:{line:123,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:121,column:4},end:{line:123,column:5}}
+-- node: <Node id=1976 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '1922', 'Range': '[4315,4349]', 'Location': '{start:{line:122,column:6},end:{line:122,column:40}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:122,column:6},end:{line:122,column:40}}
+-- node: <Node id=2169 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'IfStatement', 'Id': '2115', 'Range': '[5393,5680]', 'Code': '{type:BinaryExpression,operator:>,left:{type:CallExpression,callee:{type:MemberExpression,computed:false,object:{type:CallExpression,callee:{type:Identifier,name:$,range:[5397,5398],loc:{start:{line:149,column:8},end:{line:149,column:9}},_id:2120},arguments:[{type:Identifier,name:window,range:[5399,5405],loc:{start:{line:149,column:10},end:{line:149,column:16}},_id:2121}],range:[5397,5406],loc:{start:{line:149,column:8},end:{line:149,column:17}},_id:2119},property:{type:Identifier,name:width,range:[5407,5412],loc:{start:{line:149,column:18},end:{line:149,column:23}},_id:2122},range:[5397,5412],loc:{start:{line:149,column:8},end:{line:149,column:23}},_id:2118},arguments:[],range:[5397,5414],loc:{start:{line:149,column:8},end:{line:149,column:25}},_id:2117},right:{type:Literal,value:0,raw:0,range:[5417,5418],loc:{start:{line:149,column:28},end:{line:149,column:29}},_id:2123},range:[5397,5418],loc:{start:{line:149,column:8},end:{line:149,column:29}},_id:2116}', 'Location': '{start:{line:149,column:4},end:{line:160,column:5}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:149,column:4},end:{line:160,column:5}}
+-- node: <Node id=2179 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '2125', 'Range': '[5428,5525]', 'Location': '{start:{line:150,column:6},end:{line:153,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:150,column:6},end:{line:153,column:9}}
+-- node: <Node id=2195 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'Id': '2141', 'Range': '[5532,5603]', 'Location': '{start:{line:154,column:6},end:{line:156,column:9}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/8.js
+|- location: {start:{line:154,column:6},end:{line:156,column:9}}
+-- node: <Node id=2218 labels=frozenset({'ASTNode', 'CFGNode'}) properties={'Type': 'ExpressionStatement', 'root': 'true', 'Id': '2164', 'Range': '[0,119]', 'Location': '{start:{line:1,column:0},end:{line:1,column:119}}'}>
+|- match_set: ['$__Identifier_331fc876']
+|- file: /home/ian/JAW4C/JAW4C-JAW/data/240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/9.js
+|- location: {start:{line:1,column:0},end:{line:1,column:119}}
+
+====================================================
+[timestamp] generated on 21/11/2025 04:44:08
+====================================================
+
+[*] NavigationURL: http://240.240.240.240/?target=https%3A%2F%2Fwww.tp-link.com%2Fus%2Flanding%2Fwifi7%2F%3Futm_source%3Dlandingpage%26utm_medium%3Dlaunch_banner%26utm_campaign%3Dwifi7_for_everyone&type=soak
+
+----------------------------------------------------
+[*] Vulnerability Information:
+  - mod: False
+  - libname: jquery
+  - location: $
+  - poc_str: LIBOBJ.ajax({url: PAYLOAD, crossOrigin: true})
+
+====================================================
+[timestamp] generated on 21/11/2025 04:44:08
+====================================================
+
+[*] NavigationURL: http://240.240.240.240/?target=https%3A%2F%2Fwww.tp-link.com%2Fus%2Flanding%2Fwifi7%2F%3Futm_source%3Dlandingpage%26utm_medium%3Dlaunch_banner%26utm_campaign%3Dwifi7_for_everyone&type=soak
+
+----------------------------------------------------
+[*] Vulnerability Information:
+  - mod: False
+  - libname: jquery
+  - location: jQuery
+  - poc_str: LIBOBJ(WILDCARD).html(PAYLOAD)
+
+====================================================
+[timestamp] generated on 21/11/2025 04:44:08
+====================================================
+
+[*] NavigationURL: http://240.240.240.240/?target=https%3A%2F%2Fwww.tp-link.com%2Fus%2Flanding%2Fwifi7%2F%3Futm_source%3Dlandingpage%26utm_medium%3Dlaunch_banner%26utm_campaign%3Dwifi7_for_everyone&type=soak
+
+----------------------------------------------------
+[*] Vulnerability Information:
+  - mod: False
+  - libname: jquery
+  - location: jQuery
+  - poc_str: LIBOBJ.extend(true, {}, PAYLOAD)
+
+====================================================
+[timestamp] generated on 21/11/2025 04:44:08
+====================================================
+
+[*] NavigationURL: http://240.240.240.240/?target=https%3A%2F%2Fwww.tp-link.com%2Fus%2Flanding%2Fwifi7%2F%3Futm_source%3Dlandingpage%26utm_medium%3Dlaunch_banner%26utm_campaign%3Dwifi7_for_everyone&type=soak
+
+----------------------------------------------------
+[*] Vulnerability Information:
+  - mod: False
+  - libname: jquery
+  - location: jQuery
+  - poc_str: LIBOBJ.ajax({url: PAYLOAD, crossOrigin: true})
+
