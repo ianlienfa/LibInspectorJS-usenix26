@@ -63,6 +63,18 @@
                     <input type="checkbox" id="filter-warning-log" onchange="applyFilters()">
                     <span>Has warnings.log</span>
                 </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-reviewed" onchange="applyFilters()">
+                    <span>Reviewed</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-unreviewed" onchange="applyFilters()">
+                    <span>Not Reviewed</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-vulnerable" onchange="applyFilters()">
+                    <span>Marked Vulnerable</span>
+                </label>
                 <button onclick="clearFilters()" class="clear-filters-btn">Clear All Filters</button>
             </div>
             <div class="sort-controls">
@@ -85,6 +97,8 @@
             <% sites.forEach(site => { %>
                 <div class="site-item"
                      data-modified-time="<%= site.modifiedTime %>"
+                     data-reviewed="<%= site.reviewed %>"
+                     data-vulnerable="<%= site.vulnerable %>"
                      data-has-lib-detection="<%= site.hasLibDetection %>"
                      data-has-sink-flows="<%= site.hasSinkFlows %>"
                      data-has-vuln-out="<%= site.hasVulnOut %>"
@@ -117,6 +131,34 @@
                     <div class="site-details" id="details-<%= site.hash %>">
                         <p><strong>Original URL:</strong><br><a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
                         <p><strong>Hash:</strong><br><%= site.hash %></p>
+
+                        <div class="review-section">
+                            <h4>Review Status</h4>
+                            <div class="review-controls">
+                                <label class="review-checkbox">
+                                    <input type="checkbox"
+                                           id="reviewed-<%= site.hash %>"
+                                           <%= site.reviewed ? 'checked' : '' %>
+                                           onchange="updateReview('<%= site.hash %>', 'reviewed', this.checked)">
+                                    <span>Reviewed</span>
+                                </label>
+                                <label class="review-checkbox vulnerable-checkbox">
+                                    <input type="checkbox"
+                                           id="vulnerable-<%= site.hash %>"
+                                           <%= site.vulnerable ? 'checked' : '' %>
+                                           onchange="updateReview('<%= site.hash %>', 'vulnerable', this.checked)">
+                                    <span>Vulnerable</span>
+                                </label>
+                            </div>
+                            <div class="memo-section">
+                                <label for="memo-<%= site.hash %>"><strong>Notes:</strong></label>
+                                <textarea id="memo-<%= site.hash %>"
+                                          class="memo-textarea"
+                                          placeholder="Add your review notes here..."
+                                          onchange="updateReview('<%= site.hash %>', 'memo', this.value)"><%= site.memo %></textarea>
+                            </div>
+                        </div>
+
                         <ul class="file-list">
                             <% site.files.forEach(file => { %>
                                 <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a></li>

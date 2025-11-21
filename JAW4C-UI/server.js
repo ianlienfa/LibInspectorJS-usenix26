@@ -8,10 +8,12 @@ const port = 3001;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
 // --- Constants ---
 const JAW4C_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
+const REVIEW_FILE = path.join(DATA_DIR, 'review.json');
 
 // --- Server-Side Parsing Functions ---
 
@@ -173,6 +175,43 @@ function formatVulnTable(text) {
     return html;
 }
 
+// --- Review Data Management ---
+
+async function loadReviewData() {
+    try {
+        const content = await fs.readFile(REVIEW_FILE, 'utf8');
+
+        // Check if file is empty or only contains whitespace
+        if (!content || content.trim() === '') {
+            console.log('Review file is empty, initializing with empty object');
+            // Initialize the file with an empty JSON object
+            await saveReviewData({});
+            return {};
+        }
+
+        return JSON.parse(content);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // File doesn't exist yet, create it with empty object
+            console.log('Review file does not exist, creating new file');
+            await saveReviewData({});
+            return {};
+        }
+        console.error('Error loading review data:', error);
+        return {};
+    }
+}
+
+async function saveReviewData(reviewData) {
+    try {
+        await fs.writeFile(REVIEW_FILE, JSON.stringify(reviewData, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('Error saving review data:', error);
+        return false;
+    }
+}
+
 // --- Data Fetching and Processing ---
 
 // Helper function to format URL for display
@@ -229,6 +268,9 @@ async function getSiteData() {
         }
         throw err;
     }
+
+    // Load review data
+    const reviewData = await loadReviewData();
 
     const allSitesData = [];
     for (const parentDir of parentDirs) {
@@ -329,8 +371,11 @@ async function getSiteData() {
                 } catch (e) { /* File doesn't exist */ }
             }
 
+            const compositeHash = `${parentDir}/${hash}`;
+            const review = reviewData[compositeHash] || { reviewed: false, vulnerable: false, memo: '' };
+
             allSitesData.push({
-                hash: `${parentDir}/${hash}`, // Use a composite hash for uniqueness
+                hash: compositeHash, // Use a composite hash for uniqueness
                 domain: siteDomain,
                 urlPath: siteUrlPath,
                 originalUrl,
@@ -344,6 +389,9 @@ async function getSiteData() {
                 hasSinkFlows,
                 hasErrorLog,
                 hasWarningLog,
+                reviewed: review.reviewed,
+                vulnerable: review.vulnerable,
+                memo: review.memo,
             });
         }
     }
@@ -420,6 +468,39 @@ app.get('/api/file-content', async (req, res) => {
         });
     } catch (error) {
         res.status(404).json({ error: 'File not found or could not be read.' });
+    }
+});
+
+app.post('/api/update-review', async (req, res) => {
+    const { hash, field, value } = req.body;
+
+    if (!hash || !field) {
+        return res.status(400).json({ error: 'Missing hash or field' });
+    }
+
+    if (!['reviewed', 'vulnerable', 'memo'].includes(field)) {
+        return res.status(400).json({ error: 'Invalid field' });
+    }
+
+    try {
+        const reviewData = await loadReviewData();
+
+        if (!reviewData[hash]) {
+            reviewData[hash] = { reviewed: false, vulnerable: false, memo: '' };
+        }
+
+        reviewData[hash][field] = value;
+
+        const success = await saveReviewData(reviewData);
+
+        if (success) {
+            res.json({ success: true, data: reviewData[hash] });
+        } else {
+            res.status(500).json({ error: 'Failed to save review data' });
+        }
+    } catch (error) {
+        console.error('Error updating review:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

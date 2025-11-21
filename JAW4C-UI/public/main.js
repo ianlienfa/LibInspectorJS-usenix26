@@ -123,6 +123,9 @@ function applyFilters() {
     const filterVulnOut = document.getElementById('filter-vuln-out').checked;
     const filterErrorLog = document.getElementById('filter-error-log').checked;
     const filterWarningLog = document.getElementById('filter-warning-log').checked;
+    const filterReviewed = document.getElementById('filter-reviewed').checked;
+    const filterUnreviewed = document.getElementById('filter-unreviewed').checked;
+    const filterVulnerable = document.getElementById('filter-vulnerable').checked;
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
 
     const siteItems = document.querySelectorAll('.site-item');
@@ -153,6 +156,17 @@ function applyFilters() {
             shouldShow = false;
         }
 
+        // Apply review status filters
+        if (filterReviewed && item.dataset.reviewed !== 'true') {
+            shouldShow = false;
+        }
+        if (filterUnreviewed && item.dataset.reviewed === 'true') {
+            shouldShow = false;
+        }
+        if (filterVulnerable && item.dataset.vulnerable !== 'true') {
+            shouldShow = false;
+        }
+
         // Apply search filter
         if (searchTerm && !item.dataset.searchText.includes(searchTerm)) {
             shouldShow = false;
@@ -178,6 +192,9 @@ function clearFilters() {
     document.getElementById('filter-vuln-out').checked = false;
     document.getElementById('filter-error-log').checked = false;
     document.getElementById('filter-warning-log').checked = false;
+    document.getElementById('filter-reviewed').checked = false;
+    document.getElementById('filter-unreviewed').checked = false;
+    document.getElementById('filter-vulnerable').checked = false;
     document.getElementById('search-input').value = '';
     applyFilters();
 }
@@ -206,6 +223,39 @@ function applySorting() {
 
     // Re-append sorted items
     siteItems.forEach(item => siteList.appendChild(item));
+}
+
+// Review functions
+async function updateReview(hash, field, value) {
+    try {
+        const response = await fetch('/api/update-review', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ hash, field, value }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.success) {
+            // Update the data attribute for filtering
+            const siteItem = document.querySelector(`[data-search-text*="${hash.toLowerCase()}"]`);
+            if (siteItem) {
+                siteItem.dataset[field] = value;
+                // Re-apply filters to update visibility
+                applyFilters();
+            }
+        } else {
+            console.error('Failed to update review');
+        }
+    } catch (error) {
+        console.error('Error updating review:', error);
+        alert('Failed to update review. Please try again.');
+    }
 }
 
 // Initialize visible count and sorting on page load
