@@ -374,13 +374,22 @@ async function getSiteData() {
             let pocMatches = 0;
             const flowsContent = fileContents.get(`${compositeHash}:flows`);
             if (flowsContent) {
-                let matches = flowsContent.match(/[*]] Tags/g);
-                if (matches) {
-                    matches = matches.filter(line => !line.toUpperCase().includes('NON-REACH'));
-                    if (matches && matches.length > 0) {
-                        hasFlows = true;
-                        pocMatches = matches.length;
+                // Split flows by the separator pattern and filter out NON-REACH flows
+                const flowEntries = flowsContent.split(/(?=\[\*\] Tags:)/);
+                const validFlows = flowEntries.filter(entry => {
+                    // Check if this flow entry contains NON-REACH tag
+                    const tagsMatch = entry.match(/\[\*\] Tags:\s*(\[.*?\])/);
+                    if (tagsMatch) {
+                        const tagsStr = tagsMatch[1];
+                        return !tagsStr.toUpperCase().includes('NON-REACH');
                     }
+                    return true; // Keep entries without tags line
+                });
+
+                // Count valid flows (those with Tags line)
+                pocMatches = validFlows.filter(entry => entry.includes('[*] Tags:')).length;
+                if (pocMatches > 0) {
+                    hasFlows = true;
                 }
             }
 
