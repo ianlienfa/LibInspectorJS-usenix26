@@ -375,11 +375,12 @@ async function getSiteData() {
             const flowsContent = fileContents.get(`${compositeHash}:flows`);
             if (flowsContent) {
                 let matches = flowsContent.match(/[*]] Tags/g);
-                matches = matches
-                    .filter(line => !line.toUpperCase().includes('NON-REACH'));
                 if (matches) {
-                    hasFlows = true;
-                    pocMatches = matches.length;
+                    matches = matches.filter(line => !line.toUpperCase().includes('NON-REACH'));
+                    if (matches && matches.length > 0) {
+                        hasFlows = true;
+                        pocMatches = matches.length;
+                    }
                 }
             }
 
@@ -417,11 +418,37 @@ async function getSiteData() {
                 })
             );
 
+            // Check errors.log file size to only show non-empty files
+            let hasErrorLog = false;
+            try {
+                const errorLogPath = path.join(sitePath, 'errors.log');
+                const errorLogStats = await fs.stat(errorLogPath);
+                hasErrorLog = errorLogStats.size > 0;
+            } catch (e) {
+                // File doesn't exist or can't be accessed
+                hasErrorLog = false;
+            }
+
+            // Collect numbered JS files (e.g., 0.js, 1.js, etc., but not *.min.js)
+            let jsFiles = [];
+            try {
+                const allFiles = await fs.readdir(sitePath);
+                jsFiles = allFiles
+                    .filter(file => /^\d+\.js$/.test(file)) // Only [num].js files
+                    .sort((a, b) => {
+                        const numA = parseInt(a.match(/^(\d+)\.js$/)[1]);
+                        const numB = parseInt(b.match(/^(\d+)\.js$/)[1]);
+                        return numA - numB;
+                    });
+            } catch (e) {
+                // Directory read error
+                jsFiles = [];
+            }
+
             const availableFiles = fileExistenceChecks.filter(f => f !== null);
             const hasLibDetection = availableFiles.includes('lib.detection.json');
             const hasVulnOut = availableFiles.includes('vuln.out');
             const hasSinkFlows = availableFiles.includes('sink.flows.out');
-            const hasErrorLog = availableFiles.includes('errors.log');
             const hasWarningLog = availableFiles.includes('warnings.log');
 
             const review = reviewData[compositeHash] || { reviewed: false, vulnerable: false, memo: '' };
@@ -436,6 +463,7 @@ async function getSiteData() {
                 pocMatches,
                 vulnerableLibs,
                 files: availableFiles,
+                jsFiles: jsFiles,
                 hasLibDetection,
                 hasVulnOut,
                 hasSinkFlows,
@@ -611,6 +639,95 @@ app.post('/api/update-review', async (req, res) => {
     } catch (error) {
         console.error('Error updating review:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/search-file-content', async (req, res) => {
+    const { pattern, filePattern, isRegex, caseSensitive } = req.body;
+
+    if (!pattern) {
+        return res.status(400).json({ error: 'Missing search pattern' });
+    }
+
+    try {
+        const matches = [];
+        let regex;
+
+        // Compile the search pattern
+        try {
+            if (isRegex) {
+                regex = new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+            } else {
+                // Escape special regex chars for literal search
+                const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                regex = new RegExp(escapedPattern, caseSensitive ? 'g' : 'gi');
+            }
+        } catch (err) {
+            return res.status(400).json({ error: 'Invalid regex pattern: ' + err.message });
+        }
+
+        // Read all parent directories
+        const parentDirs = await fs.readdir(DATA_DIR);
+
+        // Search through all sites
+        for (const parentDir of parentDirs) {
+            const parentPath = path.join(DATA_DIR, parentDir);
+            const parentStats = await fs.stat(parentPath).catch(() => null);
+            if (!parentStats || !parentStats.isDirectory()) continue;
+
+            const siteHashes = await fs.readdir(parentPath);
+
+            for (const hash of siteHashes) {
+                const sitePath = path.join(parentPath, hash);
+                const siteStats = await fs.stat(sitePath).catch(() => null);
+                if (!siteStats || !siteStats.isDirectory()) continue;
+
+                const compositeHash = `${parentDir}/${hash}`;
+
+                // Get files to search based on pattern
+                const allFiles = await fs.readdir(sitePath);
+                let filesToSearch = [];
+
+                if (filePattern === '*.js') {
+                    // Search numbered JS files only
+                    filesToSearch = allFiles.filter(f => /^\d+\.js$/.test(f));
+                } else if (filePattern.includes('*')) {
+                    // Simple glob matching
+                    const regexPattern = filePattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+                    const fileRegex = new RegExp(`^${regexPattern}$`);
+                    filesToSearch = allFiles.filter(f => fileRegex.test(f));
+                } else {
+                    // Exact file name
+                    if (allFiles.includes(filePattern)) {
+                        filesToSearch = [filePattern];
+                    }
+                }
+
+                // Search in each file
+                for (const file of filesToSearch) {
+                    const filePath = path.join(sitePath, file);
+                    try {
+                        const content = await fs.readFile(filePath, 'utf-8');
+                        if (regex.test(content)) {
+                            matches.push({
+                                hash: compositeHash,
+                                file: file,
+                                sitePath: sitePath
+                            });
+                            break; // Found match in this site, move to next site
+                        }
+                    } catch (err) {
+                        // Skip files that can't be read
+                        continue;
+                    }
+                }
+            }
+        }
+
+        res.json({ matches, count: matches.length });
+    } catch (error) {
+        console.error('File content search error:', error);
+        res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
 });
 

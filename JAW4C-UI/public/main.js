@@ -11,6 +11,19 @@ function toggleDetails(hash) {
     }
 }
 
+function toggleJsFiles(hash) {
+    const dropdown = document.getElementById(`js-files-${hash}`);
+    const icon = document.getElementById(`js-icon-${hash}`);
+
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+        icon.textContent = '▼';
+    } else {
+        dropdown.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
+
 // Store current file data for toggling
 const fileCache = {};
 
@@ -139,6 +152,7 @@ function applyFilters() {
     const filterReviewed = document.getElementById('filter-reviewed').checked;
     const filterUnreviewed = document.getElementById('filter-unreviewed').checked;
     const filterVulnerable = document.getElementById('filter-vulnerable').checked;
+    const filterHasNotes = document.getElementById('filter-has-notes').checked;
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
 
     const siteItems = document.querySelectorAll('.site-item');
@@ -152,19 +166,25 @@ function applyFilters() {
         siteItems.forEach(item => {
             let shouldShow = true;
 
-            // Early exit optimization - combine all checks
-            shouldShow = !(
-                (filterFlows && item.dataset.flows !== '1') ||
-                (filterLibDetection && item.dataset.hasLibDetection !== 'true') ||
-                (filterSinkFlows && item.dataset.hasSinkFlows !== 'true') ||
-                (filterVulnOut && item.dataset.hasVulnOut !== 'true') ||
-                (filterErrorLog && item.dataset.hasErrorLog !== 'true') ||
-                (filterWarningLog && item.dataset.hasWarningLog !== 'true') ||
-                (filterReviewed && item.dataset.reviewed !== 'true') ||
-                (filterUnreviewed && item.dataset.reviewed === 'true') ||
-                (filterVulnerable && item.dataset.vulnerable !== 'true') ||
-                (searchTerm && !item.dataset.searchText.includes(searchTerm))
-            );
+            // For file content search mode, only show matching results
+            if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
+                shouldShow = fileContentSearchResults.has(item.dataset.hash);
+            } else {
+                // Early exit optimization - combine all checks
+                shouldShow = !(
+                    (filterFlows && item.dataset.flows !== '1') ||
+                    (filterLibDetection && item.dataset.hasLibDetection !== 'true') ||
+                    (filterSinkFlows && item.dataset.hasSinkFlows !== 'true') ||
+                    (filterVulnOut && item.dataset.hasVulnOut !== 'true') ||
+                    (filterErrorLog && item.dataset.hasErrorLog !== 'true') ||
+                    (filterWarningLog && item.dataset.hasWarningLog !== 'true') ||
+                    (filterReviewed && item.dataset.reviewed !== 'true') ||
+                    (filterUnreviewed && item.dataset.reviewed === 'true') ||
+                    (filterVulnerable && item.dataset.vulnerable !== 'true') ||
+                    (filterHasNotes && item.dataset.hasNotes !== 'true') ||
+                    (searchTerm && !item.dataset.searchText.includes(searchTerm))
+                );
+            }
 
             // Toggle visibility with class instead of inline style for better performance
             if (shouldShow) {
@@ -180,6 +200,106 @@ function applyFilters() {
     });
 }
 
+// Search mode handling
+let currentSearchMode = 'url';
+let fileContentSearchResults = new Set(); // Store hashes that match file content search
+
+function switchSearchMode() {
+    const mode = document.querySelector('input[name="search-mode"]:checked').value;
+    currentSearchMode = mode;
+
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    const searchOptions = document.getElementById('search-options');
+
+    if (mode === 'content') {
+        // Switch to file content search mode
+        searchInput.placeholder = 'Enter regex pattern to search in files...';
+        searchBtn.style.display = 'inline-block';
+        searchOptions.style.display = 'flex';
+        searchInput.onkeyup = null; // Disable auto-search
+
+        // Add enter key handler
+        searchInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                executeFileContentSearch();
+            }
+        };
+    } else {
+        // Switch to URL/hash search mode
+        searchInput.placeholder = 'Search by URL or hash...';
+        searchBtn.style.display = 'none';
+        searchOptions.style.display = 'none';
+        searchInput.onkeydown = null;
+        searchInput.onkeyup = handleSearchInput;
+
+        // Clear file content search results
+        fileContentSearchResults.clear();
+        applyFilters();
+    }
+}
+
+function handleSearchInput() {
+    if (currentSearchMode === 'url') {
+        debouncedApplyFilters();
+    }
+}
+
+async function executeFileContentSearch() {
+    const pattern = document.getElementById('search-input').value.trim();
+    const filePattern = document.getElementById('file-pattern').value.trim();
+    const isRegex = document.getElementById('regex-mode').checked;
+    const caseSensitive = document.getElementById('case-sensitive').checked;
+
+    if (!pattern) {
+        alert('Please enter a search pattern');
+        return;
+    }
+
+    // Show loading indicator
+    const searchBtn = document.getElementById('search-btn');
+    const originalText = searchBtn.textContent;
+    searchBtn.textContent = 'Searching...';
+    searchBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/search-file-content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                pattern,
+                filePattern,
+                isRegex,
+                caseSensitive
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Store matching hashes
+        fileContentSearchResults = new Set(data.matches.map(m => m.hash));
+
+        // Apply filters to show only matching sites
+        applyFilters();
+
+        // Show results count
+        alert(`Found ${data.matches.length} site(s) with matching content`);
+
+    } catch (error) {
+        console.error('File content search error:', error);
+        alert('Error performing file content search: ' + error.message);
+    } finally {
+        searchBtn.textContent = originalText;
+        searchBtn.disabled = false;
+    }
+}
+
 // Debounced version for search input
 const debouncedApplyFilters = debounce(applyFilters, 300);
 
@@ -193,8 +313,37 @@ function clearFilters() {
     document.getElementById('filter-reviewed').checked = false;
     document.getElementById('filter-unreviewed').checked = false;
     document.getElementById('filter-vulnerable').checked = false;
+    document.getElementById('filter-has-notes').checked = false;
     document.getElementById('search-input').value = '';
     applyFilters();
+}
+
+// View mode switching
+let currentView = 'normal';
+
+function switchView(view) {
+    currentView = view;
+
+    // Update button states
+    document.getElementById('view-normal-btn').classList.toggle('active', view === 'normal');
+    document.getElementById('view-notes-btn').classList.toggle('active', view === 'notes');
+
+    // Toggle inline notes visibility
+    const noteElements = document.querySelectorAll('.site-note-inline');
+    noteElements.forEach(note => {
+        note.style.display = view === 'notes' ? 'block' : 'none';
+    });
+
+    // In notes view, auto-enable the "Has Notes" filter
+    if (view === 'notes') {
+        document.getElementById('filter-has-notes').checked = true;
+        applyFilters();
+    } else if (document.getElementById('filter-has-notes').checked) {
+        // When switching back to normal, keep the filter if it was manually set
+        // Otherwise, turn it off
+        document.getElementById('filter-has-notes').checked = false;
+        applyFilters();
+    }
 }
 
 function applySorting() {
@@ -204,16 +353,42 @@ function applySorting() {
 
     siteItems.sort((a, b) => {
         switch(sortValue) {
+            // Modified Time
             case 'modified-desc':
                 return parseInt(b.dataset.modifiedTime) - parseInt(a.dataset.modifiedTime);
-            case 'name':
+            case 'modified-asc':
+                return parseInt(a.dataset.modifiedTime) - parseInt(b.dataset.modifiedTime);
+
+            // Name
+            case 'name-asc':
                 return a.dataset.name.localeCompare(b.dataset.name);
+            case 'name-desc':
+                return b.dataset.name.localeCompare(a.dataset.name);
+
+            // Flows
             case 'flows-desc':
                 return parseInt(b.dataset.flows) - parseInt(a.dataset.flows);
+            case 'flows-asc':
+                return parseInt(a.dataset.flows) - parseInt(b.dataset.flows);
+
+            // Vulnerable Libraries
             case 'vulns-desc':
                 return parseInt(b.dataset.vulns) - parseInt(a.dataset.vulns);
+            case 'vulns-asc':
+                return parseInt(a.dataset.vulns) - parseInt(b.dataset.vulns);
+
+            // POC Matches
             case 'pocs-desc':
                 return parseInt(b.dataset.pocs) - parseInt(a.dataset.pocs);
+            case 'pocs-asc':
+                return parseInt(a.dataset.pocs) - parseInt(b.dataset.pocs);
+
+            // JS File Count
+            case 'js-count-desc':
+                return parseInt(b.dataset.jsCount) - parseInt(a.dataset.jsCount);
+            case 'js-count-asc':
+                return parseInt(a.dataset.jsCount) - parseInt(b.dataset.jsCount);
+
             default:
                 return 0; // Keep original order
         }

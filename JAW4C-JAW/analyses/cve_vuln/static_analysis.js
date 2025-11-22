@@ -354,6 +354,14 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	let parsingErrors = [];
 	for(let [idx, script] of scripts.entries()){
 		let scriptName = script.name; // '' + idx + '.js';
+		/* DEBUGGING for the libObj problem
+			4.js okay, // 1.js okay, 2.js okay
+		*/
+		// if(!scriptName.endsWith('4.js')){
+		// 	console.log("[static_analysis] skipping script: "+ scriptName);
+		// 	continue;
+		// }
+		/* DEBUGGING for the libObj problem end */
 		console.log(`[static_analysis] [${idx}/${scripts.length}] processing script: ${scriptName}`)
 		let parsingError = await SourceSinkAnalyzerInstance.api.initializeModelsFromSource(scriptName, script.source, constantsModule.LANG.js, do_ast_preprocessing_passes)
 		if(parsingError && parsingError === scriptName){

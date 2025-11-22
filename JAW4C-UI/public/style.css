@@ -166,6 +166,32 @@ header h1 {
     display: none;
 }
 
+/* Inline note display for notes view */
+.site-note-inline {
+    padding: 10px 20px;
+    background-color: var(--bg-blue-light);
+    border-left: 4px solid var(--primary-blue);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.site-note-inline .note-label {
+    font-weight: 600;
+    color: var(--primary-blue);
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.site-note-inline .note-content {
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .site-header {
     padding: 15px 20px;
     cursor: pointer;
@@ -242,6 +268,70 @@ header h1 {
 .file-list a:hover {
     text-decoration: underline;
     background-color: var(--gray-200);
+}
+
+/* JavaScript Files Section */
+.js-files-section {
+    margin-bottom: 15px;
+    background-color: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.js-files-header {
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+    padding: 5px;
+    font-size: 1rem;
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.js-files-header:hover {
+    background-color: var(--gray-200);
+    border-radius: 5px;
+}
+
+.expand-icon-small {
+    display: inline-block;
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+}
+
+.js-files-dropdown {
+    margin-top: 10px;
+}
+
+.js-files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.js-file-link {
+    text-decoration: none;
+    color: var(--primary-blue);
+    background-color: var(--bg-primary);
+    padding: 6px 8px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.85rem;
+    border: 1px solid var(--gray-300);
+    transition: all 0.2s;
+}
+
+.js-file-link:hover {
+    background-color: var(--primary-blue);
+    color: white;
+    border-color: var(--primary-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .file-content-wrapper {
@@ -362,12 +452,47 @@ header h1 {
     background-color: var(--danger-red-dark);
 }
 
+.search-container {
+    margin-bottom: 15px;
+}
+
+.search-mode-selector {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.search-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.search-mode-option:hover {
+    background-color: var(--gray-100);
+}
+
+.search-mode-option input[type="radio"] {
+    cursor: pointer;
+}
+
+.search-mode-option span {
+    font-size: 14px;
+    font-weight: 500;
+}
+
 .search-box {
+    display: flex;
+    gap: 10px;
     margin-bottom: 10px;
 }
 
 .search-box input {
-    width: 100%;
+    flex: 1;
     padding: 10px 15px;
     border: 1px solid var(--gray-300);
     border-radius: 5px;
@@ -380,10 +505,100 @@ header h1 {
     border-color: var(--primary-blue);
 }
 
+.search-execute-btn {
+    padding: 10px 20px;
+    background-color: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.search-execute-btn:hover {
+    background-color: var(--primary-blue-dark);
+}
+
+.search-execute-btn:disabled {
+    background-color: var(--gray-400);
+    cursor: not-allowed;
+}
+
+.search-options {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--gray-100);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.search-options input[type="text"] {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.search-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.search-checkbox input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.search-checkbox span {
+    font-size: 13px;
+    font-weight: 500;
+}
+
 .results-count {
     font-size: 14px;
     color: var(--text-secondary);
     font-weight: 500;
+}
+
+.view-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.view-controls label {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.view-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--gray-300);
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.view-btn:hover {
+    background-color: var(--gray-100);
+    border-color: var(--primary-blue);
+}
+
+.view-btn.active {
+    background-color: var(--primary-blue);
+    color: white;
+    border-color: var(--primary-blue);
 }
 
 .sort-controls {

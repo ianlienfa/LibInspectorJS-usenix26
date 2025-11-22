@@ -35,8 +35,32 @@
         <!-- Filter Controls -->
         <section class="filter-section">
             <h3>Filters & Search</h3>
-            <div class="search-box">
-                <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="debouncedApplyFilters()">
+            <div class="search-container">
+                <div class="search-mode-selector">
+                    <label class="search-mode-option">
+                        <input type="radio" name="search-mode" value="url" checked onchange="switchSearchMode()">
+                        <span>URL/Hash</span>
+                    </label>
+                    <label class="search-mode-option">
+                        <input type="radio" name="search-mode" value="content" onchange="switchSearchMode()">
+                        <span>File Content (Regex)</span>
+                    </label>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="handleSearchInput()">
+                    <button id="search-btn" class="search-execute-btn" style="display: none;" onclick="executeFileContentSearch()">Search</button>
+                </div>
+                <div id="search-options" class="search-options" style="display: none;">
+                    <input type="text" id="file-pattern" placeholder="File pattern (e.g., *.js or 0.js)" value="*.js">
+                    <label class="search-checkbox">
+                        <input type="checkbox" id="regex-mode" checked>
+                        <span>Regex</span>
+                    </label>
+                    <label class="search-checkbox">
+                        <input type="checkbox" id="case-sensitive">
+                        <span>Case Sensitive</span>
+                    </label>
+                </div>
             </div>
             <div class="filter-controls">
                 <label class="filter-checkbox">
@@ -75,17 +99,45 @@
                     <input type="checkbox" id="filter-vulnerable" onchange="applyFilters()">
                     <span>Marked Vulnerable</span>
                 </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-has-notes" onchange="applyFilters()">
+                    <span>Has Notes</span>
+                </label>
                 <button onclick="clearFilters()" class="clear-filters-btn">Clear All Filters</button>
+            </div>
+            <div class="view-controls">
+                <label>View Mode:</label>
+                <button id="view-normal-btn" class="view-btn active" onclick="switchView('normal')">Normal</button>
+                <button id="view-notes-btn" class="view-btn" onclick="switchView('notes')">Notes View</button>
             </div>
             <div class="sort-controls">
                 <label>Sort by:</label>
                 <select id="sort-select" onchange="applySorting()">
                     <option value="default">Default</option>
-                    <option value="modified-desc" selected>Last Modified (Newest First)</option>
-                    <option value="name">Name (A-Z)</option>
-                    <option value="flows-desc">Flows (High to Low)</option>
-                    <option value="vulns-desc">Vulnerable Libraries (High to Low)</option>
-                    <option value="pocs-desc">POC Matches (High to Low)</option>
+                    <optgroup label="Last Modified">
+                        <option value="modified-desc" selected>Newest First</option>
+                        <option value="modified-asc">Oldest First</option>
+                    </optgroup>
+                    <optgroup label="Name">
+                        <option value="name-asc">A-Z</option>
+                        <option value="name-desc">Z-A</option>
+                    </optgroup>
+                    <optgroup label="Flows">
+                        <option value="flows-desc">High to Low</option>
+                        <option value="flows-asc">Low to High</option>
+                    </optgroup>
+                    <optgroup label="Vulnerable Libraries">
+                        <option value="vulns-desc">High to Low</option>
+                        <option value="vulns-asc">Low to High</option>
+                    </optgroup>
+                    <optgroup label="POC Matches">
+                        <option value="pocs-desc">High to Low</option>
+                        <option value="pocs-asc">Low to High</option>
+                    </optgroup>
+                    <optgroup label="JS Files">
+                        <option value="js-count-desc">High to Low</option>
+                        <option value="js-count-asc">Low to High</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="results-count">
@@ -104,11 +156,14 @@
                      data-has-vuln-out="<%= site.hasVulnOut %>"
                      data-has-error-log="<%= site.hasErrorLog %>"
                      data-has-warning-log="<%= site.hasWarningLog %>"
+                     data-has-notes="<%= site.memo && site.memo.trim() ? 'true' : 'false' %>"
                      data-search-text="<%= (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase() %>"
+                     data-hash="<%= site.hash %>"
                      data-name="<%= site.domain %>"
                      data-flows="<%= site.hasFlows ? 1 : 0 %>"
                      data-vulns="<%= site.vulnerableLibs %>"
-                     data-pocs="<%= site.pocMatches %>">
+                     data-pocs="<%= site.pocMatches %>"
+                     data-js-count="<%= site.jsFiles ? site.jsFiles.length : 0 %>">
                     <div class="site-header" onclick="toggleDetails('<%= site.hash %>')">
                         <div class="site-name-wrapper">
                             <div class="site-domain" title="<%= site.originalUrl %>"><%= site.domain %></div>
@@ -128,6 +183,12 @@
                         </div>
                         <span class="expand-icon" id="icon-<%= site.hash %>">+</span>
                     </div>
+                    <% if (site.memo && site.memo.trim()) { %>
+                    <div class="site-note-inline" style="display: none;">
+                        <div class="note-label">📝 Note:</div>
+                        <div class="note-content"><%= site.memo %></div>
+                    </div>
+                    <% } %>
                     <div class="site-details" id="details-<%= site.hash %>">
                         <p><strong>URL:</strong> <a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
                         <p><strong>Hash:</strong> <%= site.hash %></p>
@@ -161,6 +222,23 @@
                             </div>
                         </div>
 
+                        <% if (site.jsFiles && site.jsFiles.length > 0) { %>
+                        <div class="js-files-section">
+                            <h4 class="js-files-header" onclick="toggleJsFiles('<%= site.hash %>')">
+                                <span class="expand-icon-small" id="js-icon-<%= site.hash %>">▶</span>
+                                JavaScript Files (<%= site.jsFiles.length %>)
+                            </h4>
+                            <div class="js-files-dropdown" id="js-files-<%= site.hash %>" style="display: none;">
+                                <div class="js-files-grid">
+                                    <% site.jsFiles.forEach(file => { %>
+                                        <a href="#" class="js-file-link" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a>
+                                    <% }); %>
+                                </div>
+                            </div>
+                        </div>
+                        <% } %>
+
+                        <h4>Analysis Files</h4>
                         <ul class="file-list">
                             <% site.files.forEach(file => { %>
                                 <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a></li>

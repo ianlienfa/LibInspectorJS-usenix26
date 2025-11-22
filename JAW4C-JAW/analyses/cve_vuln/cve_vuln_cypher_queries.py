@@ -1680,7 +1680,7 @@ def getSinkExpression(tx, vuln_info):
 	return res, all_poc_max_levels	
 
 
-def getSinkByTagTainting(tx, vuln_info):
+def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_database={}):
 	"""
 		@param {pointer} tx
 		@param {object} vuln_info, document vuln_info structure
@@ -1694,8 +1694,6 @@ def getSinkByTagTainting(tx, vuln_info):
 			- res {list}: in [CallExpression, ArgumentNode, TopExpressionNode] format
 			- list of poc max level info
 	"""	
-	# stores a map: funcDef id -->> get_function_call_values_of_function_definitions(funcDef)
-	knowledge_database = {} # placed here since the bindings are the same for a single graph
 
 	def pureContentCompare(node, construct):
 		mapping = {'type': 'Type', 'name': 'Code', 'value': 'Value'}
@@ -1799,7 +1797,7 @@ def getSinkByTagTainting(tx, vuln_info):
 				}
 				RETURN DISTINCT(node)
 			"""%(code, code)
-		# logger.debug(f"getCodeMatchInScope query: {query}")
+		logger.debug(f"getCodeMatchInScope query: {query}")
 		res = []
 		results = tx.run(query)
 		res = [record['node'] for record in results]
@@ -1998,6 +1996,8 @@ def getSinkByTagTainting(tx, vuln_info):
 									# '<id>': ['Ident12', 'Lit22']
 									# 'root': ['<id>']		
 								# }
+
+		# Optimization plan: for the same library, avoid propagating taint for the same constructKey and code multiple times
 		visited_set = set()
 
 		def taintPropTilASTTopmost(node, currASTNode, topMost, taintTag, nodeid_to_matches, out_values, context_scope=''):
@@ -2338,7 +2338,7 @@ def getSinkByTagTainting(tx, vuln_info):
 				6	foo(a)			
 				(line 3, 4, 5 and line 1, 2 will be tainted with '32') 
 			"""		
-			# logger.debug(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
+			logger.debug(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
 
 			out_values = []
 			if node['Id'] in visited_set:
@@ -2348,7 +2348,7 @@ def getSinkByTagTainting(tx, vuln_info):
 			# Tag current node
 			if contextNode['Id'] not in nodeid_to_matches:
 				nodeid_to_matches[contextNode['Id']] = set()
-			# logger.debug(f"taintTag: {taintTag}")
+			logger.debug(f"taintTag: {taintTag}")
 			nodeid_to_matches[contextNode['Id']].add(taintTag)			
 
 			# Add a tag to neo4j graph db (DEBUG)
@@ -2368,11 +2368,11 @@ def getSinkByTagTainting(tx, vuln_info):
 			var_full_name = _get_full_member_name(tx, node) # implement getting full var name from node
 			var_root_name = _get_object_name(tx, node) # implement getting var name from node
 			# Add debug print here
-			# logger.debug(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
+			logger.debug(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
 			if var_full_name:
 				taintThroughEdgeProperty(node, contextNode, var_full_name, taintTag, nodeid_to_matches, out_values)
 			# Add debug print here
-			# logger.debug(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
+			logger.debug(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
 			if var_root_name:
 				taintThroughEdgeProperty(node, contextNode, var_root_name, taintTag, nodeid_to_matches, out_values)	
 
@@ -2394,34 +2394,34 @@ def getSinkByTagTainting(tx, vuln_info):
 				for constructKey in level_nodes:
 					# get code of current construct, we skip non-leaf nodes here
 					curr_construct = poc['constructs'][constructKey]
-					code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
-					# logger.debug(f"code: {code}, curr_construct: {curr_construct}")
+					code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None					
 					if 'type' in curr_construct and curr_construct['type'] not in ['Identifier', 'Literal'] or code in constantsModule.POC_PRESERVED:
 						continue  # skip non-leaf nodes, preserved nodes, ex: (LIBOBJ, PAYLOAD, WILDCARD)				
+					logger.debug(f"code: {code}, curr_construct: {curr_construct}")
 					
 					# match leaf nodes in the libObjScope
 					matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
-					# logger.debug(f"codeMatchingNodes of {code}: {matching_nodes}")					
+					logger.debug(f"codeMatchingNodes of {code}: {matching_nodes}")					
 					if not matching_nodes:
-						# logger.debug(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
+						logger.debug(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
 						raise EarlyHaltException(f"curr_construct: {curr_construct}")
 
 					# For each matching node, do construct comparison, if match, do tainting
 					for matchingNode in matching_nodes:
 						if pureContentCompare(matchingNode, curr_construct):
-							# logger.debug(f"Pure content match found for node: {matchingNode} with construct: {curr_construct}")
+							logger.debug(f"Pure content match found for node: {matchingNode} with construct: {curr_construct}")
 							# Debug sleeping
 							context_node = neo4jQueryUtilityModule.get_ast_topmost(tx, matchingNode)
-							# logger.debug(f"context_node found for node: {context_node} ")
+							logger.debug(f"context_node found for node: {context_node} ")
 							try:
 								taintTag = _gen_taint_tag(constructKey, code)
 								nodeid_to_matches = nodeTagTainting(matchingNode, context_node, taintTag)
-								# logger.debug(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
-								# for k, v in nodeid_to_matches.items():									
-								# 	  print(f"nodeid_to_matches [id: {k}] \n - node: {get_node_by_id(tx, k)} \n - value: {v}")
+								logger.debug(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
+								for k, v in nodeid_to_matches.items():									
+									print(f"nodeid_to_matches [id: {k}] \n - node: {get_node_by_id(tx, k)} \n - value: {v}")
 								# breakpoint()  # Debug point after tainting
 							except Exception as e:
-								# print(f"Error in nodeTagTainting: {e}")
+								print(f"Error in nodeTagTainting: {e}")
 								# print traceback
 								traceback.print_exc()
 								# breakpoint()  # Drop into debugger on exception
@@ -2736,7 +2736,7 @@ def run_traversals_simple(tx, vuln_info):
 	return out
 
 
-def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name_of_url='xxx', document_vars=[]):
+def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name_of_url='xxx', document_vars=[], processed_symbols=set(), knowledge_database={}):
 	"""
 	@param {string} navigation_url: base url to test 
 	@param {string} webpage_directory: path to save analyzer template
@@ -2758,7 +2758,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		# breakpoint()  # Debug point before tainting-based sink detection
 		r1, all_poc_max_levels = [], []
 		try:
-			r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info)			
+			r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info, processed_symbols=processed_symbols)			
 		except Exception as e:
 			logger.error(f"Error in getSinkByTagTainting: {e}")			
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
