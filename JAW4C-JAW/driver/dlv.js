@@ -12,10 +12,9 @@ const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOri
 const { Command } = require('commander');
 const { exit } = require('process');
 
-// Import DEBUN library detection
+// DEBUN library detection path
 const debunPath = path.resolve(__dirname, '../../JAW4C-DEBUN');
-const debunLibPath = path.join(debunPath, 'lib-detect.js');
-const { detectLibraries } = require(debunLibPath);
+const debunScriptPath = path.join(debunPath, 'debun.sh');
 
 function createStartCrawlUrl(url) {
   const condition = 'soak';
@@ -29,9 +28,17 @@ function createStartCrawlUrl(url) {
 
 const DEBUN = async (dataDir = "") => {
   // Run DEBUN library detection on original scripts
-  let result = {};
+  let result = {
+    detection: []
+  };
 
   try {
+    // Validate input directory
+    if (!dataDir || typeof dataDir !== 'string') {
+      logger.warn(`Invalid dataDir provided to DEBUN: ${dataDir}`);
+      return result;
+    }
+
     logger.info(`Running DEBUN detection on ${dataDir}`);
 
     // DEBUN expects JavaScript files named as 0.js, 1.js, etc.
@@ -40,10 +47,81 @@ const DEBUN = async (dataDir = "") => {
     // Use the original directory if it exists, otherwise use dataDir
     const scriptsDir = fs.existsSync(originalDir) ? originalDir : dataDir;
 
+    // Check if directory exists
+    if (!fs.existsSync(scriptsDir)) {
+      logger.warn(`Scripts directory does not exist: ${scriptsDir}`);
+      return result;
+    }
+
+    // Check if directory has any JavaScript files
+    const files = fs.readdirSync(scriptsDir);
+    const jsFiles = files.filter(f => f.endsWith('.js'));
+    if (jsFiles.length === 0) {
+      logger.warn(`No JavaScript files found in: ${scriptsDir}`);
+      return result;
+    }
+
     logger.info(`Using scripts directory: ${scriptsDir}`);
 
-    // Use DEBUN library detection
-    const detections = detectLibraries(scriptsDir, { threshold: 0.2 });
+    // Call DEBUN from command line
+    const { execSync } = require('child_process');
+    const debunCommand = `${debunScriptPath} detect --dir "${scriptsDir}"`;
+
+    logger.info(`Executing: ${debunCommand}`);
+
+    let output;
+    try {
+      output = execSync(debunCommand, {
+        cwd: debunPath,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 60000 // 60 second timeout
+      });
+    } catch (execError) {
+      // Handle command execution errors
+      logger.error(`DEBUN command failed: ${execError.message}`);
+      if (execError.stderr) {
+        logger.error(`DEBUN stderr: ${execError.stderr}`);
+      }
+      return result;
+    }
+
+    // Validate output
+    if (!output || typeof output !== 'string') {
+      logger.warn('DEBUN produced no output');
+      return result;
+    }
+
+    // Parse the output to extract detected libraries
+    // Output format is "DETECTED LIBRARIES:\nlibrary@version\nlibrary@version\n..."
+    const lines = output.split('\n');
+    const detectionStartIndex = lines.findIndex(line => line.includes('DETECTED LIBRARIES:'));
+
+    const detections = [];
+    if (detectionStartIndex !== -1) {
+      for (let i = detectionStartIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        // Skip empty lines, loading messages, and error messages
+        if (line &&
+            !line.startsWith('Loading') &&
+            !line.toLowerCase().includes('error') &&
+            !line.toLowerCase().includes('warning')) {
+          // Parse library@version format
+          const match = line.match(/^(.+?)@(.+)$/);
+          if (match) {
+            const library = match[1].trim();
+            const version = match[2].trim();
+            // Validate library name and version
+            if (library && version && library.length > 0 && version.length > 0) {
+              detections.push({
+                libname: library,
+                version: version
+              });
+            }
+          }
+        }
+      }
+    }
 
     logger.info(`DEBUN detected ${detections.length} libraries`);
 
@@ -52,9 +130,12 @@ const DEBUN = async (dataDir = "") => {
     return result;
 
   } catch (error) {
-    logger.error(`Error running DEBUN detection: ${error.message}`);
-    console.error('Stack trace:', error.stack);
-    result.detection = [];
+    // Catch any unexpected errors
+    logger.error(`Unexpected error in DEBUN detection: ${error.message}`);
+    if (error.stack) {
+      logger.error(`Stack trace: ${error.stack}`);
+    }
+    // Always return valid structure
     return result;
   }
 };

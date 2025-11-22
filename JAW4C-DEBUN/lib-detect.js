@@ -7,11 +7,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Use ts-node to import TypeScript modules
-require('ts-node/register');
-
-const fingerprintCollector = require('./src/fingerprint-collector/index.ts').default;
-const { evaluate } = require('./src/debun/phase2/lib-scorer.ts');
+// Import compiled JavaScript modules from dist/
+const fingerprintCollector = require('./dist/fingerprint-collector/index.js').default;
+const { evaluate } = require('./dist/debun/phase2/lib-scorer.js');
 
 /**
  * Detect libraries in a directory of JavaScript files

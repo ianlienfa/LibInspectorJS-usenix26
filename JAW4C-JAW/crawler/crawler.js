@@ -638,11 +638,15 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		let requestUrl = request.url();
 		// filter out data:image urls
 		if (!requestUrl.startsWith('data:image')){
-			let requestHeaders = await request.allHeaders();
-			let requestBody = request.postData();
-			httpRequests[requestUrl] = {
-				'headers': requestHeaders,
-				'postData': requestBody,
+			try {
+				let requestHeaders = await request.allHeaders();
+				let requestBody = request.postData();
+				httpRequests[requestUrl] = {
+					'headers': requestHeaders,
+					'postData': requestBody,
+				}
+			} catch (err) {
+				DEBUG && console.log('[RequestCollectionError]', err);
 			}
 		}
 	});
@@ -654,15 +658,15 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		// redirect browser console log in the browser to node js log
 		BROWSER_LOG && page.on('console', consoleObj => console.log('[BrowserConsole] ' + consoleObj.text()));
 
-		response = await page.goto(url, {waitUntil: 'load', timeout: 60000});
-		await page.waitForTimeout(1000);
-		DEBUG && console.log('[pageLoad] new page loaded successfully');
-
-		// wait for page to load and scripts to be captured
-		DEBUG && console.log('[pageLoad] waiting for 5 seconds.');
-		await page.waitForTimeout(5000);
-
-		DEBUG && console.log('[pageLoadCompleted] new page loaded successfully');
+		try {
+			response = await page.goto(url, {waitUntil: 'load', timeout: 60000});
+			await page.waitForTimeout(1000);
+			DEBUG && console.log('[pageLoad] new page loaded successfully');
+			DEBUG && console.log('[pageLoad] waiting for 5 seconds.');
+			await page.waitForTimeout(5000);
+		} catch (error) {
+			DEBUG && console.log('[pageLoad] error loading new page:', error);
+		}
 
 		frontier.visited.push(url);
 		frontier.unvisited = frontier.unvisited.filter(e => e !== url); // remove visited url from unvisited list
@@ -686,7 +690,6 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 
 		finished = true; // lock scripts for saving
 
-		// console.log("html:", html)
 		const virtualDOM = new JSDOM(html);
 		const scriptTagsDOM = virtualDOM.window.document.querySelectorAll('script')
 		// DEBUG && console.log("scriptTags bf slice", JSON.stringify(scriptTags))		
@@ -792,26 +795,35 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		DEBUG && console.log('[Crawler] Done collecting scripts.');
 
 		// web storage data
-		webStorageData = await page.evaluate( () => {
+		try {
+			webStorageData = await page.evaluate( () => {
 
-			function getWebStorageData() {
-			    let storage = {};
-			    let keys = Object.keys(window.localStorage);
-			    let i = keys.length;
-			    while ( i-- ) {
-			        storage[keys[i]] = window.localStorage.getItem(keys[i]);
-			    }
-			    return storage;
-			}
+				function getWebStorageData() {
+					let storage = {};
+					let keys = Object.keys(window.localStorage);
+					let i = keys.length;
+					while ( i-- ) {
+						storage[keys[i]] = window.localStorage.getItem(keys[i]);
+					}
+					return storage;
+				}
 
-			let webStorageData = getWebStorageData();
-			return webStorageData;
-		});
-		DEBUG && console.log('[Crawler] Done getting webstorages.');
+				let webStorageData = getWebStorageData();
+				return webStorageData;
+			});
+			DEBUG && console.log('[Crawler] Done getting webstorages.');
 
+		} catch (error) {
+			DEBUG && console.log('[WebStorageError] error while getting web storage data');			
+		}
 		// cookies and local storage (Playwright uses context.storageState())
-		cookies = await page.context().storageState();
-		DEBUG && console.log('[Crawler] Done getting cookies.');
+		try {
+			cookies = await page.context().storageState();
+			DEBUG && console.log('[Crawler] Done getting cookies.');
+		}
+		catch (error) {	
+			DEBUG && console.log('[CookieError] error while getting cookies');
+		}
 
 		try{
 			// save the collected data
@@ -820,6 +832,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 			// if(!url.startsWith('http://240.240.240.240/')){
 			// 	url = createStartCrawlUrl(url);
 			// }
+			DEBUG && console.log('[Crawler] started saving page data.');
 			await savePageData(url, html, allScripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled, transform_enabled);
 		}catch(e){
 			DEBUG && console.log('[PageSaveError] error while saving the webpage data');
@@ -936,8 +949,6 @@ async function launch_playwright(headless_mode, additional_args=undefined){
 	// Create temp user data directory for session isolation
 	const userDataDir = fs.mkdtempSync(pathModule.join(os.tmpdir(), 'playwright-'));
 	
-	console.log('additional_args', JSON.stringify(additional_args, 4))
-
 	let options = {
 		channel: 'chromium',
 		bypassCSP: true,

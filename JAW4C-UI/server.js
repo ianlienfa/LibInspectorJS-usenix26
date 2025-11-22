@@ -15,6 +15,12 @@ const JAW4C_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
 const REVIEW_FILE = path.join(DATA_DIR, 'review.json');
 
+// --- Cache Management ---
+const CACHE_TTL = 30000; // 30 seconds cache
+let siteDataCache = null;
+let cacheTimestamp = 0;
+let isUpdatingCache = false;
+
 // --- Server-Side Parsing Functions ---
 
 function escapeHtml(text) {
@@ -214,6 +220,31 @@ async function saveReviewData(reviewData) {
 
 // --- Data Fetching and Processing ---
 
+// Batch file reading with concurrency limit
+async function batchReadFiles(filePaths, concurrency = 10) {
+    const results = new Map();
+    const queue = [...filePaths];
+
+    async function processFile() {
+        while (queue.length > 0) {
+            const { key, path: filePath } = queue.shift();
+            try {
+                const content = await fs.readFile(filePath, 'utf8');
+                results.set(key, content);
+            } catch (e) {
+                results.set(key, null);
+            }
+        }
+    }
+
+    const workers = Array(Math.min(concurrency, filePaths.length))
+        .fill(null)
+        .map(() => processFile());
+
+    await Promise.all(workers);
+    return results;
+}
+
 // Helper function to format URL for display
 function formatUrlForDisplay(url) {
     try {
@@ -272,110 +303,131 @@ async function getSiteData() {
     // Load review data
     const reviewData = await loadReviewData();
 
-    const allSitesData = [];
-    for (const parentDir of parentDirs) {
+    // First pass: collect all site paths in parallel
+    const sitePathsPromises = parentDirs.map(async (parentDir) => {
         const parentPath = path.join(DATA_DIR, parentDir);
-        const parentStats = await fs.stat(parentPath);
-        if (!parentStats.isDirectory()) continue;
+        try {
+            const parentStats = await fs.stat(parentPath);
+            if (!parentStats.isDirectory()) return [];
 
-        const siteHashes = await fs.readdir(parentPath);
-        for (const hash of siteHashes) {
-            const sitePath = path.join(parentPath, hash);
-            const siteStats = await fs.stat(sitePath);
-            if (!siteStats.isDirectory()) continue;
+            const siteHashes = await fs.readdir(parentPath);
+            const validSites = await Promise.all(
+                siteHashes.map(async (hash) => {
+                    const sitePath = path.join(parentPath, hash);
+                    try {
+                        const siteStats = await fs.stat(sitePath);
+                        if (siteStats.isDirectory()) {
+                            return { parentDir, hash, sitePath, modifiedTime: siteStats.mtime.getTime() };
+                        }
+                    } catch (e) {
+                        return null;
+                    }
+                    return null;
+                })
+            );
+            return validSites.filter(s => s !== null);
+        } catch (e) {
+            return [];
+        }
+    });
 
-            // Capture modification time
-            const modifiedTime = siteStats.mtime.getTime();
+    const sitePaths = (await Promise.all(sitePathsPromises)).flat();
 
-            // Read the original URL from url.out
-            let siteDomain = `${parentDir}/${hash}`; // fallback
-            let siteUrlPath = ''; // path component
+    // Prepare batch file reading for all sites
+    const filesToRead = [];
+    sitePaths.forEach(({ sitePath, parentDir, hash }) => {
+        const compositeHash = `${parentDir}/${hash}`;
+        filesToRead.push({ key: `${compositeHash}:url`, path: path.join(sitePath, 'url.out') });
+        filesToRead.push({ key: `${compositeHash}:flows`, path: path.join(sitePath, 'sink.flows.out') });
+        filesToRead.push({ key: `${compositeHash}:vuln`, path: path.join(sitePath, 'vuln.out') });
+    });
+
+    // Batch read all files
+    const fileContents = await batchReadFiles(filesToRead, 20);
+
+    // Process each site with cached file contents
+    const allSitesData = await Promise.all(
+        sitePaths.map(async ({ parentDir, hash, sitePath, modifiedTime }) => {
+            const compositeHash = `${parentDir}/${hash}`;
+
+            // Process URL
+            let siteDomain = compositeHash;
+            let siteUrlPath = '';
             let originalUrl = '';
-            let displayUrl = '';
-            try {
-                const urlContent = await fs.readFile(path.join(sitePath, 'url.out'), 'utf8');
+            const urlContent = fileContents.get(`${compositeHash}:url`);
+            if (urlContent) {
                 const rawUrl = urlContent.trim();
-
-                // Check if this is a proxy URL with a target parameter
                 try {
                     const urlObj = new URL(rawUrl);
                     const targetParam = urlObj.searchParams.get('target');
-                    if (targetParam) {
-                        // Decode the target parameter to get the real URL
-                        displayUrl = decodeURIComponent(targetParam);
-                        originalUrl = displayUrl; // Use the decoded URL as the original
-                    } else {
-                        displayUrl = rawUrl;
-                        originalUrl = rawUrl;
-                    }
+                    originalUrl = targetParam ? decodeURIComponent(targetParam) : rawUrl;
                 } catch (e) {
-                    displayUrl = rawUrl;
                     originalUrl = rawUrl;
                 }
-
                 const formatted = formatUrlForDisplay(rawUrl);
                 siteDomain = formatted.domain;
                 siteUrlPath = formatted.path;
-            } catch (e) {
-                // If url.out doesn't exist, use the fallback
             }
 
-            const flowsFile = path.join(sitePath, 'sink.flows.out');
+            // Process flows
             let hasFlows = false;
             let pocMatches = 0;
-            try {
-                const flowsContent = await fs.readFile(flowsFile, 'utf8');
-                const matches = flowsContent.match(/[*]] Tags/g);
+            const flowsContent = fileContents.get(`${compositeHash}:flows`);
+            if (flowsContent) {
+                let matches = flowsContent.match(/[*]] Tags/g);
+                matches = matches
+                    .filter(line => !line.toUpperCase().includes('NON-REACH'));
                 if (matches) {
                     hasFlows = true;
                     pocMatches = matches.length;
                 }
-            } catch (e) { /* File not found */ }
+            }
 
-            const vulnFile = path.join(sitePath, 'vuln.out');
+            // Process vulnerabilities
             let vulnerableLibs = 0;
-            try {
-                const vulnContent = await fs.readFile(vulnFile, 'utf8');
-                 vulnContent.split('\n').forEach(line => {
-                    if (line) {
-                        const vulnData = JSON.parse(line);
-                        const urlKey = Object.keys(vulnData)[0];
-                        vulnerableLibs += vulnData[urlKey].length;
-                    }
-                });
-            } catch (e) { /* File not found or invalid JSON */ }
+            const vulnContent = fileContents.get(`${compositeHash}:vuln`);
+            if (vulnContent) {
+                try {
+                    vulnContent.split('\n').forEach(line => {
+                        if (line.trim()) {
+                            try {
+                                const vulnData = JSON.parse(line);
+                                const urlKey = Object.keys(vulnData)[0];
+                                vulnerableLibs += vulnData[urlKey].length;
+                            } catch (e) { /* Ignore parse errors */ }
+                        }
+                    });
+                } catch (e) { /* Ignore errors */ }
+            }
 
+            // Check file existence in parallel
             const importantFiles = [
                 'sink.flows.out', 'vuln.out', 'lib.detection.json', 'urls.out',
                 'errors.log', 'warnings.log', 'info.log'
             ];
 
-            let availableFiles = [];
-            let hasLibDetection = false;
-            let hasVulnOut = false;
-            let hasSinkFlows = false;
-            let hasErrorLog = false;
-            let hasWarningLog = false;
+            const fileExistenceChecks = await Promise.all(
+                importantFiles.map(async (file) => {
+                    try {
+                        await fs.access(path.join(sitePath, file));
+                        return file;
+                    } catch (e) {
+                        return null;
+                    }
+                })
+            );
 
-            for (const file of importantFiles) {
-                try {
-                    await fs.access(path.join(sitePath, file));
-                    availableFiles.push(file);
+            const availableFiles = fileExistenceChecks.filter(f => f !== null);
+            const hasLibDetection = availableFiles.includes('lib.detection.json');
+            const hasVulnOut = availableFiles.includes('vuln.out');
+            const hasSinkFlows = availableFiles.includes('sink.flows.out');
+            const hasErrorLog = availableFiles.includes('errors.log');
+            const hasWarningLog = availableFiles.includes('warnings.log');
 
-                    // Track specific files for filtering
-                    if (file === 'lib.detection.json') hasLibDetection = true;
-                    if (file === 'vuln.out') hasVulnOut = true;
-                    if (file === 'sink.flows.out') hasSinkFlows = true;
-                    if (file === 'errors.log') hasErrorLog = true;
-                    if (file === 'warnings.log') hasWarningLog = true;
-                } catch (e) { /* File doesn't exist */ }
-            }
-
-            const compositeHash = `${parentDir}/${hash}`;
             const review = reviewData[compositeHash] || { reviewed: false, vulnerable: false, memo: '' };
 
-            allSitesData.push({
-                hash: compositeHash, // Use a composite hash for uniqueness
+            return {
+                hash: compositeHash,
                 domain: siteDomain,
                 urlPath: siteUrlPath,
                 originalUrl,
@@ -392,9 +444,9 @@ async function getSiteData() {
                 reviewed: review.reviewed,
                 vulnerable: review.vulnerable,
                 memo: review.memo,
-            });
-        }
-    }
+            };
+        })
+    );
 
     const globalStats = {
         sites: allSitesData.length,
@@ -406,16 +458,74 @@ async function getSiteData() {
     return { globalStats, sites: allSitesData };
 }
 
+// Background cache update function
+async function updateCacheInBackground() {
+    if (isUpdatingCache) return;
+
+    isUpdatingCache = true;
+    console.log('[Cache] Updating site data cache in background...');
+
+    try {
+        const data = await getSiteData();
+        siteDataCache = data;
+        cacheTimestamp = Date.now();
+        console.log(`[Cache] Updated with ${data.sites.length} sites`);
+    } catch (error) {
+        console.error('[Cache] Error updating cache:', error);
+    } finally {
+        isUpdatingCache = false;
+    }
+}
+
+// Get cached or fresh data
+async function getCachedSiteData() {
+    const now = Date.now();
+
+    // If cache is fresh, return it immediately
+    if (siteDataCache && (now - cacheTimestamp) < CACHE_TTL) {
+        return siteDataCache;
+    }
+
+    // If cache is stale but exists, return stale data and trigger background update
+    if (siteDataCache && !isUpdatingCache) {
+        console.log('[Cache] Returning stale cache, updating in background');
+        updateCacheInBackground(); // Don't await - update in background
+        return siteDataCache;
+    }
+
+    // No cache exists, wait for fresh data
+    if (!siteDataCache) {
+        console.log('[Cache] No cache exists, fetching fresh data');
+        const data = await getSiteData();
+        siteDataCache = data;
+        cacheTimestamp = now;
+        return data;
+    }
+
+    // Cache update in progress, return stale cache
+    return siteDataCache;
+}
+
 // --- Routes ---
 
 app.get('/', async (req, res) => {
     try {
-        const { globalStats, sites } = await getSiteData();
+        const { globalStats, sites } = await getCachedSiteData();
         const neo4jUrl = 'http://localhost:7474/browser/';
         res.render('index', { globalStats, sites, neo4jUrl });
     } catch (error) {
         console.error('Failed to load site data:', error);
         res.status(500).render('error', { message: 'Failed to load site data.', error });
+    }
+});
+
+// API endpoint to manually trigger cache refresh
+app.post('/api/refresh-cache', async (req, res) => {
+    try {
+        updateCacheInBackground();
+        res.json({ success: true, message: 'Cache refresh triggered' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to trigger cache refresh' });
     }
 });
 
@@ -755,4 +865,15 @@ app.get('/api/vuln-stats', async (req, res) => {
 
 app.listen(port, () => {
     console.log(`JAW4C Read-Only UI listening at http://localhost:${port}`);
+    // Initialize cache in background on startup
+    console.log('[Cache] Initializing cache on startup...');
+    updateCacheInBackground();
 });
+
+// Periodic cache refresh (every 5 minutes)
+setInterval(() => {
+    if (!isUpdatingCache) {
+        console.log('[Cache] Periodic cache refresh triggered');
+        updateCacheInBackground();
+    }
+}, 5 * 60 * 1000);

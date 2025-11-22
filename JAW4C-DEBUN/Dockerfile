@@ -59,6 +59,6 @@ COPY . .
 COPY download-files.sh /download-files.sh
 COPY debun.sh /usr/local/bin/debun
 
-RUN chmod +x /download-files.sh
+# RUN chmod +x /download-files.sh
 RUN chmod +x /usr/local/bin/debun
-RUN /download-files.sh
+# RUN /download-files.sh

@@ -409,7 +409,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 	
 			if config['cve_vuln']["passes"]["static"] and vuln_list:					
-				try:															
+				try:	
 					cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg, debug=static_analysis_debug_mode, all_patterns=all_patterns)
 				except Exception as e:
 					LOGGER.error("Error building node/edges for %s."%(url))

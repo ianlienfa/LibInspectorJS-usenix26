@@ -131,7 +131,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 poc_str: a str that decribes poc
 """
 def get_patterns_from_poc_str(poc_str: str) -> list:
-	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,(){};."\s]', poc_str)))
+	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,(){}:;."\s]', poc_str)))
 	return patterns
 
 def grep_matching_pattern(website_url: str, poc_str: str) -> bool:			

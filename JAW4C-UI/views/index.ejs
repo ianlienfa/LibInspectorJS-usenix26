@@ -17,16 +17,14 @@
             <div class="stat-card stat-card-clickable" onclick="openLibDetectionModal()">
                 <h2><%= globalStats.sites %></h2>
                 <p>Sites Analyzed</p>
-                <span class="click-hint">Click for library stats</span>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="filterSitesWithFlows()">
                 <h2><%= globalStats.sitesWithFlows %></h2>
                 <p>Sites with Flows</p>
             </div>
             <div class="stat-card stat-card-clickable" onclick="openVulnLibModal()">
                 <h2><%= globalStats.vulnerableLibs %></h2>
                 <p>Vulnerable Libraries</p>
-                <span class="click-hint">Click for details</span>
             </div>
             <div class="stat-card">
                 <h2><%= globalStats.pocMatches %></h2>
@@ -38,7 +36,7 @@
         <section class="filter-section">
             <h3>Filters & Search</h3>
             <div class="search-box">
-                <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="applyFilters()">
+                <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="debouncedApplyFilters()">
             </div>
             <div class="filter-controls">
                 <label class="filter-checkbox">

@@ -101,7 +101,7 @@ from utils.utility import get_name_from_url
 # 		# compress the hpg after the model import
 # 		IOModule.compress_graph(webpage)
 
-def neo4j_wait(try_attempt=2):
+def neo4j_wait(try_attempt=3):
 	for _ in range(try_attempt):
 		logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
 		connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
@@ -136,6 +136,7 @@ def build_hpg(container_name, webpage):
 		rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
 		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
 			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')			
+			raise RuntimeError("The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...")
 		
 		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
 		logger.info('waiting 5 seconds for the neo4j container to be ready.')

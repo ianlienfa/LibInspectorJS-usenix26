@@ -77,7 +77,7 @@ class LogFormatter(logging.Formatter):
 
 
 
-logger = logging.getLogger("JAW")
+logger = logging.getLogger("JAW4C")
 logger.setLevel(logging.DEBUG)
 
 ## stdout

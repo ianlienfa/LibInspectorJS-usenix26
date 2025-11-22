@@ -141,21 +141,18 @@ header h1 {
 
 .stat-card-clickable {
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
 }
 
 .stat-card-clickable:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+    background-color: var(--bg-blue-light);
 }
 
-.stat-card-clickable .click-hint {
-    display: block;
-    margin-top: 8px;
-    font-size: 0.75rem;
-    color: var(--primary-blue);
-    font-weight: 500;
-    opacity: 0.8;
+.stat-card-clickable:active {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: var(--shadow-md);
 }
 
 .site-list .site-item {
@@ -163,6 +160,10 @@ header h1 {
     border-radius: 8px;
     margin-bottom: 10px;
     box-shadow: var(--shadow-sm);
+}
+
+.site-list .site-item.hidden {
+    display: none;
 }
 
 .site-header {

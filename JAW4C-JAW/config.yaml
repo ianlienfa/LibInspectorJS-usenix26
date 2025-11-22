@@ -8,7 +8,7 @@ testbed:
   archive: 
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 532
+  from_row: 567
   to_row: end # row number or 'end'
 
 
@@ -78,7 +78,7 @@ staticpass:
   # debug mode (disables isLibrary/isCdn skips, enables node --inspect)
   debug: false
   # timeout for neo4j container transactions in seconds (default: 300)
-  container_transaction_timeout: 300
+  container_transaction_timeout: 420 # 7 min, for tag tainting
   # neo4j instance config
   neo4j_user: neo4j
   neo4j_pass: root

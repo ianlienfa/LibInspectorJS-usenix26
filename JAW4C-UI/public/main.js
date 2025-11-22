@@ -116,6 +116,19 @@ async function toggleView(hash) {
     }
 }
 
+// Debounce function for performance optimization
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 function applyFilters() {
     const filterFlows = document.getElementById('filter-flows').checked;
     const filterLibDetection = document.getElementById('filter-lib-detection').checked;
@@ -131,59 +144,44 @@ function applyFilters() {
     const siteItems = document.querySelectorAll('.site-item');
     let visibleCount = 0;
 
-    siteItems.forEach(item => {
-        let shouldShow = true;
+    // Use requestAnimationFrame for better performance
+    requestAnimationFrame(() => {
+        // Batch DOM updates
+        const fragment = document.createDocumentFragment();
 
-        // Apply flows filter
-        if (filterFlows && item.dataset.flows !== '1') {
-            shouldShow = false;
-        }
+        siteItems.forEach(item => {
+            let shouldShow = true;
 
-        // Apply file existence filters
-        if (filterLibDetection && item.dataset.hasLibDetection !== 'true') {
-            shouldShow = false;
-        }
-        if (filterSinkFlows && item.dataset.hasSinkFlows !== 'true') {
-            shouldShow = false;
-        }
-        if (filterVulnOut && item.dataset.hasVulnOut !== 'true') {
-            shouldShow = false;
-        }
-        if (filterErrorLog && item.dataset.hasErrorLog !== 'true') {
-            shouldShow = false;
-        }
-        if (filterWarningLog && item.dataset.hasWarningLog !== 'true') {
-            shouldShow = false;
-        }
+            // Early exit optimization - combine all checks
+            shouldShow = !(
+                (filterFlows && item.dataset.flows !== '1') ||
+                (filterLibDetection && item.dataset.hasLibDetection !== 'true') ||
+                (filterSinkFlows && item.dataset.hasSinkFlows !== 'true') ||
+                (filterVulnOut && item.dataset.hasVulnOut !== 'true') ||
+                (filterErrorLog && item.dataset.hasErrorLog !== 'true') ||
+                (filterWarningLog && item.dataset.hasWarningLog !== 'true') ||
+                (filterReviewed && item.dataset.reviewed !== 'true') ||
+                (filterUnreviewed && item.dataset.reviewed === 'true') ||
+                (filterVulnerable && item.dataset.vulnerable !== 'true') ||
+                (searchTerm && !item.dataset.searchText.includes(searchTerm))
+            );
 
-        // Apply review status filters
-        if (filterReviewed && item.dataset.reviewed !== 'true') {
-            shouldShow = false;
-        }
-        if (filterUnreviewed && item.dataset.reviewed === 'true') {
-            shouldShow = false;
-        }
-        if (filterVulnerable && item.dataset.vulnerable !== 'true') {
-            shouldShow = false;
-        }
+            // Toggle visibility with class instead of inline style for better performance
+            if (shouldShow) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
 
-        // Apply search filter
-        if (searchTerm && !item.dataset.searchText.includes(searchTerm)) {
-            shouldShow = false;
-        }
-
-        // Show or hide the item
-        if (shouldShow) {
-            item.style.display = '';
-            visibleCount++;
-        } else {
-            item.style.display = 'none';
-        }
+        // Update visible count
+        document.getElementById('visible-count').textContent = visibleCount;
     });
-
-    // Update visible count
-    document.getElementById('visible-count').textContent = visibleCount;
 }
+
+// Debounced version for search input
+const debouncedApplyFilters = debounce(applyFilters, 300);
 
 function clearFilters() {
     document.getElementById('filter-flows').checked = false;
@@ -263,6 +261,17 @@ document.addEventListener('DOMContentLoaded', () => {
     applySorting();
     applyFilters();
 });
+
+// Filter sites with flows when clicking the stat card
+function filterSitesWithFlows() {
+    const filterFlowsCheckbox = document.getElementById('filter-flows');
+    filterFlowsCheckbox.checked = true;
+    applyFilters();
+
+    // Smooth scroll to the filter section
+    const filterSection = document.querySelector('.filter-section');
+    filterSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 // Library Detection Modal Functions
 let libDetectionCharts = {};
