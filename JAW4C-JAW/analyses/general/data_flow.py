@@ -687,7 +687,7 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 		currentNodes = item['resultset'] 
 		
 		for iteratorNode in currentNodes:
-			print('iteratorNode', iteratorNode)
+			# print('iteratorNode', iteratorNode)
 			if iteratorNode['Type'] == 'Program': continue
 
 			if iteratorNode['Type'] == 'BlockStatement': 
@@ -901,7 +901,7 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 				code_expr = context_scope + '  ' + code_expr 
 			out_values.append([code_expr, literals, idents, loc])
 			new_varnames = list(set((list(idents)))) # get unique vars
-			print(f"new_varnames from {code_expr}: {new_varnames}")
+			# print(f"new_varnames from {code_expr}: {new_varnames}")
 
 			# handle `this` expressions
 			if 'ThisExpression' in new_varnames:

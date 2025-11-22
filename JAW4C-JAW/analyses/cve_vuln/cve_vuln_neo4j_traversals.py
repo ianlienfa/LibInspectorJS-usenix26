@@ -204,11 +204,16 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			if not connection_success:
 				raise RuntimeError("connection failure on making query")
 			navigation_url = get_url_for_webpage(webpage)
+
+			# Graph based shared information initialization
+			knowledge_database = {} # stores a map: funcDef id -->> get_function_call_values_of_function_definitions(funcDef)
+			nodeid_to_matches = {}
+			processed_pattern = set()
+
 			for entry_idx, entry in enumerate(vuln_list):
 				try:
 					location, vuln, mod, libname = entry['location'], entry['vuln'], entry['mod'], entry['libname']					
 					poc_set = set()
-					processed_symbols = set() # for the identical graph generated for a single site, we avoid processing the same symbol multiple times
 					for i, v in enumerate(vuln):
 						if v['poc'] in poc_set:
 							logger.info(f'Skipping duplicate poc: {v["poc"]}')
@@ -234,7 +239,11 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f"[{entry_idx+1}/{len(vuln_list)}]-[{i+1}/{len(vuln)}] Starting tainting-based sink detection\n vuln_info:", vuln_info)
 							logger.info(f"{vuln_info}")
 							logger.info("=======================================================================================================")
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, each_webpage, conn_timeout=container_transaction_timeout, processed_symbols=processed_symbols)
+							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, knowledge_database, folder_name_of_url='xxx', document_vars=[]):
+							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, 
+									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, knowledge_database,
+									conn_timeout=container_transaction_timeout)
+																   
 						finally:
 							signal.alarm(0)  # Cancel the alarm
 

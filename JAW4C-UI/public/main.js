@@ -27,8 +27,27 @@ function toggleJsFiles(hash) {
 // Store current file data for toggling
 const fileCache = {};
 
+// Helper function to detect language from file extension
+function detectLanguage(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const languageMap = {
+        'js': 'javascript',
+        'json': 'json',
+        'html': 'markup',
+        'htm': 'markup',
+        'css': 'css',
+        'py': 'python',
+        'txt': 'plaintext',
+        'log': 'plaintext',
+        'out': 'plaintext',
+        'csv': 'plaintext'
+    };
+    return languageMap[ext] || 'plaintext';
+}
+
 async function loadFile(hash, file) {
     const contentEl = document.getElementById(`content-${hash}`);
+    const codeEl = document.getElementById(`code-${hash}`);
     const wrapperEl = document.getElementById(`wrapper-${hash}`);
     const currentFileEl = document.getElementById(`current-file-${hash}`);
     const toggleBtn = document.getElementById(`toggle-${hash}`);
@@ -51,7 +70,7 @@ async function loadFile(hash, file) {
         icon.textContent = '-';
     }
 
-    contentEl.textContent = 'Loading...';
+    codeEl.textContent = 'Loading...';
     wrapperEl.style.display = 'block';
 
     try {
@@ -75,11 +94,22 @@ async function loadFile(hash, file) {
         // Update current file display
         currentFileEl.textContent = file;
 
-        // Display formatted content from server
-        if (data.type === 'html') {
-            contentEl.innerHTML = data.content;
+        // Display content with syntax highlighting
+        if (data.type === 'html' && data.hasTableView) {
+            // For HTML table views, use innerHTML
+            contentEl.classList.remove('line-numbers');
+            codeEl.innerHTML = data.content;
         } else {
-            contentEl.textContent = data.content;
+            // For code files, apply syntax highlighting
+            const language = detectLanguage(file);
+            codeEl.className = `language-${language}`;
+            contentEl.classList.add('line-numbers');
+            codeEl.textContent = data.content;
+
+            // Apply Prism.js syntax highlighting
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightElement(codeEl);
+            }
         }
 
         // Show/hide toggle button
@@ -90,13 +120,14 @@ async function loadFile(hash, file) {
             toggleBtn.style.display = 'none';
         }
     } catch (error) {
-        contentEl.textContent = `Error loading file: ${error.message || error}`;
+        codeEl.textContent = `Error loading file: ${error.message || error}`;
         toggleBtn.style.display = 'none';
     }
 }
 
 async function toggleView(hash) {
     const contentEl = document.getElementById(`content-${hash}`);
+    const codeEl = document.getElementById(`code-${hash}`);
     const currentFileEl = document.getElementById(`current-file-${hash}`);
     const toggleBtn = document.getElementById(`toggle-${hash}`);
 
@@ -111,18 +142,35 @@ async function toggleView(hash) {
         try {
             const response = await fetch(`/api/file-content?hash=${encodeURIComponent(hash)}&file=${encodeURIComponent(file)}&view=raw`);
             const data = await response.json();
-            contentEl.textContent = data.content;
+
+            // For raw view, use plaintext highlighting
+            contentEl.classList.add('line-numbers');
+            codeEl.className = 'language-plaintext';
+            codeEl.textContent = data.content;
+
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightElement(codeEl);
+            }
+
             toggleBtn.textContent = 'Switch to Table View';
             cached.currentView = 'raw';
         } catch (error) {
-            contentEl.textContent = `Error loading raw view: ${error.message}`;
+            codeEl.textContent = `Error loading raw view: ${error.message}`;
         }
     } else {
         // Switch back to formatted view
         if (cached.type === 'html') {
-            contentEl.innerHTML = cached.formattedContent;
+            contentEl.classList.remove('line-numbers');
+            codeEl.innerHTML = cached.formattedContent;
         } else {
-            contentEl.textContent = cached.formattedContent;
+            const language = detectLanguage(file);
+            contentEl.classList.add('line-numbers');
+            codeEl.className = `language-${language}`;
+            codeEl.textContent = cached.formattedContent;
+
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightElement(codeEl);
+            }
         }
         toggleBtn.textContent = 'Switch to Raw View';
         cached.currentView = 'formatted';

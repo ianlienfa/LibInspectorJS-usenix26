@@ -402,6 +402,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					vuln_list = utilityModule.get_unique_nested_list(vuln_list)
 					if not vuln_list:
 						LOGGER.warning("No vuln found, early quitting")
+					LOGGER.info(f"vuln_list for {affiliatedurl}: {json.dumps(vuln_list)}")
 					with open(vuln_info_pathname, 'a') as vuln_fd:
 						LOGGER.info(f"Wring vuln to: {vuln_info_pathname}")
 						json.dump({affiliatedurl: vuln_list}, vuln_fd)

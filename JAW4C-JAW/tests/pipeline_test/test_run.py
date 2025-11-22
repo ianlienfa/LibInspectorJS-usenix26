@@ -211,6 +211,9 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
         config['staticpass'] = {}
     config['staticpass']['keep_docker_alive'] = keep_alive
 
+    # Disable isLibrary/isCdn skips
+    config['staticpass']['debug'] = True
+
     # Override container_transaction_timeout to 3 hours for tests
     config['staticpass']['container_transaction_timeout'] = 10800  # 3 hours in seconds
 

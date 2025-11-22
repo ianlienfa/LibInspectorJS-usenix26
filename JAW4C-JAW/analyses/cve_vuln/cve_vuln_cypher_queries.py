@@ -1148,539 +1148,539 @@ def create_neo4j_indexes(tx):
 
 
 
-def getSinkExpression(tx, vuln_info):
-	"""
-		@param {pointer} tx
-		@param {object} vuln_info, having key: 'module_id', 'identifiers'
-		@return bolt result (t, n, a): where t= top level exp statement, n = callExpression, a=sink argument
-			query for identifying if the vulnerable function is in used
-			params = {'module_id': <>, func_name: '<func_name>'}	
-		@memo currently only searches forward, so make sure that the vuln_id information starts at library object			
-    """	
-	res = []
+# def getSinkExpression(tx, vuln_info):
+# 	"""
+# 		@param {pointer} tx
+# 		@param {object} vuln_info, having key: 'module_id', 'identifiers'
+# 		@return bolt result (t, n, a): where t= top level exp statement, n = callExpression, a=sink argument
+# 			query for identifying if the vulnerable function is in used
+# 			params = {'module_id': <>, func_name: '<func_name>'}	
+# 		@memo currently only searches forward, so make sure that the vuln_id information starts at library object			
+#     """	
+# 	res = []
 
-	def isValueOfProperty(tx, node):
-		query = """
-		MATCH (node {Id: '%s'})<-[:AST_parentOf{RelationType: 'value'}]-(propNode {Type: 'Property'})
-		RETURN propNode
-		"""%(node['Id'])
-		print("query", query)
-		q_res = tx.run(query)
-		iterator = iter(q_res)
-		try:
-			first_item = next(iterator)
-			return True
-		except StopIteration:
-			return False
+# 	def isValueOfProperty(tx, node):
+# 		query = """
+# 		MATCH (node {Id: '%s'})<-[:AST_parentOf{RelationType: 'value'}]-(propNode {Type: 'Property'})
+# 		RETURN propNode
+# 		"""%(node['Id'])
+# 		print("query", query)
+# 		q_res = tx.run(query)
+# 		iterator = iter(q_res)
+# 		try:
+# 			first_item = next(iterator)
+# 			return True
+# 		except StopIteration:
+# 			return False
 
-	def islibraryObject(tx, callExprNode, calleeNode):
-		# check 1. see if the callee is a argument declared in a function declaration
-		# check 2. see if the function declaration is a value of a dict property		
-		initDeclRes = neo4jQueryUtilityModule.getInitialDeclaration(tx, calleeNode)	
-		# should be the one on line 4		
-		if initDeclRes:
-			[declarationNode, initialDeclarationIdentifierNode] = initDeclRes
-			print("declarationNode-", declarationNode)
-			isValue = isValueOfProperty(tx, declarationNode)
-			return isValue
-		return False
+# 	def islibraryObject(tx, callExprNode, calleeNode):
+# 		# check 1. see if the callee is a argument declared in a function declaration
+# 		# check 2. see if the function declaration is a value of a dict property		
+# 		initDeclRes = neo4jQueryUtilityModule.getInitialDeclaration(tx, calleeNode)	
+# 		# should be the one on line 4		
+# 		if initDeclRes:
+# 			[declarationNode, initialDeclarationIdentifierNode] = initDeclRes
+# 			print("declarationNode-", declarationNode)
+# 			isValue = isValueOfProperty(tx, declarationNode)
+# 			return isValue
+# 		return False
 
-	def getTargetCallExpressionAndArg(tx, topExpressionNode, targetIdentifierCode):
-		query = """
-			MATCH (topExpressionNode {Id: '%s'})-[:AST_parentOf|CFG_parentOf*0..]->(callExpressionNode {Type: 'CallExpression'})
-				-[:AST_parentOf {RelationType: 'callee'}]->(memExpressionNode {Type: 'MemberExpression'})
-				-[:AST_parentOf {RelationType: 'property'}]->(targetIdentifierNode {Code: '%s'})
-			OPTIONAL MATCH (callExpressionNode)-[:AST_parentOf {RelationType: 'arguments'}]-(argumentNode {Type: 'Identifier'})
-			RETURN callExpressionNode, argumentNode
-		"""%(topExpressionNode['Id'], targetIdentifierCode)
-		print("getTargetCallExpressionAndArg query: ", query)
-		results = tx.run(query)
-		for record in results:
-			callExpressionNode = record['callExpressionNode']
-			argumentNode = record['argumentNode']
-			return (callExpressionNode, argumentNode)
-		return None	
+# 	def getTargetCallExpressionAndArg(tx, topExpressionNode, targetIdentifierCode):
+# 		query = """
+# 			MATCH (topExpressionNode {Id: '%s'})-[:AST_parentOf|CFG_parentOf*0..]->(callExpressionNode {Type: 'CallExpression'})
+# 				-[:AST_parentOf {RelationType: 'callee'}]->(memExpressionNode {Type: 'MemberExpression'})
+# 				-[:AST_parentOf {RelationType: 'property'}]->(targetIdentifierNode {Code: '%s'})
+# 			OPTIONAL MATCH (callExpressionNode)-[:AST_parentOf {RelationType: 'arguments'}]-(argumentNode {Type: 'Identifier'})
+# 			RETURN callExpressionNode, argumentNode
+# 		"""%(topExpressionNode['Id'], targetIdentifierCode)
+# 		print("getTargetCallExpressionAndArg query: ", query)
+# 		results = tx.run(query)
+# 		for record in results:
+# 			callExpressionNode = record['callExpressionNode']
+# 			argumentNode = record['argumentNode']
+# 			return (callExpressionNode, argumentNode)
+# 		return None	
 	
 
-	def tagInit(poc, pocKey, pocElement, specification = None):
-		"""
-			@description Other than initializing the key elements for a construct, a "fulfilled" tag is added
-			@description fulfilled == None is like bottom, meaning it's still in decision stage
-			@description fulfilled == False/True denotes whether the match succeeds
-			@param {object} poc: the map of poc flattened AST
-			@param {str} pocKey: the key of the pocElement of poc to be init
-			@param {object} pocElement: the object of the pocElement
-			@param {object} specification: extra specification node if were to populate more entries
-			@return {object}: initialized tag			
-		"""	
+# 	def tagInit(poc, pocKey, pocElement, specification = None):
+# 		"""
+# 			@description Other than initializing the key elements for a construct, a "fulfilled" tag is added
+# 			@description fulfilled == None is like bottom, meaning it's still in decision stage
+# 			@description fulfilled == False/True denotes whether the match succeeds
+# 			@param {object} poc: the map of poc flattened AST
+# 			@param {str} pocKey: the key of the pocElement of poc to be init
+# 			@param {object} pocElement: the object of the pocElement
+# 			@param {object} specification: extra specification node if were to populate more entries
+# 			@return {object}: initialized tag			
+# 		"""	
 
-		# initialize tag with False for literal items, 
-		tag = {str(constantsModule.PreservedKeys.FULFILLED): None}
-		for key, val in pocElement.items():
-			if key not in constantsModule.PreservedKeys or key == 'root':
-				if isinstance(val, list):
-					tag[key] = [False if v not in poc['constructs'] else None for v in val]
-				else:
-					if val not in poc['constructs']:
-						# if not a explorable property
-						tag[key] = False
-					else:
-						# 'None' for children
-						tag[key] = None
-		if specification:
-			for key, val in specification.items():
-				tag[key] = val
-		return tag
+# 		# initialize tag with False for literal items, 
+# 		tag = {str(constantsModule.PreservedKeys.FULFILLED): None}
+# 		for key, val in pocElement.items():
+# 			if key not in constantsModule.PreservedKeys or key == 'root':
+# 				if isinstance(val, list):
+# 					tag[key] = [False if v not in poc['constructs'] else None for v in val]
+# 				else:
+# 					if val not in poc['constructs']:
+# 						# if not a explorable property
+# 						tag[key] = False
+# 					else:
+# 						# 'None' for children
+# 						tag[key] = None
+# 		if specification:
+# 			for key, val in specification.items():
+# 				tag[key] = val
+# 		return tag
 
-	def unitPocTagging(node, constructKey, tag):
-		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")
-		# breakpoint()		
-		query = """
-			MATCH (node:ASTNode {Id: '%s'})
-			SET node.%s = '%s'
-			RETURN node
-		"""%(node['Id'], constructKey, json.dumps(tag))
-		res = []
-		results = tx.run(query)			
-		res = [record['node'] for record in results]		
-		return res[0]
+# 	def unitPocTagging(node, constructKey, tag):
+# 		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")
+# 		# breakpoint()		
+# 		query = """
+# 			MATCH (node:ASTNode {Id: '%s'})
+# 			SET node.%s = '%s'
+# 			RETURN node
+# 		"""%(node['Id'], constructKey, json.dumps(tag))
+# 		res = []
+# 		results = tx.run(query)			
+# 		res = [record['node'] for record in results]		
+# 		return res[0]
 
-	def pocTagging(node, constructKey, tag):		
-		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")		
-		identicalObjs, scope = neo4jQueryUtilityModule.getIdenticalObjectInScope(tx, node)
-		# print("identicalObjs of ", getCodeOf(tx, node), [[obj['Id'], obj['Location'], obj['Code']] for obj in identicalObjs])
-		# breakpoint()
-		for matchingNode in identicalObjs: # including itself
-			ret = unitPocTagging(matchingNode, constructKey, tag)
-			print('ret', ret)
-			# print(f"unitPocTagging on {getCodeOf(tx, ret)} with {tag} ({ret})")
-			if not ret:
-				raise RuntimeError(f"POC tagging error on {node} with tag: {tag}")
-			print(f"matchingNode: {matchingNode}")
+# 	def pocTagging(node, constructKey, tag):		
+# 		# print(f"pocTagging on {getCodeOf(tx, node)} with {tag} \n ({node})")		
+# 		identicalObjs, scope = neo4jQueryUtilityModule.getIdenticalObjectInScope(tx, node)
+# 		# print("identicalObjs of ", getCodeOf(tx, node), [[obj['Id'], obj['Location'], obj['Code']] for obj in identicalObjs])
+# 		# breakpoint()
+# 		for matchingNode in identicalObjs: # including itself
+# 			ret = unitPocTagging(matchingNode, constructKey, tag)
+# 			print('ret', ret)
+# 			# print(f"unitPocTagging on {getCodeOf(tx, ret)} with {tag} ({ret})")
+# 			if not ret:
+# 				raise RuntimeError(f"POC tagging error on {node} with tag: {tag}")
+# 			print(f"matchingNode: {matchingNode}")
 
-	def contentCompare(key, node, construct):
-		mapping = {'type': 'Type', 'name': 'Code', 'value': 'Value'}
-		constructVal = str(construct[key])
-		nodeVal = str(node[mapping[key]])
-		# print(f"key: {key}, constructVal: {constructVal}, nodeVal, {nodeVal}")
-		if constructVal not in constantsModule.POC_PRESERVED:			
-			# print(type(nodeVal), type(constructVal))
-			# print(f"{nodeVal} == {constructVal}: {nodeVal == constructVal}")
-			return nodeVal == constructVal
-		else:
-			# todo
-			match constructVal:
-				case 'PAYLOAD':					
-					return True
-				case 'LIBOBJ':
-					return True
-				case 'WILDCARD':
-					return True
-				case _:
-					raise RuntimeError("Not yet implemented")
+# 	def contentCompare(key, node, construct):
+# 		mapping = {'type': 'Type', 'name': 'Code', 'value': 'Value'}
+# 		constructVal = str(construct[key])
+# 		nodeVal = str(node[mapping[key]])
+# 		# print(f"key: {key}, constructVal: {constructVal}, nodeVal, {nodeVal}")
+# 		if constructVal not in constantsModule.POC_PRESERVED:			
+# 			# print(type(nodeVal), type(constructVal))
+# 			# print(f"{nodeVal} == {constructVal}: {nodeVal == constructVal}")
+# 			return nodeVal == constructVal
+# 		else:
+# 			# todo
+# 			match constructVal:
+# 				case 'PAYLOAD':					
+# 					return True
+# 				case 'LIBOBJ':
+# 					return True
+# 				case 'WILDCARD':
+# 					return True
+# 				case _:
+# 					raise RuntimeError("Not yet implemented")
 			
-	def getProperties(node, constructKey):
-		query = """
-			MATCH (node {Id: '%s'})
-			RETURN node
-		"""%(node['Id'])
-		res = []
-		results = tx.run(query)			
-		res = [record['node'] for record in results][0]	
-		print("res: ", res)	
-		return json.loads(res[constructKey]) if constructKey in res else None
+# 	def getProperties(node, constructKey):
+# 		query = """
+# 			MATCH (node {Id: '%s'})
+# 			RETURN node
+# 		"""%(node['Id'])
+# 		res = []
+# 		results = tx.run(query)			
+# 		res = [record['node'] for record in results][0]	
+# 		print("res: ", res)	
+# 		return json.loads(res[constructKey]) if constructKey in res else None
 
-	def getNodeWithASTRelationship(tx, node, relationship, direction="downward"):
-		"""
-			@param {tx} tx
-			@param {object} the node to start grow from
-			@param {str} AST relationship			
-			@return {obj} node
-		"""	
-		if direction == "downward":
-			query = """
-				MATCH (cur {Id: '%s'})-[:AST_parentOf {RelationType: '%s'}]->(node)
-				RETURN node
-			"""%(node['Id'], relationship)
-		else:
-			query = """
-				MATCH (cur {Id: '%s'})<-[:AST_parentOf {RelationType: '%s'}]-(node)
-				RETURN node
-			"""%(node['Id'], relationship)
-		res = []
-		results = tx.run(query)			
-		res = [record['node'] for record in results][0]
-		return res
+# 	def getNodeWithASTRelationship(tx, node, relationship, direction="downward"):
+# 		"""
+# 			@param {tx} tx
+# 			@param {object} the node to start grow from
+# 			@param {str} AST relationship			
+# 			@return {obj} node
+# 		"""	
+# 		if direction == "downward":
+# 			query = """
+# 				MATCH (cur {Id: '%s'})-[:AST_parentOf {RelationType: '%s'}]->(node)
+# 				RETURN node
+# 			"""%(node['Id'], relationship)
+# 		else:
+# 			query = """
+# 				MATCH (cur {Id: '%s'})<-[:AST_parentOf {RelationType: '%s'}]-(node)
+# 				RETURN node
+# 			"""%(node['Id'], relationship)
+# 		res = []
+# 		results = tx.run(query)			
+# 		res = [record['node'] for record in results][0]
+# 		return res
 	
-	def getArgumentNode(tx, node, arg):
-		"""
-			@param {tx} tx
-			@param {object} the node to start grow from
-			@param {str} AST relationship			
-			@return {obj} node
-		"""	
-		query = """
-			MATCH (cur {Id: '%s'})-[:AST_parentOf {Arguments: '{"arg":%s}'}]->(node)
-			RETURN node
-		"""%(node['Id'], arg)
-		res = []
-		results = tx.run(query)					
-		res = [record['node'] for record in results][0]		
-		return res
+# 	def getArgumentNode(tx, node, arg):
+# 		"""
+# 			@param {tx} tx
+# 			@param {object} the node to start grow from
+# 			@param {str} AST relationship			
+# 			@return {obj} node
+# 		"""	
+# 		query = """
+# 			MATCH (cur {Id: '%s'})-[:AST_parentOf {Arguments: '{"arg":%s}'}]->(node)
+# 			RETURN node
+# 		"""%(node['Id'], arg)
+# 		res = []
+# 		results = tx.run(query)					
+# 		res = [record['node'] for record in results][0]		
+# 		return res
 	
-	def getCodeMatchInScope(tx, code, scope):
-		query = """
-			WITH "%s" AS scopeId, "%s" AS code
-			MATCH (scope:ASTNode {Id: scopeId})
-			CALL {
-				WITH scopeId, code
-				MATCH (scope:ASTNode {Id: scopeId})
-				CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node, score
-				WHERE (scope)-[:AST_parentOf*]->(node)
-				AND node.Code = code
-				RETURN node
-				UNION
-				WITH scopeId, code
-				MATCH (scope:ASTNode {Id: scopeId})
-				CALL db.index.fulltext.queryNodes("ast_value", code) YIELD node, score
-				WHERE (scope)-[:AST_parentOf*]->(node)
-				AND node.Value = code
-				RETURN node
-			}
-			RETURN DISTINCT(node)
-		"""%(scope['Id'], code)
-		# logger.debug(f"getCodeMatchInScope query: {query}")
-		# breakpoint()
-		res = []
-		results = tx.run(query)
-		res = [record['node'] for record in results]
-		return res
+# 	def getCodeMatchInScope(tx, code, scope):
+# 		query = """
+# 			WITH "%s" AS scopeId, "%s" AS code
+# 			MATCH (scope:ASTNode {Id: scopeId})
+# 			CALL {
+# 				WITH scopeId, code
+# 				MATCH (scope:ASTNode {Id: scopeId})
+# 				CALL db.index.fulltext.queryNodes("ast_code", code) YIELD node, score
+# 				WHERE (scope)-[:AST_parentOf*]->(node)
+# 				AND node.Code = code
+# 				RETURN node
+# 				UNION
+# 				WITH scopeId, code
+# 				MATCH (scope:ASTNode {Id: scopeId})
+# 				CALL db.index.fulltext.queryNodes("ast_value", code) YIELD node, score
+# 				WHERE (scope)-[:AST_parentOf*]->(node)
+# 				AND node.Value = code
+# 				RETURN node
+# 			}
+# 			RETURN DISTINCT(node)
+# 		"""%(scope['Id'], code)
+# 		# logger.debug(f"getCodeMatchInScope query: {query}")
+# 		# breakpoint()
+# 		res = []
+# 		results = tx.run(query)
+# 		res = [record['node'] for record in results]
+# 		return res
 	
-	def getNodeFromTagName(tx, tag):
-		query = """
-			MATCH (node)
-			WHERE node.%s IS NOT NULL
-			RETURN node
-		"""%(tag)
-		print("getNodeFromTagName query", query)
-		res = []
-		results = tx.run(query)			
-		res = [record['node'] for record in results]
-		return res
+# 	def getNodeFromTagName(tx, tag):
+# 		query = """
+# 			MATCH (node)
+# 			WHERE node.%s IS NOT NULL
+# 			RETURN node
+# 		"""%(tag)
+# 		print("getNodeFromTagName query", query)
+# 		res = []
+# 		results = tx.run(query)			
+# 		res = [record['node'] for record in results]
+# 		return res
 
-	# To be tested
-	def getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc):
-		# get member node tags
-		res = set()
-		for key, prop in curr_construct.items():
-			# build search list, typically there's only one element, but for arguments there's multiple
-			search_list = []
-			if not isinstance(prop, list):
-				if prop not in poc:
-					continue
-				else: 
-					search_list.append(prop)
-			if key == 'arguments':
-				search_list += prop
+# 	# To be tested
+# 	def getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc):
+# 		# get member node tags
+# 		res = set()
+# 		for key, prop in curr_construct.items():
+# 			# build search list, typically there's only one element, but for arguments there's multiple
+# 			search_list = []
+# 			if not isinstance(prop, list):
+# 				if prop not in poc:
+# 					continue
+# 				else: 
+# 					search_list.append(prop)
+# 			if key == 'arguments':
+# 				search_list += prop
 			
-			# iterate query through search list
-			while len(search_list):
-				key_from_search_list = search_list.pop()
-				query = """
-					MATCH (node)<-[:AST_parentOf*]-(scope {Id:'%s'})
-					WHERE node.%s IS NOT NULL
-					MATCH (parent)-[:AST_parentOf]->(node)
-					RETURN DISTINCT(parent)
-				"""%(libObjScope['Id'], key_from_search_list)
-				print("getPotentialNodeFromTaggedNode query", query)
-				results = tx.run(query)			
-				res.update([record['parent'] for record in results])
-		return list(res)
+# 			# iterate query through search list
+# 			while len(search_list):
+# 				key_from_search_list = search_list.pop()
+# 				query = """
+# 					MATCH (node)<-[:AST_parentOf*]-(scope {Id:'%s'})
+# 					WHERE node.%s IS NOT NULL
+# 					MATCH (parent)-[:AST_parentOf]->(node)
+# 					RETURN DISTINCT(parent)
+# 				"""%(libObjScope['Id'], key_from_search_list)
+# 				print("getPotentialNodeFromTaggedNode query", query)
+# 				results = tx.run(query)			
+# 				res.update([record['parent'] for record in results])
+# 		return list(res)
 			
 
 		
 
-		# add the parents of these node with these tags to candidate
+# 		# add the parents of these node with these tags to candidate
 
-		# return list of candidate ids
+# 		# return list of candidate ids
 
 	
-	def nodeMatching(poc, constructKey, node):
-		"""
-			@param {the flattened poc map} poc
-			@param {str} the construct key to compare with
-			@param {object} the node to compare with
-			@return {bool} match or not
-			@description  simply does matching between the given node and the construct, if the current node is unfilled, traverse downward				
-			@description  invariant: the nodeMatching must return true or false given a node and would be correct is traverse in bottom up poc tree traversal fashion
-		"""
-		def property_invariance_check(props):
-			boolean_collector = True
-			if isinstance(props, dict): 
-				for key, prop in props.items():					
-					boolean_collector &= property_invariance_check(prop)
-			elif isinstance(props, list):
-				for prop in props:
-					boolean_collector &= property_invariance_check(prop)
-			elif props is None:
-				return False
-			elif props == True or props == False:				
-				return props
-			else:
-				raise RuntimeError(f"not implemented case, {props}")
-			return boolean_collector
-		construct = poc['constructs'][constructKey] 
-		props = getProperties(node, constructKey)
-		if props is None:
-			# tagInit 
-			props = tagInit(poc, constructKey, construct)
-		else:
-			if props[constantsModule.PreservedKeys.FULFILLED] == True:
-				return True
-			if props[constantsModule.PreservedKeys.FULFILLED] == False:
-				print(f"Visited, no match")
-				return False
+# 	def nodeMatching(poc, constructKey, node):
+# 		"""
+# 			@param {the flattened poc map} poc
+# 			@param {str} the construct key to compare with
+# 			@param {object} the node to compare with
+# 			@return {bool} match or not
+# 			@description  simply does matching between the given node and the construct, if the current node is unfilled, traverse downward				
+# 			@description  invariant: the nodeMatching must return true or false given a node and would be correct is traverse in bottom up poc tree traversal fashion
+# 		"""
+# 		def property_invariance_check(props):
+# 			boolean_collector = True
+# 			if isinstance(props, dict): 
+# 				for key, prop in props.items():					
+# 					boolean_collector &= property_invariance_check(prop)
+# 			elif isinstance(props, list):
+# 				for prop in props:
+# 					boolean_collector &= property_invariance_check(prop)
+# 			elif props is None:
+# 				return False
+# 			elif props == True or props == False:				
+# 				return props
+# 			else:
+# 				raise RuntimeError(f"not implemented case, {props}")
+# 			return boolean_collector
+# 		construct = poc['constructs'][constructKey] 
+# 		props = getProperties(node, constructKey)
+# 		if props is None:
+# 			# tagInit 
+# 			props = tagInit(poc, constructKey, construct)
+# 		else:
+# 			if props[constantsModule.PreservedKeys.FULFILLED] == True:
+# 				return True
+# 			if props[constantsModule.PreservedKeys.FULFILLED] == False:
+# 				print(f"Visited, no match")
+# 				return False
 
-		# not visited before
-		# if 'root' in props:
-		# 	print("root found")
-		# 	breakpoint()
-		try:
-			for key, prop in props.items():
-				# root mark is solely for marking, not considered a part of content
-				if key in constantsModule.PreservedKeys:
-					continue
+# 		# not visited before
+# 		# if 'root' in props:
+# 		# 	print("root found")
+# 		# 	breakpoint()
+# 		try:
+# 			for key, prop in props.items():
+# 				# root mark is solely for marking, not considered a part of content
+# 				if key in constantsModule.PreservedKeys:
+# 					continue
 
-				# prop = False: non-explorable prop (ex: str), None: explorable prop, True: fulfilled
-				if not isinstance(prop, list):	
-					if prop == False:					
-						if contentCompare(key, node, construct) == False:
-							print("1 early halt on", key, node, construct)
-							raise EarlyHaltException
-						else:
-							props[key] = True
-					elif prop is None:
-						# test if children has filled
-						relationShipNode = getNodeWithASTRelationship(tx, node, key, direction="downward")
-						match = nodeMatching(poc, construct[key], relationShipNode)						
-						print("2 early halt on", key, node, construct)
-						if match == False:
-							print("here at fail AST matching")
-							raise EarlyHaltException # Early halt, else continue on checking other stuffs
-						else:
-							props[key] = True
-					else: # prop == True, meaning previous matches already tested
-						continue
-				else:
-					for i in range(len(prop)):
-						p = prop[i]
-						if p == False:
-							# This isn't some case we've seen: where p must be a non-explorable item
-							# in some sense this case should have been avoided during POC generation?
-							# ex: func(a, 'b')
-							if contentCompare(key, node, construct) == False:
-								print("1 early halt on", key, node, construct)
-								raise EarlyHaltException
-							else:
-								props[i][key] = True
-						elif p is None:
-							# if 'root' in props and key == 'arguments':
-							# 	breakpoint()
-							if key == "arguments":
-								relationShipNode = getArgumentNode(tx, node, i)
-								match = nodeMatching(poc, construct[key][i], relationShipNode)						
-								if match:
-									props[key][i] = True
-								else:
-									raise EarlyHaltException
-							else:
-								raise RuntimeError(f"not implemented case, list with type {key}")
-						else:
-							continue
-		except EarlyHaltException:
-			# tag fulfill to false
-			print(f"No match, early halted at {node}, {constructKey}")
-			props[constantsModule.PreservedKeys.FULFILLED] = False
-			pocTagging(node, constructKey, props)
-			return False
+# 				# prop = False: non-explorable prop (ex: str), None: explorable prop, True: fulfilled
+# 				if not isinstance(prop, list):	
+# 					if prop == False:					
+# 						if contentCompare(key, node, construct) == False:
+# 							print("1 early halt on", key, node, construct)
+# 							raise EarlyHaltException
+# 						else:
+# 							props[key] = True
+# 					elif prop is None:
+# 						# test if children has filled
+# 						relationShipNode = getNodeWithASTRelationship(tx, node, key, direction="downward")
+# 						match = nodeMatching(poc, construct[key], relationShipNode)						
+# 						print("2 early halt on", key, node, construct)
+# 						if match == False:
+# 							print("here at fail AST matching")
+# 							raise EarlyHaltException # Early halt, else continue on checking other stuffs
+# 						else:
+# 							props[key] = True
+# 					else: # prop == True, meaning previous matches already tested
+# 						continue
+# 				else:
+# 					for i in range(len(prop)):
+# 						p = prop[i]
+# 						if p == False:
+# 							# This isn't some case we've seen: where p must be a non-explorable item
+# 							# in some sense this case should have been avoided during POC generation?
+# 							# ex: func(a, 'b')
+# 							if contentCompare(key, node, construct) == False:
+# 								print("1 early halt on", key, node, construct)
+# 								raise EarlyHaltException
+# 							else:
+# 								props[i][key] = True
+# 						elif p is None:
+# 							# if 'root' in props and key == 'arguments':
+# 							# 	breakpoint()
+# 							if key == "arguments":
+# 								relationShipNode = getArgumentNode(tx, node, i)
+# 								match = nodeMatching(poc, construct[key][i], relationShipNode)						
+# 								if match:
+# 									props[key][i] = True
+# 								else:
+# 									raise EarlyHaltException
+# 							else:
+# 								raise RuntimeError(f"not implemented case, list with type {key}")
+# 						else:
+# 							continue
+# 		except EarlyHaltException:
+# 			# tag fulfill to false
+# 			print(f"No match, early halted at {node}, {constructKey}")
+# 			props[constantsModule.PreservedKeys.FULFILLED] = False
+# 			pocTagging(node, constructKey, props)
+# 			return False
 		
-		props[constantsModule.PreservedKeys.FULFILLED] = True
-		if constantsModule.PreservedKeys.ROOT in props:
-			props[constantsModule.PreservedKeys.ROOT] = True
-		pocTagging(node, constructKey, props)
-		# assertion: invariant, node matching should always be able to determine True or False once returned
-		if not property_invariance_check(props):
-			raise RuntimeError(f"Invariant not hold: {props}")
+# 		props[constantsModule.PreservedKeys.FULFILLED] = True
+# 		if constantsModule.PreservedKeys.ROOT in props:
+# 			props[constantsModule.PreservedKeys.ROOT] = True
+# 		pocTagging(node, constructKey, props)
+# 		# assertion: invariant, node matching should always be able to determine True or False once returned
+# 		if not property_invariance_check(props):
+# 			raise RuntimeError(f"Invariant not hold: {props}")
 				
-		return True
+# 		return True
 
-	try:
-		# poc flattened tree generation
-		if 'LIBOBJ' not in vuln_info['poc_str']:
-			raise RuntimeError("poc_str format error")
-		if vuln_info['mod']: # is a module detection
-			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['location'] + ')')]
-		else:
-			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', vuln_info['location'])]
-		print("pocStrArr", pocStrArr)
-		json_arg = json.dumps(pocStrArr)
-		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,  # optional: capture error output too
-			text=True  # returns output as string, not bytes
-		).stdout
-		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
-		flatPoc = json.loads(pocFlattenedJsonStr)
-		vuln_info['pocFlattened'] = flatPoc
-		print("pocFlattened", flatPoc)
+# 	try:
+# 		# poc flattened tree generation
+# 		if 'LIBOBJ' not in vuln_info['poc_str']:
+# 			raise RuntimeError("poc_str format error")
+# 		if vuln_info['mod']: # is a module detection
+# 			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' +  vuln_info['location'] + ')')]
+# 		else:
+# 			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', vuln_info['location'])]
+# 		print("pocStrArr", pocStrArr)
+# 		json_arg = json.dumps(pocStrArr)
+# 		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
+# 			stdout=subprocess.PIPE,
+# 			stderr=subprocess.PIPE,  # optional: capture error output too
+# 			text=True  # returns output as string, not bytes
+# 		).stdout
+# 		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
+# 		flatPoc = json.loads(pocFlattenedJsonStr)
+# 		vuln_info['pocFlattened'] = flatPoc
+# 		print("pocFlattened", flatPoc)
 
-		# see if the callee sats the 
-		if vuln_info['mod']:
-			argIdCode = vuln_info['location']	
-			# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
-			res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
-			# logger.debug("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
-			# filter out those matches that are not library Objects
+# 		# see if the callee sats the 
+# 		if vuln_info['mod']:
+# 			argIdCode = vuln_info['location']	
+# 			# get the identifier and the CallExpression given module id (might have several) [(callExprNode, calleeNode) ...]
+# 			res_getIdentifierAndExprFromArgCode = getIdentifierAndExprFromArgCode(tx, argIdCode)
+# 			# logger.debug("res_getIdentifierAndExprFromArgCode", res_getIdentifierAndExprFromArgCode)
+# 			# filter out those matches that are not library Objects
 
-			# (Oct 18) Commenting this out since this check is too strict 
-			libObjectList = res_getIdentifierAndExprFromArgCode
-			# libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
-			# print("libObjectList", libObjectList)
-			vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
-		else:
-			# suppose to get location object for non mod objects
-			# - get top expr from the 'property' edge
-			libObjectList = getObjectMatch(tx, vuln_info['location'])
-
-
-		libObjScope = None
-		root = []
-		# match all provided poc and potential libobjs
-		# Store max level tracking for each POC to write to sink.flows.out
-		all_poc_max_levels = []  # [{poc_name, max_lv, matches: {constructKey: [nodes]}}]
-
-		for poc in flatPoc:
-			# Track max matched level for this POC
-			max_lv = -1
-			max_lv_matches = {}  # {constructKey: [nodes]}
-			# operate on all libobj scope marked
-			for pair in libObjectList:
-				if vuln_info['mod']:
-					libObj = pair[0] # libObj node
-					libIdentNode = pair[1] # libObj node
-				else:
-					libObj = pair
-				libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)				
-				libkeys = set(poc['libkeys'])
-
-				# From this scope, follow the search order
-				# if the current key is also in libkeys, apply the tag on the libIdentNode
-				# else just do the code search in scope as usual
-				try:
-					for lv, level_nodes in enumerate(poc['search_order']):
-						for constuctKey in level_nodes:
-							curr_construct = poc['constructs'][constuctKey]
-							code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
-							# for leave nodes, code matching is required	
-							print(f"code: {code}, curr_construct: {curr_construct}")						
-							if code and libObjScope:								
-								# matching for constantsModule.POC_PRESERVED node will be done in the parent node in nodeMatching()
-								if code in constantsModule.POC_PRESERVED:
-									continue 
-								else:
-									matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
-									print(f"codeMatchingNodes of {code}: {matching_nodes}")
-							elif not code: # (not leaf nodes)
-								# should do cypher query on the specific ids
-								matching_nodes = getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc['constructs'])
-								print(f"potential matchingNodes for {curr_construct}: {matching_nodes}")
-							else:
-								print(f"conditions not implemented, halting: ", curr_construct)
-								raise RuntimeError(f"conditions not implemented, halting: {curr_construct}")
-							matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
-							print(f"matching_res: {matching_res}")
-							print(f"matching_nodes: {matching_nodes}")
-							# breakpoint()
-							if not any(matching_res):
-								print('matching_res', matching_res, 'matching_nodes', matching_nodes)
-								raise EarlyHaltException({"curr_construct": curr_construct})
-
-							# Track max matched level (skip level 0 to avoid too many matches)
-							if lv > 0:
-								# Filter to only keep nodes that matched (where matching_res is True)
-								matched_nodes = [node for node, matched in zip(matching_nodes, matching_res) if matched]								
-								print(f"matched_nodes: {matched_nodes}")
-
-								if lv > max_lv:
-									# New deeper level - replace matches
-									max_lv = lv
-									max_lv_matches = {constuctKey: matched_nodes}
-									print(f"[MaxLevel] New max level {max_lv} at construct {constuctKey} with {len(matched_nodes)} nodes")
-								elif lv == max_lv:
-									# Same level - add to matches
-									max_lv_matches[constuctKey] = matched_nodes
-									print(f"[MaxLevel] Added construct {constuctKey} at level {max_lv} with {len(matched_nodes)} nodes")
-				except EarlyHaltException as e:
-					print(f"Early halt due to none matching for construct: {str(e)}")
-					print(f"poc['constructs']: {poc['constructs']}")
-
-			# Store max level info for this POC (after all libobj pairs processed)
-			if max_lv > 0 and max_lv_matches:
-				poc_name = poc.get('name', f'poc_{len(all_poc_max_levels)}')
-				all_poc_max_levels.append({
-					'poc_name': poc_name,
-					'max_lv': max_lv,
-					'matches': max_lv_matches
-				})
-				print(f"[MaxLevel] Stored POC '{poc_name}' max level {max_lv} with {len(max_lv_matches)} constructs")
-				# Debug: print details of what was stored
-				for ck, nodes in max_lv_matches.items():
-					print(f"  [MaxLevel]   Construct '{ck}': {len(nodes)} nodes - types: {[type(n).__name__ for n in nodes]}")
-					for i, node in enumerate(nodes[:3]):  # Show first 3 nodes
-						if isinstance(node, dict):
-							print(f"  [MaxLevel]     Node {i}: Id={node.get('Id', 'N/A')}, Type={node.get('Type', 'N/A')}")
-						else:
-							print(f"  [MaxLevel]     Node {i}: {type(node).__name__} = {node}")
-
-			# root query: query if the special id of root exists
-			root = getNodeFromTagName(tx, poc['root'])
-			vuln_info['root'] = repr(root)
-
-		if libObjScope:						
-			debug_query = """
-				MATCH p = (node)<-[:AST_parentOf*]-(libobjScope {Id:'%s'})
-				RETURN p
-			"""%(libObjScope['Id'])
-			vuln_info['debug_query'] = debug_query
-			print("debug query", debug_query)
-			print("root", root)
-		print("pocStrArr", pocStrArr)
-		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
-		if root:
-			print('root here')		
-			argNodes = getNodeFromTagName(tx, poc['payloads'][0]) # temporary testing purpose, not accounting for multiple situations
-			print("argNodes", argNodes)			
-			for argNode in argNodes:
-				t = get_ast_topmost(tx, argNode)
-				res.append({
-					"t": get_ast_topmost(tx, argNode),
-					"n": get_ast_parent(tx, argNode),
-					"a": argNode
-				})
-			print("res", [[(n, getCodeOf(tx, n))] for n in res[0].values()])
-	except Exception as e:
-		print(f"Exception threw at getSinkExpression", e)
-		raise e
-
-	# Final summary of all POC max levels
-	print(f"\n[MaxLevel] === FINAL SUMMARY: {len(all_poc_max_levels)} POCs with max level matches ===")
-	for poc_info in all_poc_max_levels:
-		print(f"  POC: {poc_info['poc_name']}, Max Level: {poc_info['max_lv']}, Constructs: {list(poc_info['matches'].keys())}")
-
-	return res, all_poc_max_levels	
+# 			# (Oct 18) Commenting this out since this check is too strict 
+# 			libObjectList = res_getIdentifierAndExprFromArgCode
+# 			# libObjectList = list(filter(lambda pair: islibraryObject(tx, pair[0], pair[1]), res_getIdentifierAndExprFromArgCode))
+# 			# print("libObjectList", libObjectList)
+# 			vuln_info['libObjectList'] = [str(obj) if hasattr(obj, "__str__") else repr(obj) for obj in libObjectList]
+# 		else:
+# 			# suppose to get location object for non mod objects
+# 			# - get top expr from the 'property' edge
+# 			libObjectList = getObjectMatch(tx, vuln_info['location'])
 
 
-def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_database={}):
+# 		libObjScope = None
+# 		root = []
+# 		# match all provided poc and potential libobjs
+# 		# Store max level tracking for each POC to write to sink.flows.out
+# 		all_poc_max_levels = []  # [{poc_name, max_lv, matches: {constructKey: [nodes]}}]
+
+# 		for poc in flatPoc:
+# 			# Track max matched level for this POC
+# 			max_lv = -1
+# 			max_lv_matches = {}  # {constructKey: [nodes]}
+# 			# operate on all libobj scope marked
+# 			for pair in libObjectList:
+# 				if vuln_info['mod']:
+# 					libObj = pair[0] # libObj node
+# 					libIdentNode = pair[1] # libObj node
+# 				else:
+# 					libObj = pair
+# 				libObjScope = neo4jQueryUtilityModule.getScopeOf(tx, libObj)				
+# 				libkeys = set(poc['libkeys'])
+
+# 				# From this scope, follow the search order
+# 				# if the current key is also in libkeys, apply the tag on the libIdentNode
+# 				# else just do the code search in scope as usual
+# 				try:
+# 					for lv, level_nodes in enumerate(poc['search_order']):
+# 						for constuctKey in level_nodes:
+# 							curr_construct = poc['constructs'][constuctKey]
+# 							code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
+# 							# for leave nodes, code matching is required	
+# 							print(f"code: {code}, curr_construct: {curr_construct}")						
+# 							if code and libObjScope:								
+# 								# matching for constantsModule.POC_PRESERVED node will be done in the parent node in nodeMatching()
+# 								if code in constantsModule.POC_PRESERVED:
+# 									continue 
+# 								else:
+# 									matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
+# 									print(f"codeMatchingNodes of {code}: {matching_nodes}")
+# 							elif not code: # (not leaf nodes)
+# 								# should do cypher query on the specific ids
+# 								matching_nodes = getPotentialNodeFromTaggedNode(tx, curr_construct, libObjScope, poc['constructs'])
+# 								print(f"potential matchingNodes for {curr_construct}: {matching_nodes}")
+# 							else:
+# 								print(f"conditions not implemented, halting: ", curr_construct)
+# 								raise RuntimeError(f"conditions not implemented, halting: {curr_construct}")
+# 							matching_res = [nodeMatching(poc, constuctKey, matchingNode) for matchingNode in matching_nodes]
+# 							print(f"matching_res: {matching_res}")
+# 							print(f"matching_nodes: {matching_nodes}")
+# 							# breakpoint()
+# 							if not any(matching_res):
+# 								print('matching_res', matching_res, 'matching_nodes', matching_nodes)
+# 								raise EarlyHaltException({"curr_construct": curr_construct})
+
+# 							# Track max matched level (skip level 0 to avoid too many matches)
+# 							if lv > 0:
+# 								# Filter to only keep nodes that matched (where matching_res is True)
+# 								matched_nodes = [node for node, matched in zip(matching_nodes, matching_res) if matched]								
+# 								print(f"matched_nodes: {matched_nodes}")
+
+# 								if lv > max_lv:
+# 									# New deeper level - replace matches
+# 									max_lv = lv
+# 									max_lv_matches = {constuctKey: matched_nodes}
+# 									print(f"[MaxLevel] New max level {max_lv} at construct {constuctKey} with {len(matched_nodes)} nodes")
+# 								elif lv == max_lv:
+# 									# Same level - add to matches
+# 									max_lv_matches[constuctKey] = matched_nodes
+# 									print(f"[MaxLevel] Added construct {constuctKey} at level {max_lv} with {len(matched_nodes)} nodes")
+# 				except EarlyHaltException as e:
+# 					print(f"Early halt due to none matching for construct: {str(e)}")
+# 					print(f"poc['constructs']: {poc['constructs']}")
+
+# 			# Store max level info for this POC (after all libobj pairs processed)
+# 			if max_lv > 0 and max_lv_matches:
+# 				poc_name = poc.get('name', f'poc_{len(all_poc_max_levels)}')
+# 				all_poc_max_levels.append({
+# 					'poc_name': poc_name,
+# 					'max_lv': max_lv,
+# 					'matches': max_lv_matches
+# 				})
+# 				print(f"[MaxLevel] Stored POC '{poc_name}' max level {max_lv} with {len(max_lv_matches)} constructs")
+# 				# Debug: print details of what was stored
+# 				for ck, nodes in max_lv_matches.items():
+# 					print(f"  [MaxLevel]   Construct '{ck}': {len(nodes)} nodes - types: {[type(n).__name__ for n in nodes]}")
+# 					for i, node in enumerate(nodes[:3]):  # Show first 3 nodes
+# 						if isinstance(node, dict):
+# 							print(f"  [MaxLevel]     Node {i}: Id={node.get('Id', 'N/A')}, Type={node.get('Type', 'N/A')}")
+# 						else:
+# 							print(f"  [MaxLevel]     Node {i}: {type(node).__name__} = {node}")
+
+# 			# root query: query if the special id of root exists
+# 			root = getNodeFromTagName(tx, poc['root'])
+# 			vuln_info['root'] = repr(root)
+
+# 		if libObjScope:						
+# 			debug_query = """
+# 				MATCH p = (node)<-[:AST_parentOf*]-(libobjScope {Id:'%s'})
+# 				RETURN p
+# 			"""%(libObjScope['Id'])
+# 			vuln_info['debug_query'] = debug_query
+# 			print("debug query", debug_query)
+# 			print("root", root)
+# 		print("pocStrArr", pocStrArr)
+# 		print('pocFlattenedJsonStr', pocFlattenedJsonStr)
+# 		if root:
+# 			print('root here')		
+# 			argNodes = getNodeFromTagName(tx, poc['payloads'][0]) # temporary testing purpose, not accounting for multiple situations
+# 			print("argNodes", argNodes)			
+# 			for argNode in argNodes:
+# 				t = get_ast_topmost(tx, argNode)
+# 				res.append({
+# 					"t": get_ast_topmost(tx, argNode),
+# 					"n": get_ast_parent(tx, argNode),
+# 					"a": argNode
+# 				})
+# 			print("res", [[(n, getCodeOf(tx, n))] for n in res[0].values()])
+# 	except Exception as e:
+# 		print(f"Exception threw at getSinkExpression", e)
+# 		raise e
+
+# 	# Final summary of all POC max levels
+# 	print(f"\n[MaxLevel] === FINAL SUMMARY: {len(all_poc_max_levels)} POCs with max level matches ===")
+# 	for poc_info in all_poc_max_levels:
+# 		print(f"  POC: {poc_info['poc_name']}, Max Level: {poc_info['max_lv']}, Constructs: {list(poc_info['matches'].keys())}")
+
+# 	return res, all_poc_max_levels	
+
+
+def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_pattern=None, knowledge_database=None):
 	"""
 		@param {pointer} tx
 		@param {object} vuln_info, document vuln_info structure
@@ -1693,7 +1693,15 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 		@return res, all_poc_max_levels
 			- res {list}: in [CallExpression, ArgumentNode, TopExpressionNode] format
 			- list of poc max level info
-	"""	
+	"""
+
+	# Validate required cache parameters
+	if nodeid_to_matches is None:
+		raise ValueError("nodeid_to_matches must be provided, cannot be None")
+	if processed_pattern is None:
+		raise ValueError("processed_pattern must be provided, cannot be None")
+	if knowledge_database is None:
+		raise ValueError("knowledge_database must be provided, cannot be None")
 
 	def pureContentCompare(node, construct):
 		mapping = {'type': 'Type', 'name': 'Code', 'value': 'Value'}
@@ -1797,7 +1805,7 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 				}
 				RETURN DISTINCT(node)
 			"""%(code, code)
-		logger.debug(f"getCodeMatchInScope query: {query}")
+		# logger.debug(f"getCodeMatchInScope query: {query}")
 		res = []
 		results = tx.run(query)
 		res = [record['node'] for record in results]
@@ -1932,7 +1940,7 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 				code = curr_construct['name'] if 'name' in curr_construct else curr_construct['value'] if 'value' in curr_construct else None
 				if ('type' not in curr_construct) or (curr_construct['type'] not in ['Identifier', 'Literal']) or (code in constantsModule.POC_PRESERVED):
 					continue  # skip non-leaf nodes, preserved nodes, ex: (LIBOBJ, PAYLOAD, WILDCARD)
-				poc['fullset'].add(_gen_taint_tag(constructKey, code))
+				poc['fullset'].add(str(code))
 
 	def _unitPocTagging(node, name, tag):
 		query = """
@@ -1979,7 +1987,7 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 				potential_args.append(node)
 		return potential_args
 	
-	def processPocMatch(tx, libObj, poc):
+	def processPocMatch(tx, libObj, poc, nodeid_to_matches):
 		"""
 		Process a single POC match against a library object.
 		
@@ -1991,14 +1999,15 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 		@precondition: the poc is already flattened and parsed, libObj is a valid AST node
 		@postcondition: returns list of top level AST nodes that match the POC
 		"""	
-		nodeid_to_matches = {}  # key: neo4j node id (num), value: set of nodes
-								# {
-									# '<id>': ['Ident12', 'Lit22']
-									# 'root': ['<id>']		
-								# }
+		# nodeid_to_matches
+		# key: neo4j node id (num), value: set of nodes
+		# {
+			# '<id>': ['Ident12', 'Lit22']
+			# 'root': ['<id>']		
+		# }
 
 		# Optimization plan: for the same library, avoid propagating taint for the same constructKey and code multiple times
-		visited_set = set()
+		visited_set = set() # expecting set(<node['Id'], taint_tag> ..)
 
 		def taintPropTilASTTopmost(node, currASTNode, topMost, taintTag, nodeid_to_matches, out_values, context_scope=''):
 			# halt until currASTNode is topMost
@@ -2047,7 +2056,7 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 							for call_expr in call_sites:
 
 								# FILTER: Only propagate if this call site is in visited_set (current taint path)
-								if call_expr['Id'] not in visited_set:
+								if (call_expr['Id'], taintTag) not in visited_set:
 									# print(f"Skipping call site {call_expr['Id']} - not in current taint path (visited_set)")
 									continue
 
@@ -2338,29 +2347,28 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 				6	foo(a)			
 				(line 3, 4, 5 and line 1, 2 will be tainted with '32') 
 			"""		
-			logger.debug(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
+			# logger.debug(f"nodeTagTainting: node {node} \ncontext_node: {context_node} \ntaintTag: {taintTag}")
 
 			out_values = []
-			if node['Id'] in visited_set:
+			if (node['Id'], taintTag) in visited_set:
 				return nodeid_to_matches
-			visited_set.add(node['Id'])
+			visited_set.add((node['Id'], taintTag))
 
 			# Tag current node
 			if contextNode['Id'] not in nodeid_to_matches:
 				nodeid_to_matches[contextNode['Id']] = set()
-			logger.debug(f"taintTag: {taintTag}")
-			nodeid_to_matches[contextNode['Id']].add(taintTag)			
+			# logger.debug(f"taintTag: {taintTag}")
+			nodeid_to_matches[contextNode['Id']].add(taintTag) # only add the code part, not the constructKey part			
 
 			# Add a tag to neo4j graph db (DEBUG)
-			if graphTagging:
+			if True:	# DBUG graphTagging:
 				_unitPocTagging(contextNode, 'tag', json.dumps(list(nodeid_to_matches[contextNode['Id']])))
 
 			# Check if current node's matched constructs cover the poc fullset
 			if poc['fullset'].issubset(nodeid_to_matches[contextNode['Id']]):
 				if 'root' not in nodeid_to_matches:
 					nodeid_to_matches['root'] = set()
-				nodeid_to_matches['root'].add(contextNode['Id'])				
-				_unitPocTagging(contextNode, 'root', True)
+				nodeid_to_matches['root'].add(contextNode['Id'])								
 
 			# PDG query to find dependent nodes, here we do two types of queries: 
 			# 1. full string dependency match, ex: a.b.c
@@ -2368,19 +2376,19 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 			var_full_name = _get_full_member_name(tx, node) # implement getting full var name from node
 			var_root_name = _get_object_name(tx, node) # implement getting var name from node
 			# Add debug print here
-			logger.debug(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
+			# logger.debug(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
 			if var_full_name:
 				taintThroughEdgeProperty(node, contextNode, var_full_name, taintTag, nodeid_to_matches, out_values)
 			# Add debug print here
-			logger.debug(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
+			# logger.debug(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
 			if var_root_name:
 				taintThroughEdgeProperty(node, contextNode, var_root_name, taintTag, nodeid_to_matches, out_values)	
 
 			# Taint through the current AST parent node as well
 			taintPropTilASTTopmost(node, node, contextNode, taintTag, nodeid_to_matches, out_values)				
 
-			# pop visited_set
-			visited_set.remove(node['Id'])			
+			# pop visited_set 
+			# Ian Nov 22. 2025 removed popping, assuming a node don't have to be revisited again for the same taintTag per graph
 
 			return nodeid_to_matches
 			
@@ -2399,9 +2407,16 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 						continue  # skip non-leaf nodes, preserved nodes, ex: (LIBOBJ, PAYLOAD, WILDCARD)				
 					logger.debug(f"code: {code}, curr_construct: {curr_construct}")
 					
+					# Optimization: skip previously processed pattern, eg. jquery's '$' should only be processed once for a graph
+					if(code in processed_pattern):
+						logger.info(f"Skipping already processed pattern: {code}")
+						continue
+					else:
+						processed_pattern.add(code)
+
 					# match leaf nodes in the libObjScope
 					matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
-					logger.debug(f"codeMatchingNodes of {code}: {matching_nodes}")					
+					# logger.debug(f"codeMatchingNodes of {code}: {matching_nodes}")					
 					if not matching_nodes:
 						logger.debug(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
 						raise EarlyHaltException(f"curr_construct: {curr_construct}")
@@ -2409,16 +2424,17 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 					# For each matching node, do construct comparison, if match, do tainting
 					for matchingNode in matching_nodes:
 						if pureContentCompare(matchingNode, curr_construct):
-							logger.debug(f"Pure content match found for node: {matchingNode} with construct: {curr_construct}")
+							# logger.debug(f"Pure content match found for node: {matchingNode} with construct: {curr_construct}")
 							# Debug sleeping
 							context_node = neo4jQueryUtilityModule.get_ast_topmost(tx, matchingNode)
-							logger.debug(f"context_node found for node: {context_node} ")
+							# logger.debug(f"context_node found for node: {context_node} ")
 							try:
-								taintTag = _gen_taint_tag(constructKey, code)
-								nodeid_to_matches = nodeTagTainting(matchingNode, context_node, taintTag)
-								logger.debug(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
-								for k, v in nodeid_to_matches.items():									
-									print(f"nodeid_to_matches [id: {k}] \n - node: {get_node_by_id(tx, k)} \n - value: {v}")
+								taintTag = str(code) # _gen_taint_tag(constructKey, code)
+								nodeTagTainting(matchingNode, context_node, taintTag)
+								# Debug point after successful tainting
+								# logger.debug(f"After tainting with taintTag: {taintTag} \n- context_node:{context_node} \n- matchingNode: {matchingNode} ")
+								# for k, v in nodeid_to_matches.items():									
+								# 	print(f"nodeid_to_matches [id: {k}] \n - node: {get_node_by_id(tx, k)} \n - value: {v}")
 								# breakpoint()  # Debug point after tainting
 							except Exception as e:
 								print(f"Error in nodeTagTainting: {e}")
@@ -2451,13 +2467,20 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 						"n": rootNode,
 						"a": arg
 					})
+			
+			# Remove 'root' from nodeid_to_matches when moving on to the next poc processing
+			if 'root' in nodeid_to_matches:
+				del nodeid_to_matches['root']
 
 			return res, all_poc_max_levels
 		else:
 			# order the nodeid_to_matches by size of sets (descending)
-			max_match_size = max([len(v) for v in nodeid_to_matches.values()] + [0])
-			items_with_max_size = dict(filter(lambda item: len(item[1]) == max_match_size, nodeid_to_matches.items()))
-			for nodeId, matchSet in items_with_max_size.items():
+			# logger.debug(f"nodeid_to_matches before processing max levels: {nodeid_to_matches}")
+			item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
+			# filter out items with empty intersection
+			item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
+			# logger.debug(f"item_with_matches: {item_with_matches}")
+			for nodeId, matchSet in item_with_matches:
 				node = get_node_by_id(tx, nodeId)
 				if node:
 					all_poc_max_levels.append({
@@ -2494,9 +2517,10 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 	# Should just be one, for loop is only for unwrapping
 	for poc in flatPoc:
 		addfullset(poc) # this function adds a fullset set into the poc object for tagTainting's use
-		
+		logger.debug(f"Processing POC : {poc['poc_str']} with fullset: {poc['fullset']}")		
 		# if vuln_info['mod']:
 		# 	for pair in libObjectList:
+
 		# 		try:
 		# 			libObj, libIdentNode = pair[0], pair[1]
 		# 			return processPocMatch(tx, libObj, poc)				
@@ -2506,9 +2530,9 @@ def getSinkByTagTainting(tx, vuln_info, processed_symbols=set(), knowledge_datab
 		# else:
 		# 	libObj = None
 		try:
-			return processPocMatch(tx, None, poc)				
+			return processPocMatch(tx, None, poc, nodeid_to_matches)				
 		except Exception as e:
-			logger.error(f"Exception in processing POC match: libObj: {libObj} \n poc: {poc}, error: {e}")
+			logger.error(f"Exception in processing POC match: \n poc: {poc}, error: {e}")
 	return [], []
 
 
@@ -2736,14 +2760,24 @@ def run_traversals_simple(tx, vuln_info):
 	return out
 
 
-def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name_of_url='xxx', document_vars=[], processed_symbols=set(), knowledge_database={}):
+def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches=None, processed_pattern=None, knowledge_database=None, folder_name_of_url='xxx', document_vars=None):
 	"""
-	@param {string} navigation_url: base url to test 
+	@param {string} navigation_url: base url to test
 	@param {string} webpage_directory: path to save analyzer template
 	@param {list} document_vars: fields in HTML forms accessbile by the 'document' DOM API
 	@description query the graph database and finds the potential forgeable client-side requests
 	@return {array} a list of candidate forgeable HTTP requests
 	"""
+
+	# Validate required cache parameters
+	if nodeid_to_matches is None:
+		raise ValueError("nodeid_to_matches must be provided, cannot be None")
+	if processed_pattern is None:
+		raise ValueError("processed_pattern must be provided, cannot be None")
+	if knowledge_database is None:
+		raise ValueError("knowledge_database must be provided, cannot be None")
+	if document_vars is None:
+		document_vars = []
 
 	document_props = document_vars
 
@@ -2758,7 +2792,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, folder_name
 		# breakpoint()  # Debug point before tainting-based sink detection
 		r1, all_poc_max_levels = [], []
 		try:
-			r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info, processed_symbols=processed_symbols)			
+			r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info, nodeid_to_matches=nodeid_to_matches, processed_pattern=processed_pattern, knowledge_database=knowledge_database)			
 		except Exception as e:
 			logger.error(f"Error in getSinkByTagTainting: {e}")			
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
