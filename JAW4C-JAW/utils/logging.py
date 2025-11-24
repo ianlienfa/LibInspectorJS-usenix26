@@ -77,11 +77,22 @@ class LogFormatter(logging.Formatter):
 
 
 
+import sys
+
+class FlushingStreamHandler(logging.StreamHandler):
+    """StreamHandler that flushes after every emit"""
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+        # Also flush both stdout and stderr to prevent interleaving
+        sys.stdout.flush()
+        sys.stderr.flush()
+
 logger = logging.getLogger("JAW4C")
 logger.setLevel(logging.DEBUG)
 
 ## stdout
-ch = logging.StreamHandler()
+ch = FlushingStreamHandler()
 
 ## log to file
 # ch = logging.FileHandler('logs/logs_%s.log'%get_current_timestamp())

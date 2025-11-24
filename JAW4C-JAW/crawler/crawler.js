@@ -741,7 +741,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		DEBUG && console.log('[Crawler] All external scripts loaded.');
 
 		for(const [index, scriptItem] of allScripts.entries()){
-			console.log(`index: ${index}, script: ${scriptItem}`)
+			console.log(`index: ${index}, script: ${scriptItem[0]}, ${(scriptItem[1].startsWith('http')) ? scriptItem[1] : '' }...`)
 
 			let scriptKind = scriptItem[0];
 

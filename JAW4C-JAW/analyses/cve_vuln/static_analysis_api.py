@@ -58,7 +58,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 		debug_flag = "--inspect"
 		disable_heuristic_skip = "--disable_heuristic_skip=True"
 	else:
-		debug_flag = ""
+		debug_flag = "--inspect"
 		disable_heuristic_skip = ""
 
 	if all_patterns is not None and len(all_patterns) > 0:

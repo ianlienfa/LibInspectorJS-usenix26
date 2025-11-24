@@ -163,19 +163,21 @@ def build_hpg(container_name, webpage):
 		neo4j_wait()
 			
 	except Exception as e:
-		print(f"[build_hpg] Error found during execution {e}")
+		logger.error(f"[build_hpg] Error found during execution {str(e)}")
 		dockerModule.stop_neo4j_container(container_name)
 		dockerModule.remove_neo4j_container(container_name)
 		IOModule.compress_graph(webpage)
-		raise RuntimeError
+		raise RuntimeError(f"HPG build failed due to timeout") from e
 
 	return container_name
 
 
-def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300):
+def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300, code_matching_cutoff=100, call_count_limit=30):
 	"""
 	@param {string} seed_url
 	@param {int} container_transaction_timeout: timeout in seconds for each transaction (default: 300)
+	@param {int} code_matching_cutoff: maximum number of matching nodes to process per code pattern (default: 100)
+	@param {int} call_count_limit: maximum recursion depth for taint propagation (default: 30)
 	@description: imports an HPG inside a neo4j docker instance and runs traversals over it.
 
 	"""
@@ -226,26 +228,21 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f'Skipping {v['poc']} due to grep found not finding poc fragments')
 							continue
 						vuln_info = {"mod": mod, "libname": libname, "location": location, "poc_str": v['poc']}
-
-						# Set up timeout
-						def timeout_handler(signum, frame):
-							raise TimeoutError(f"Query execution exceeded {container_transaction_timeout} second timeout for {vuln_info}")
-
-						signal.signal(signal.SIGALRM, timeout_handler)
-						signal.alarm(container_transaction_timeout * 2)  # Set alarm to 2x conn_timeout
-				
+									
 						try:
 							logger.info("=======================================================================================================")
 							logger.info(f"[{entry_idx+1}/{len(vuln_list)}]-[{i+1}/{len(vuln)}] Starting tainting-based sink detection\n vuln_info:", vuln_info)
 							logger.info(f"{vuln_info}")
 							logger.info("=======================================================================================================")
-							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, knowledge_database, folder_name_of_url='xxx', document_vars=[]):
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, 
+							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, knowledge_database, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
+							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
 									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, knowledge_database,
+									code_matching_cutoff, call_count_limit,
 									conn_timeout=container_transaction_timeout)
-																   
-						finally:
-							signal.alarm(0)  # Cancel the alarm
+						except Exception as e:
+							logger.error(traceback.format_exc())
+							logger.error(f"Error executing query, {e}")
+							raise RuntimeError(e)									   
 
 						# breakpoint()
 						logger.info(f"analysis out: {out}")
@@ -254,7 +251,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 					raise RuntimeError(f"Error executing query, {e}")
 					
 	except Exception as e:
-		print(f"[analyze_hpg] Error found during execution {e}")
+		logger.error(f"[analyze_hpg] Error found during execution {e}")
 		dockerModule.stop_neo4j_container(container_name)
 		dockerModule.remove_neo4j_container(container_name)
 		raise RuntimeError(e)

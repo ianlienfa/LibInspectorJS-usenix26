@@ -2356,4 +2356,3 @@ Driver.prototype.getInterProceduralModelNodesAndEdges = async function(semantic_
 
 var driver = new Driver();
 module.exports = driver;
-

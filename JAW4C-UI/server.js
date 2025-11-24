@@ -60,8 +60,15 @@ function highlightJSON(text) {
     }
 }
 
+function stripAnsiCodes(text) {
+    // Remove ANSI color codes (e.g., \x1b[33;21m, \x1b[0m, etc.)
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
 function highlightLog(text) {
-    return escapeHtml(text)
+    // Strip ANSI codes first, then escape and highlight
+    const cleanText = stripAnsiCodes(text);
+    return escapeHtml(cleanText)
         .replace(/^(ERROR|FATAL|CRITICAL).*$/gm, '<span class="log-error">$&</span>')
         .replace(/^(WARN|WARNING).*$/gm, '<span class="log-warn">$&</span>')
         .replace(/^(INFO).*$/gm, '<span class="log-info">$&</span>')
@@ -395,15 +402,20 @@ async function getSiteData() {
 
             // Process vulnerabilities
             let vulnerableLibs = 0;
+            let hasValidVulnData = false;
             const vulnContent = fileContents.get(`${compositeHash}:vuln`);
-            if (vulnContent) {
+            if (vulnContent && vulnContent.trim()) {
                 try {
                     vulnContent.split('\n').forEach(line => {
                         if (line.trim()) {
                             try {
                                 const vulnData = JSON.parse(line);
                                 const urlKey = Object.keys(vulnData)[0];
-                                vulnerableLibs += vulnData[urlKey].length;
+                                const vulnCount = vulnData[urlKey].length;
+                                if (vulnCount > 0) {
+                                    vulnerableLibs += vulnCount;
+                                    hasValidVulnData = true;
+                                }
                             } catch (e) { /* Ignore parse errors */ }
                         }
                     });
@@ -456,7 +468,6 @@ async function getSiteData() {
 
             const availableFiles = fileExistenceChecks.filter(f => f !== null);
             const hasLibDetection = availableFiles.includes('lib.detection.json');
-            const hasVulnOut = availableFiles.includes('vuln.out');
             const hasSinkFlows = availableFiles.includes('sink.flows.out');
             const hasWarningLog = availableFiles.includes('warnings.log');
 
@@ -474,7 +485,7 @@ async function getSiteData() {
                 files: availableFiles,
                 jsFiles: jsFiles,
                 hasLibDetection,
-                hasVulnOut,
+                hasVulnOut: hasValidVulnData,
                 hasSinkFlows,
                 hasErrorLog,
                 hasWarningLog,

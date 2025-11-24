@@ -8,8 +8,8 @@ testbed:
   archive: 
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 303 # 580
-  to_row: 303 # row number or 'end'
+  from_row: 736 # 736 # 580
+  to_row: 736 #736 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -63,8 +63,8 @@ vuln_db:
 
 # 3. static analysis configuration
 staticpass:
-  # time budget for static analysis of each site (in seconds)
-  sitetimeout: 600 # 5 min
+  # time budget for static analysis of each page running taint static analysis (in seconds)
+  sitetimeout: 1200 # 20 min
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
   pagetimeout: 600 # 5 min
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
@@ -78,7 +78,7 @@ staticpass:
   # debug mode (disables isLibrary/isCdn skips, enables node --inspect)
   debug: false
   # timeout for neo4j container transactions in seconds (default: 300)
-  container_transaction_timeout: 120 # 2 min, for tag tainting
+  container_transaction_timeout: 180 # 3 min, for tag tainting
   # neo4j instance config
   neo4j_user: neo4j
   neo4j_pass: root
@@ -87,7 +87,12 @@ staticpass:
   # otherwise, specify another port here
   neo4j_bolt_port: '7476'
   neo4j_use_docker: true
-  keep_docker_alive: false  
+  keep_docker_alive: false
+  # Maximum number of matching nodes to process per code pattern (prevents performance issues)
+  code_matching_cutoff: 200
+  # Maximum recursion depth for taint propagation (prevents stack overflow)
+  call_count_limit: 5
+
 
 # 4. dynamic analysis configuration
 dynamicpass:
@@ -113,10 +118,10 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: true
-    lib_detection: true  
-    vulndb: true
-    static: true
+    crawling: false
+    lib_detection: false  
+    vulndb: false
+    static: false
     static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation

@@ -186,6 +186,9 @@ function isFromLibraryCDN(jsString) {
     "www.paypalobjects.com",
     "checkoutshopper-live.adyen.com",
     "sdk.razorpay.com",
+
+	// static resouces
+	"/assets"
   ];
 
   const lower = jsString.toLowerCase();
@@ -286,7 +289,7 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 				// Deprecated isLibraryScript removed, this heuristic is too strong for analyzing bundled code, which often skips the library object calls from the bundles
 				// We only filter out the direct resources from cdn sites
 				
-				let is_cdn_script = isCdnScript(script_object['src'], {mode: 'src'});
+				let is_cdn_script = isCdnScript(script_object);
 				let is_library = isLibraryScript(script_object['src'], {mode: 'src'});
 				if((is_cdn_script || is_library) && (!disable_heuristic_skip)){
 					DEBUG && is_cdn_script && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a cdn library object`)
@@ -450,7 +453,6 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
     var config = processArgv({}) || {};
     const seedurl = config.seedurl;
     const singleFolder = config.singlefolder;
-
     overwrite_hpg = (config.overwritehpg && config.overwritehpg.toLowerCase() === 'true')? true: false; 
     do_compress_graphs = (config.compresshpg && config.compresshpg.toLowerCase() === 'false')? false: true; 
   	iterative_output = (config.iterativeoutput && config.iterativeoutput.toLowerCase() === 'true')? true: false;

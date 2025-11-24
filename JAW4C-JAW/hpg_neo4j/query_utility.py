@@ -139,6 +139,39 @@ def get_ast_parent(tx, node):
 
 	return None
 
+def getTopMostProgramPath(tx, node):
+		"""
+		Get the topmost Program node path for a given node.
+		@param {pointer} tx: neo4j transaction pointer
+		@param {object} node: AST node
+		@return {list} list of nodes from the given node up to the Program node
+		"""
+		query = """
+			MATCH (n {Id: '%s'})<-[:AST_parentOf*]-(topNode {Type: 'Program'})
+			RETURN topNode
+			LIMIT 1
+		""" % (node['Id'])
+		results = tx.run(query)
+		for record in results:
+			return record['topNode']['Value'] if 'Value' in record['topNode'] else None
+		return None
+
+def getTopMostProgramPathById(tx, id):
+		"""
+		Get the topmost Program node path for a given node.
+		@param {pointer} tx: neo4j transaction pointer
+		@param {object} node: AST node
+		@return {list} list of nodes from the given node up to the Program node
+		"""
+		query = """
+			MATCH (n {Id: '%s'})<-[:AST_parentOf*]-(topNode {Type: 'Program'})
+			RETURN topNode
+			LIMIT 1
+		""" % (id)
+		results = tx.run(query)
+		for record in results:
+			return record['topNode']['Value'] if 'Value' in record['topNode'] else None
+		return None
 
 def get_ast_topmost(tx, node):
 

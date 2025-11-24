@@ -35,6 +35,9 @@ import jsbeautifier
 import json
 from functools import lru_cache, wraps
 
+from utils.logging import logger
+
+
 ## ------------------------------------------------------------------------------- ##
 ## Utility Functions
 ## ------------------------------------------------------------------------------- ##
@@ -72,6 +75,9 @@ def make_hashable_decorator(func):
 
 		# Get cache info after call
 		cache_info_after = func.cache_info()
+
+		# initialize call stack	depth
+		# result.call_stack_depth = 0
 
 		# Check if it was a cache hit (hits increased)
 		# if cache_info_after.hits > cache_info_before.hits:
@@ -608,7 +614,7 @@ def get_function_def_of_block_stmt(tx, block_stmt_node):
 
 @make_hashable_decorator
 @lru_cache(maxsize=1000)
-def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_declarations_only=False, PDG_on_arguments_only=False, context_scope=''):
+def _get_varname_value_from_context(tx, varname, context_node, knowledge_database = None, PDG_on_variable_declarations_only=False, PDG_on_arguments_only=False, context_scope=''):
 	"""
 	Description:
 	-------------
@@ -633,7 +639,8 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 	# output
 	out_values = []
 	# stores a map: funcDef id -->> get_function_call_values_of_function_definitions(funcDef)
-	knowledge_database = {}
+	if knowledge_database is None:
+		knowledge_database = {}
 
 	if param_stack_has(varname):
 		return []
@@ -642,7 +649,7 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 
 	def _get_all_call_values_of(varname, func_def_node):
 		
-		key = func_def_node['Id']
+		key = str(func_def_node['Id'])
 		if key in knowledge_database:
 			knowledge = knowledge_database[key]
 			print("knowledge in database", knowledge)
@@ -710,8 +717,12 @@ def _get_varname_value_from_context(tx, varname, context_node, PDG_on_variable_d
 								  [varname],
 								  iteratorNode['Location']]					
 						out_values.append(out)
-						print("match_signature out", out)
-						varname_values_within_call_expressions = _get_all_call_values_of(varname, func_def_node)
+						logger.debug("match_signature out %s", out)
+						try:
+							varname_values_within_call_expressions = _get_all_call_values_of(varname, func_def_node)
+						except Exception as e:
+							logger.error("Error in _get_all_call_values_of: %s", str(e))
+							varname_values_within_call_expressions = {}
 						for nid in varname_values_within_call_expressions:
 							each_argument = varname_values_within_call_expressions[nid]
 

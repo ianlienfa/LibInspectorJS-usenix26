@@ -38,6 +38,7 @@ import utils.io as IOModule
 from utils.logging import logger as LOGGER, LogFormatter
 import utils.utility as utilityModule
 import constants as constantsModule
+import signal
 import analyses.domclobbering.domc_neo4j_traversals as DOMCTraversalsModule
 import analyses.domclobbering.static_analysis_api as domc_sast_model_construction_api
 
@@ -288,7 +289,7 @@ def perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout,
 
 	LOGGER.info("successfully crawled %s."%(website_url))
 
-def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode):
+def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode, code_matching_cutoff, call_count_limit):
 	"""
 	Performs CVE vulnerability analysis for a given website URL
 
@@ -315,7 +316,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 	urls_file = os.path.join(webapp_data_directory, 'urls.out')
 	if not os.path.exists(urls_file):
-		LOGGER.error(f"urls.out file not found: {urls_file}")
+		LOGGER.warning(f"urls.out file not found: {urls_file}")
 		return
 
 	with open(urls_file, 'r') as fd:
@@ -436,7 +437,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
 					LOGGER.info("successfully built hpg for %s."%(url))
 				except Exception as e:
-					LOGGER.error("Error building hpg for %s."%(url), e)
+					LOGGER.error(f"Error building hpg for {url}, Error: " + str(e))
 					continue
 
 				# Query on vulnerabilities
@@ -444,7 +445,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					for try_attempts in range(2):
 						try:
 							# vuln_list element: {"http://localhost:3000/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656": [{"mod": true, "libname": "jquery", "location": "692", "version": "3.4.0", "vuln": [{"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<options>alert('XSS')</options>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": false, "payload": "<img src=x onerror=alert(1)>", "exported": true, "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": 0.8, "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<option><style></style><script>alert('XSS')</script></option>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}]}]}
-							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list, container_transaction_timeout)
+							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list, container_transaction_timeout, code_matching_cutoff, call_count_limit)
 							break
 						except Exception as e:
 							print(f"neo4j exception {e}, retrying ... ")
@@ -456,7 +457,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 						dockerModule.stop_neo4j_container(container_name)
 						dockerModule.remove_neo4j_container(container_name)
 
-def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode):
+def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode, code_matching_cutoff, call_count_limit, static_analysis_timeout):
 	"""
 	Processes a single website through the entire analysis pipeline
 
@@ -488,7 +489,49 @@ def process_single_website(website_url, config, domain_health_check, crawler_com
 		perform_crawling(website_url, config, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory)
 
 	# CVE vulnerability analysis
-	perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable, lib_detector_lift, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode)
+	if static_analysis_timeout and static_analysis_timeout > 0:
+		try:
+			def _static_timeout_handler(signum, frame):
+				raise TimeoutError(f"Static analysis timeout ({static_analysis_timeout}s) exceeded for {website_url}")
+			signal.signal(signal.SIGALRM, _static_timeout_handler)
+			signal.alarm(static_analysis_timeout)
+			perform_cve_vulnerability_analysis(
+				website_url,
+				config,
+				lib_detector_enable,
+				lib_detector_lift,
+				vuln_db,
+				iterative_output,
+				static_analysis_memory,
+				static_analysis_per_webpage_timeout,
+				static_analysis_compress_hpg,
+				static_analysis_overwrite_hpg,
+				container_transaction_timeout,
+				static_analysis_debug_mode,
+				code_matching_cutoff,
+				call_count_limit
+			)
+		except Exception as te:
+			LOGGER.error(str(te))
+		finally:
+			signal.alarm(0)
+	else:
+		perform_cve_vulnerability_analysis(
+			website_url,
+			config,
+			lib_detector_enable,
+			lib_detector_lift,
+			vuln_db,
+			iterative_output,
+			static_analysis_memory,
+			static_analysis_per_webpage_timeout,
+			static_analysis_compress_hpg,
+			static_analysis_overwrite_hpg,
+			container_transaction_timeout,
+			static_analysis_debug_mode,
+			code_matching_cutoff,
+			call_count_limit
+		)
 
 
 
@@ -644,6 +687,14 @@ def main():
 	if "container_transaction_timeout" in config["staticpass"]:
 		container_transaction_timeout = int(config["staticpass"]["container_transaction_timeout"])
 
+	code_matching_cutoff = 100  # default value
+	if "code_matching_cutoff" in config["staticpass"]:
+		code_matching_cutoff = int(config["staticpass"]["code_matching_cutoff"])
+
+	call_count_limit = 30  # default value
+	if "call_count_limit" in config["staticpass"]:
+		call_count_limit = int(config["staticpass"]["call_count_limit"])
+
 	# set neo4j config
 	if "neo4j_user" in config["staticpass"]:
 		constantsModule.NEO4J_USER = config["staticpass"]["neo4j_user"]
@@ -693,6 +744,9 @@ def main():
 			static_analysis_overwrite_hpg=static_analysis_overwrite_hpg,
 			container_transaction_timeout=container_transaction_timeout,
 			static_analysis_debug_mode=static_analysis_debug_mode,
+			code_matching_cutoff=code_matching_cutoff,
+			call_count_limit=call_count_limit,
+			static_analysis_timeout=static_analysis_timeout
 		)
 	# ----------- Multiple-sites Analysis Section (Web Archive) -----------
 	else: 
@@ -727,9 +781,12 @@ def main():
 							static_analysis_overwrite_hpg=static_analysis_overwrite_hpg,
 							container_transaction_timeout=container_transaction_timeout,
 							static_analysis_debug_mode=static_analysis_debug_mode,
+							code_matching_cutoff=code_matching_cutoff,
+							call_count_limit=call_count_limit,
+							static_analysis_timeout=static_analysis_timeout
 						)
-					except RuntimeError as r_e:
-						print(f"Runtime error catched for {website_url}: {r_e}, moving on to the next...")
+					except Exception as r_e:
+						print(f"Exception catched for {website_url}: {r_e}, moving on to the next...")
 						continue
 
 	# close db connection
@@ -739,5 +796,6 @@ def main():
 
 	# Clean up any remaining URL logging handlers
 	cleanup_current_url_handlers()
+
 if __name__ == "__main__":
 	main()
