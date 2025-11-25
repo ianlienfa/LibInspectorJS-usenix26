@@ -101,7 +101,7 @@ def get_mod_lib_mapping(raw_detection_obj, url, mapping=[]):
 
     # Process PTV-Original second
     ptv_original_detection_list = url_data.get('PTV-Original', {}).get('detection', [])
-    ptv_original_detection_list = ptv_original_detection_list[0] if len(ptv_original_detection_list) else []
+    ptv_original_detection_list = ptv_original_detection_list[0] if len(ptv_original_detection_list) and ptv_original_detection_list[0] else []
 
     for detected_lib in ptv_original_detection_list:
         libname = detected_lib['libname']
@@ -137,7 +137,7 @@ def get_mod_lib_mapping(raw_detection_obj, url, mapping=[]):
 
     # Process DEBUN last (lowest priority)
     debun_detection_list = url_data.get('DEBUN', {}).get('detection', [])
-    debun_detection_list = debun_detection_list[0] if len(debun_detection_list) else []
+    debun_detection_list = debun_detection_list[0] if len(debun_detection_list) and debun_detection_list[0] else []
 
     for detected_lib in debun_detection_list:
         libname = detected_lib['libname']
