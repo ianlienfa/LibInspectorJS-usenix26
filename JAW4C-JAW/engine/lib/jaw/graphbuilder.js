@@ -1143,6 +1143,47 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
 
     // IPCG
     var call_graph_alias_check = [];
+    function normalizeIdentifierCandidate(identifierCandidate) {
+        if(typeof identifierCandidate !== 'string'){
+            return null;
+        }
+        var trimmed = identifierCandidate.trim();
+        if(!trimmed.length){
+            return null;
+        }
+        try{
+            var ast = esprimaParser.parseAST(trimmed, {range: true, loc: true, tokens: true});
+            if(ast && ast.tokens && ast.tokens.length === 1){
+                var token = ast.tokens[0];
+                if(token.type === 'Identifier' && token.value === trimmed){
+                    return trimmed;
+                }
+            }
+            if(ast && ast.body && ast.body.length === 1){
+                var stmt = ast.body[0];
+                if(stmt.type === 'ExpressionStatement' && stmt.expression && stmt.expression.type === 'Identifier' && stmt.expression.name === trimmed){
+                    return trimmed;
+                }
+            }
+        }catch(parseError){
+            return null;
+        }
+        return null;
+    }
+    function alias_safe_push(target, aliasEntry){
+        if(!Array.isArray(target) || !Array.isArray(aliasEntry) || aliasEntry.length !== 2){
+            return;
+        }
+        var function_actual_name = normalizeIdentifierCandidate(aliasEntry[0]);
+        var function_alias_name = normalizeIdentifierCandidate(aliasEntry[1]);
+        if(function_actual_name && function_alias_name){
+            target.push([function_actual_name, function_alias_name]);
+        }
+        else{
+            debugger;
+            DEBUG && console.log('skipped alias entry due to normalization failure:', aliasEntry);
+        }
+    }
     const IIFE_CALLEE_TYPES = new Set(['FunctionExpression', 'ArrowFunctionExpression']);
 
     async function processPageScopeTree(scopeTree, pageIndex) {
@@ -1209,7 +1250,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                                             functionMap[function_alias_name] = functionMap[function_actual_name];
                                         }else{
                                             // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name)
-                                            call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                                            alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                                         }
                                     }else if(variableDeclarator.init.type === 'MemberExpression'){
 
@@ -1218,7 +1259,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                                             functionMap[function_alias_name] = functionMap[function_actual_name];
                                         }else{
                                             // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name);
-                                            call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                                            alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                                         }
                                     }
                                     else if(variableDeclarator.init.type === 'NewExpression'){
@@ -1228,7 +1269,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                                             functionMap[function_alias_name] = functionMap[function_actual_name];
                                         }else{
                                             // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name);
-                                            call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                                            alias_safe_push(call_graph_alias_check, [function_actual_name, w]);
                                         }
                                     }
 
@@ -1294,7 +1335,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                                 // consider the case where function_actual_name is part of a key in function map
                                 // now node.right.name is aliased with the function_alias_name MemberExpression
                                 // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name)
-                                call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                                alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                             }
                         }else if(node.right.type === 'MemberExpression'){
 
@@ -1305,7 +1346,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                                 functionMap[function_alias_name] = functionMap[function_actual_name];
                             }else{
                                 // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name);
-                                call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                                alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                             } 
                         }
                     }
@@ -1324,7 +1365,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                             // consider the case where function_actual_name is part of a key in function map
                             // now node.right.callee.name is aliased with the function_alias_name MemberExpression
                             // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name)
-                            call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                            alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                         }
 
                     }
@@ -1344,7 +1385,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                 //                 functionMap[function_alias_name] = functionMap[function_actual_name];
                 //             }else{
                 //                 // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name)
-                //                 call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                //                 alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                 //             }
                 //         }else if(node.init.type === 'MemberExpression'){
 
@@ -1353,7 +1394,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                 //                 functionMap[function_alias_name] = functionMap[function_actual_name];
                 //             }else{
                 //                 // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name);
-                //                 call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                //                 alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                 //             }
                 //         }
                 //         else if(node.init.type === 'NewExpression'){
@@ -1363,7 +1404,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
                 //                 functionMap[function_alias_name] = functionMap[function_actual_name];
                 //             }else{
                 //                 // checkFunctionMapForPartialAliasing(function_actual_name, function_alias_name);
-                //                 call_graph_alias_check.push([function_actual_name, function_alias_name]);
+                //                 alias_safe_push(call_graph_alias_check, [function_actual_name, function_alias_name]);
                 //             }
                 //         }
 

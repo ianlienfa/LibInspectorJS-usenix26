@@ -5,24 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAW4C Analysis Dashboard</title>
     <link rel="stylesheet" href="/style.css?v=3">
+    <!-- Prism.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>JAW4C Analysis Dashboard</h1>
-            <a href="<%= neo4jUrl %>" target="_blank" class="neo4j-link">Open Neo4j Browser</a>
+            <div class="header-actions">
+                <button onclick="refreshStats()" class="refresh-btn" id="refresh-btn" title="Refresh statistics">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    </svg>
+                    Refresh Stats
+                </button>
+                <a href="<%= neo4jUrl %>" target="_blank" class="neo4j-link">Open Neo4j Browser</a>
+            </div>
         </header>
 
         <section class="global-stats">
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="openLibDetectionModal()">
                 <h2><%= globalStats.sites %></h2>
                 <p>Sites Analyzed</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="filterSitesWithFlows()">
                 <h2><%= globalStats.sitesWithFlows %></h2>
                 <p>Sites with Flows</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="openVulnLibModal()">
                 <h2><%= globalStats.vulnerableLibs %></h2>
                 <p>Vulnerable Libraries</p>
             </div>
@@ -35,8 +48,32 @@
         <!-- Filter Controls -->
         <section class="filter-section">
             <h3>Filters & Search</h3>
-            <div class="search-box">
-                <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="applyFilters()">
+            <div class="search-container">
+                <div class="search-mode-selector">
+                    <label class="search-mode-option">
+                        <input type="radio" name="search-mode" value="url" checked onchange="switchSearchMode()">
+                        <span>URL/Hash</span>
+                    </label>
+                    <label class="search-mode-option">
+                        <input type="radio" name="search-mode" value="content" onchange="switchSearchMode()">
+                        <span>File Content (Regex)</span>
+                    </label>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="handleSearchInput()">
+                    <button id="search-btn" class="search-execute-btn" style="display: none;" onclick="executeFileContentSearch()">Search</button>
+                </div>
+                <div id="search-options" class="search-options" style="display: none;">
+                    <input type="text" id="file-pattern" placeholder="File pattern (e.g., *.js or 0.js)" value="*.js">
+                    <label class="search-checkbox">
+                        <input type="checkbox" id="regex-mode" checked>
+                        <span>Regex</span>
+                    </label>
+                    <label class="search-checkbox">
+                        <input type="checkbox" id="case-sensitive">
+                        <span>Case Sensitive</span>
+                    </label>
+                </div>
             </div>
             <div class="filter-controls">
                 <label class="filter-checkbox">
@@ -53,7 +90,7 @@
                 </label>
                 <label class="filter-checkbox">
                     <input type="checkbox" id="filter-vuln-out" onchange="applyFilters()">
-                    <span>Has vuln.out</span>
+                    <span>Has Vulnerabilities</span>
                 </label>
                 <label class="filter-checkbox">
                     <input type="checkbox" id="filter-error-log" onchange="applyFilters()">
@@ -63,16 +100,57 @@
                     <input type="checkbox" id="filter-warning-log" onchange="applyFilters()">
                     <span>Has warnings.log</span>
                 </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-reviewed" onchange="applyFilters()">
+                    <span>Reviewed</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-unreviewed" onchange="applyFilters()">
+                    <span>Not Reviewed</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-vulnerable" onchange="applyFilters()">
+                    <span>Marked Vulnerable</span>
+                </label>
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="filter-has-notes" onchange="applyFilters()">
+                    <span>Has Notes</span>
+                </label>
                 <button onclick="clearFilters()" class="clear-filters-btn">Clear All Filters</button>
+            </div>
+            <div class="view-controls">
+                <label>View Mode:</label>
+                <button id="view-normal-btn" class="view-btn active" onclick="switchView('normal')">Normal</button>
+                <button id="view-notes-btn" class="view-btn" onclick="switchView('notes')">Notes View</button>
             </div>
             <div class="sort-controls">
                 <label>Sort by:</label>
                 <select id="sort-select" onchange="applySorting()">
                     <option value="default">Default</option>
-                    <option value="name">Name (A-Z)</option>
-                    <option value="flows-desc">Flows (High to Low)</option>
-                    <option value="vulns-desc">Vulnerable Libraries (High to Low)</option>
-                    <option value="pocs-desc">POC Matches (High to Low)</option>
+                    <optgroup label="Last Modified">
+                        <option value="modified-desc" selected>Newest First</option>
+                        <option value="modified-asc">Oldest First</option>
+                    </optgroup>
+                    <optgroup label="Name">
+                        <option value="name-asc">A-Z</option>
+                        <option value="name-desc">Z-A</option>
+                    </optgroup>
+                    <optgroup label="Flows">
+                        <option value="flows-desc">High to Low</option>
+                        <option value="flows-asc">Low to High</option>
+                    </optgroup>
+                    <optgroup label="Vulnerable Libraries">
+                        <option value="vulns-desc">High to Low</option>
+                        <option value="vulns-asc">Low to High</option>
+                    </optgroup>
+                    <optgroup label="POC Matches">
+                        <option value="pocs-desc">High to Low</option>
+                        <option value="pocs-asc">Low to High</option>
+                    </optgroup>
+                    <optgroup label="JS Files">
+                        <option value="js-count-desc">High to Low</option>
+                        <option value="js-count-asc">Low to High</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="results-count">
@@ -83,16 +161,22 @@
         <section class="site-list">
             <% sites.forEach(site => { %>
                 <div class="site-item"
+                     data-modified-time="<%= site.modifiedTime %>"
+                     data-reviewed="<%= site.reviewed %>"
+                     data-vulnerable="<%= site.vulnerable %>"
                      data-has-lib-detection="<%= site.hasLibDetection %>"
                      data-has-sink-flows="<%= site.hasSinkFlows %>"
                      data-has-vuln-out="<%= site.hasVulnOut %>"
                      data-has-error-log="<%= site.hasErrorLog %>"
                      data-has-warning-log="<%= site.hasWarningLog %>"
+                     data-has-notes="<%= site.memo && site.memo.trim() ? 'true' : 'false' %>"
                      data-search-text="<%= (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase() %>"
+                     data-hash="<%= site.hash %>"
                      data-name="<%= site.domain %>"
                      data-flows="<%= site.hasFlows ? 1 : 0 %>"
                      data-vulns="<%= site.vulnerableLibs %>"
-                     data-pocs="<%= site.pocMatches %>">
+                     data-pocs="<%= site.pocMatches %>"
+                     data-js-count="<%= site.jsFiles ? site.jsFiles.length : 0 %>">
                     <div class="site-header" onclick="toggleDetails('<%= site.hash %>')">
                         <div class="site-name-wrapper">
                             <div class="site-domain" title="<%= site.originalUrl %>"><%= site.domain %></div>
@@ -112,9 +196,62 @@
                         </div>
                         <span class="expand-icon" id="icon-<%= site.hash %>">+</span>
                     </div>
+                    <% if (site.memo && site.memo.trim()) { %>
+                    <div class="site-note-inline" style="display: none;">
+                        <div class="note-label">📝 Note:</div>
+                        <div class="note-content"><%= site.memo %></div>
+                    </div>
+                    <% } %>
                     <div class="site-details" id="details-<%= site.hash %>">
-                        <p><strong>Original URL:</strong><br><a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
-                        <p><strong>Hash:</strong><br><%= site.hash %></p>
+                        <p><strong>URL:</strong> <a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
+                        <p><strong>Hash:</strong> <%= site.hash %></p>
+
+                        <div class="review-section">
+                            <h4>Review Status</h4>
+                            <div class="review-controls-inline">
+                                <div class="review-checkboxes">
+                                    <label class="review-checkbox">
+                                        <input type="checkbox"
+                                               id="reviewed-<%= site.hash %>"
+                                               <%= site.reviewed ? 'checked' : '' %>
+                                               onchange="updateReview('<%= site.hash %>', 'reviewed', this.checked)">
+                                        <span>Reviewed</span>
+                                    </label>
+                                    <label class="review-checkbox vulnerable-checkbox">
+                                        <input type="checkbox"
+                                               id="vulnerable-<%= site.hash %>"
+                                               <%= site.vulnerable ? 'checked' : '' %>
+                                               onchange="updateReview('<%= site.hash %>', 'vulnerable', this.checked)">
+                                        <span>Vulnerable</span>
+                                    </label>
+                                </div>
+                                <div class="memo-section-inline">
+                                    <label for="memo-<%= site.hash %>"><strong>Notes:</strong></label>
+                                    <textarea id="memo-<%= site.hash %>"
+                                              class="memo-textarea"
+                                              placeholder="Add notes..."
+                                              onchange="updateReview('<%= site.hash %>', 'memo', this.value)"><%= site.memo %></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <% if (site.jsFiles && site.jsFiles.length > 0) { %>
+                        <div class="js-files-section">
+                            <h4 class="js-files-header" onclick="toggleJsFiles('<%= site.hash %>')">
+                                <span class="expand-icon-small" id="js-icon-<%= site.hash %>">▶</span>
+                                JavaScript Files (<%= site.jsFiles.length %>)
+                            </h4>
+                            <div class="js-files-dropdown" id="js-files-<%= site.hash %>" style="display: none;">
+                                <div class="js-files-grid">
+                                    <% site.jsFiles.forEach(file => { %>
+                                        <a href="#" class="js-file-link" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a>
+                                    <% }); %>
+                                </div>
+                            </div>
+                        </div>
+                        <% } %>
+
+                        <h4>Analysis Files</h4>
                         <ul class="file-list">
                             <% site.files.forEach(file => { %>
                                 <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a></li>
@@ -127,7 +264,7 @@
                                     Switch to Raw View
                                 </button>
                             </div>
-                            <pre class="file-content" id="content-<%= site.hash %>"></pre>
+                            <pre class="file-content line-numbers" id="content-<%= site.hash %>"><code class="language-javascript" id="code-<%= site.hash %>"></code></pre>
                         </div>
                     </div>
                 </div>
@@ -135,6 +272,112 @@
         </section>
     </div>
 
+    <!-- Library Detection Modal -->
+    <div id="lib-detection-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Library Detection Statistics</h2>
+                <span class="modal-close" onclick="closeLibDetectionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3 id="total-detected-libs">-</h3>
+                        <p>Total Detected Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="unique-detected-libs">-</h3>
+                        <p>Unique Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="sites-with-detections">-</h3>
+                        <p>Sites with Detections</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="avg-libs-per-site">-</h3>
+                        <p>Avg Libraries per Site</p>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Top 15 Detected Libraries</h3>
+                        <canvas id="top-detected-libs-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Detection Method Distribution</h3>
+                        <canvas id="detection-method-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Top Library Versions</h3>
+                        <canvas id="detected-versions-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Accuracy Distribution</h3>
+                        <canvas id="accuracy-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vulnerable Libraries Modal -->
+    <div id="vuln-lib-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Vulnerable Libraries Statistics</h2>
+                <span class="modal-close" onclick="closeVulnLibModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3 id="total-vuln-libs">-</h3>
+                        <p>Total Vulnerable Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="unique-libs">-</h3>
+                        <p>Unique Libraries</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="sites-with-vulns">-</h3>
+                        <p>Sites with Vulnerabilities</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="avg-vulns-per-site">-</h3>
+                        <p>Avg Vulns per Site</p>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Top 10 Vulnerable Libraries</h3>
+                        <canvas id="top-libs-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Vulnerability Types Distribution</h3>
+                        <canvas id="vuln-types-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Library Versions Distribution</h3>
+                        <canvas id="versions-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Confidence Score Distribution</h3>
+                        <canvas id="confidence-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
     <script src="/main.js?v=2"></script>
 </body>
 </html>

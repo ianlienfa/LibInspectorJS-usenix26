@@ -42,7 +42,7 @@ const SourceSinkAnalyzer = SourceSinkAnalyzerModule.CVESourceSinkAnalyzer;
 
 const GraphExporter = require('./../../engine/core/io/graphexporter');
 const logger = require('../../engine/core/io/logging.js');
-const {parseUrl} = require('../../driver/utilities/webtools');
+const { has } = require('core-js/core/dict');
 
 /**
  * ------------------------------------------------
@@ -61,6 +61,7 @@ const do_ast_preprocessing_passes = false;
 var do_compress_graphs = true;
 var overwrite_hpg = false;
 var iterative_output = false;
+var all_patterns = [];
 
 
 /**
@@ -68,8 +69,6 @@ var iterative_output = false;
  *  			utility functions
  * ------------------------------------------------
 **/
-
-// var libraryHeuristics = []
 
 
 const withTimeout = (millis, promise) => {
@@ -106,8 +105,7 @@ function readFile(file_path_name){
  * @return converts the url to a string name suitable for a directory by removing the colon and slash symbols
 **/
 function getNameFromURL(url){
-	const parsedUrl = parseUrl(url);
-	return parsedUrl.replace(/\:/g, '-').replace(/\//g, '');
+	return url.replace(/\:/g, '-').replace(/\//g, '');
 }
 
 
@@ -148,20 +146,65 @@ function getOrCreateDataDirectoryForWebsite(url){
 }
  * @return {boolean} whether or not the input is a library script
 **/
-function isCdnScript(script_object){
-	const cdn_url_may_features = ['cdn', 'jsdelivr', 'cdnjs.cloudflare.com', 'ajax.googleapis.com', 'unpkg.com']
 
+function isFromLibraryCDN(jsString) {
+  const CDN_KEYWORDS = [
+    // Public CDNs
+    "code.jquery.com",
+    "cdnjs.cloudflare.com",
+    "ajax.googleapis.com",
+    "cdn.jsdelivr.net",
+    "jsdelivr.net",
+    "unpkg.com",
+    "cdn.bootcdn.net",
+    "cdn.staticfile.org",
+    "lib.baomitu.com",
+    "ajax.aspnetcdn.com",
+    "www.gstatic.com",
+    "apis.google.com",
+
+    // Analytics / SDK CDNs
+    "www.googletagmanager.com",
+    "www.google-analytics.com",
+    "static.hotjar.com",
+    "script.hotjar.com",
+    "cdn.segment.com",
+    "cdn.optimizely.com",
+    "js-agent.newrelic.com",
+    "cdn.mxpnl.com",
+    "pagead2.googlesyndication.com",
+    "adservice.google.com",
+
+    // Social SDKs
+    "connect.facebook.net",
+    "platform.twitter.com",
+    "cdn.syndication.twimg.com",
+    "platform.linkedin.com",
+
+    // Payment SDKs
+    "js.stripe.com",
+    "www.paypalobjects.com",
+    "checkoutshopper-live.adyen.com",
+    "sdk.razorpay.com",
+
+	// static resouces
+	"/assets"
+  ];
+
+  const lower = jsString.toLowerCase();
+  return CDN_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+
+function isCdnScript(script_object){
 	if(script_object === undefined){
 		return false
 	}
 	else{
 		if(script_object['src'] !== undefined){
-			return cdn_url_may_features.some(feature => script_object['src'].includes(feature))
+			return isFromLibraryCDN(script_object['src'])
 		}	
 	}	
 }
-
-
 
 
 /** 
@@ -231,49 +274,66 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		}
 	}
 	
+	var library_scripts = [];
+	let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/^\d+\.js$/i) && !elm.match(/\.min\.js$/i);});
+	for(let i=0; i<scriptFiles.length; i++){
+		let script_short_name = '' + i + '.js';
+		let script_full_name = pathModule.join(webpageFolder, script_short_name);
+		let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
 
-		var library_scripts = [];
-		let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/.*\.(js$)/ig);});
-		for(let i=0; i<scriptFiles.length; i++){
-			let script_short_name = '' + i + '.js';
-			let script_full_name = pathModule.join(webpageFolder, script_short_name);
-			let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
-			
-			// if possible, filter out libraries based on their src in the rendered DOM tree
-			if(script_short_name in scripts_mapping){
-	
-				let script_object = scripts_mapping[script_short_name];
-				if(script_object['type'] === 'external'){
-					// Deprecated isLibraryScript removed, this heuristic is too strong for analyzing bundled code, which often skips the library object calls from the bundles
-					// We only filter out the direct resources from cdn sites
-					let is_cdn_script = isCdnScript(script_object['src'], {mode: 'src'});
-					DEBUG && is_cdn_script && console.log(`[Analyzer] ${script_object['src']} is a cdn library object`)
-					if(is_cdn_script){
-						library_scripts.push(script_short_name);
-						continue;
-					}
+		// if possible, filter out libraries based on their src in the rendered DOM tree
+		if(script_short_name in scripts_mapping){
+
+			let script_object = scripts_mapping[script_short_name];
+			if(script_object['type'] === 'external'){
+				// Deprecated isLibraryScript removed, this heuristic is too strong for analyzing bundled code, which often skips the library object calls from the bundles
+				// We only filter out the direct resources from cdn sites
+				
+				let is_cdn_script = isCdnScript(script_object);
+				let is_library = isLibraryScript(script_object['src'], {mode: 'src'});
+				if((is_cdn_script || is_library) && (!disable_heuristic_skip)){
+					DEBUG && is_cdn_script && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a cdn library object`)
+					DEBUG && is_library && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a library object`)
+					library_scripts.push(script_short_name);
+					continue;
 				}
 			}
-	
-			// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
-			let script_content = await readFile(script_full_name);
-			if(script_content != -1){
-				// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name} success`)
-				scripts.push({
-					scriptId: i,
-					source: script_content,
-					name: script_full_name,
-				})
-			}
-	
-			let sourcemap_content = await readFile(source_map_name);
-			if(sourcemap_content != -1){
-				sourcemaps[script_short_name] = JSON.parse(sourcemap_content);
+		}
+
+		// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
+		let script_content = await readFile(script_full_name);
+		
+		// search for existence of all_pattern elements in script
+		let has_pattern_in_script = false;		
+		if(script_content !== -1){
+			for(let pattern of all_patterns){
+				if(script_content.includes(pattern)){
+					has_pattern_in_script = true;
+					break;
+				}
 			}
 		}
-	
-		let library_scripts_path_name = pathModule.join(webpageFolder, 'library_scripts.json');
-		fs.writeFileSync(library_scripts_path_name, JSON.stringify(library_scripts));
+
+		if(script_content !== -1 && has_pattern_in_script){
+			if(!has_pattern_in_script){
+				DEBUG && console.log(`[Analyzer] Skipping ${script_short_name}: no pattern match found`)
+				continue;
+			}
+			scripts.push({
+				scriptId: i,
+				source: script_content,
+				name: script_full_name,
+			})
+		}
+
+		let sourcemap_content = await readFile(source_map_name);
+		if(sourcemap_content != -1){
+			sourcemaps[script_short_name] = JSON.parse(sourcemap_content);
+		}
+	}
+
+	let library_scripts_path_name = pathModule.join(webpageFolder, 'library_scripts.json');
+	fs.writeFileSync(library_scripts_path_name, JSON.stringify(library_scripts));
 	
 	/*
 	*  ----------------------------------------------
@@ -297,6 +357,14 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	let parsingErrors = [];
 	for(let [idx, script] of scripts.entries()){
 		let scriptName = script.name; // '' + idx + '.js';
+		/* DEBUGGING for the libObj problem
+			4.js okay, // 1.js okay, 2.js okay
+		*/
+		// if(!scriptName.endsWith('4.js')){
+		// 	console.log("[static_analysis] skipping script: "+ scriptName);
+		// 	continue;
+		// }
+		/* DEBUGGING for the libObj problem end */
 		console.log(`[static_analysis] [${idx}/${scripts.length}] processing script: ${scriptName}`)
 		let parsingError = await SourceSinkAnalyzerInstance.api.initializeModelsFromSource(scriptName, script.source, constantsModule.LANG.js, do_ast_preprocessing_passes)
 		if(parsingError && parsingError === scriptName){
@@ -385,10 +453,11 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
     var config = processArgv({}) || {};
     const seedurl = config.seedurl;
     const singleFolder = config.singlefolder;
-
     overwrite_hpg = (config.overwritehpg && config.overwritehpg.toLowerCase() === 'true')? true: false; 
     do_compress_graphs = (config.compresshpg && config.compresshpg.toLowerCase() === 'false')? false: true; 
   	iterative_output = (config.iterativeoutput && config.iterativeoutput.toLowerCase() === 'true')? true: false;
+	all_patterns = (config.allpatterns && config.allpatterns.length > 0)? JSON.parse(config.allpatterns): [];	
+	disable_heuristic_skip = (config.disable_heuristic_skip && config.disable_heuristic_skip.toLowerCase() === 'true')? true: false; 
 
 	if(singleFolder && singleFolder.length > 10){
 

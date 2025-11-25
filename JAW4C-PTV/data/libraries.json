@@ -1,18 +1,4 @@
-[
-    {
-        "libname": "1000hz-bootstrap-validator",
-        "url": "https://cdnjs.com/libraries/1000hz-bootstrap-validator",
-        "function": "test_1000hzbootstrapvalidator",
-        "versionfile": "1000hzbootstrapvalidator.json",
-        "feature1": [
-            [
-                "event"
-            ],
-            [
-                "fn"
-            ]
-        ]
-    },
+[    
     {
         "libname": "3Dmol",
         "url": "https://cdnjs.com/libraries/3Dmol",
@@ -17852,20 +17838,6 @@
             [
                 "runInContext"
             ],
-            [
-                "parse"
-            ],
-            [
-                "stringify"
-            ]
-        ]
-    },
-    {
-        "libname": "json5",
-        "url": "https://cdnjs.com/libraries/json5",
-        "function": "test_json5",
-        "versionfile": "json5.json",
-        "feature1": [
             [
                 "parse"
             ],

@@ -47,7 +47,7 @@ def read_raw_result_with_url(data_dir, url):
         raise e
 
 # Take raw detection_obj then return the mod_lib_mapping
-def get_mod_lib_mapping(raw_detection_obj, url):
+def get_mod_lib_mapping(raw_detection_obj, url, mapping=[]):
     """
     Return metadata for a given library.
 
@@ -60,20 +60,108 @@ def get_mod_lib_mapping(raw_detection_obj, url):
             }
         }
     """
-    detection_list = raw_detection_obj.get(url, {}).get('PTV', {}).get('detection', [])    
-    detection_list = detection_list[0] if len(detection_list) else []
-    mod_lib_mapping = {}						
-    for detected_lib in detection_list:
-        print("detected_lib", detected_lib)
+    # read in predefined library mapping if not provided
+    if(not mapping or len(mapping) == 0):
+        with open (os.path.join(os.path.dirname(__file__), 'lib_mapping.json'), 'r') as f:
+            mapping = json.load(f)
+
+    url_data = raw_detection_obj.get(url, {})
+    mod_lib_mapping = {}
+
+    # Track <library, version> pairs to ensure uniqueness, favoring PTV
+    seen_lib_version_pairs = set()
+
+    # Process PTV first (highest priority)
+    ptv_detection_list = url_data.get('PTV', {}).get('detection', [])
+    ptv_detection_list = ptv_detection_list[0] if len(ptv_detection_list) else []    
+
+    for detected_lib in ptv_detection_list:
         if 'mod_' not in detected_lib['location']:
             mod = False
             detected_lib['location'] = detected_lib['location'].replace('window.', '') # trim window
         else:
             mod = True
-            detected_lib['location'] = detected_lib['location'].split('_')[1]     
-        if detected_lib['libname'] not in mod_lib_mapping:
-            mod_lib_mapping[detected_lib['libname']] = []
-        mod_lib_mapping[detected_lib['libname']].append({'mod': mod, 'location': detected_lib['location'], 'version': detected_lib['version'], 'accurate': detected_lib['accurate']})
+            detected_lib['location'] = detected_lib['location'].split('_')[1]
+
+        libname = detected_lib['libname']
+        version = detected_lib['version']
+
+        if libname not in mod_lib_mapping:
+            mod_lib_mapping[libname] = []
+
+        mod_lib_mapping[libname].append({
+            'mod': mod,
+            'location': detected_lib['location'],
+            'version': version,
+            'accurate': detected_lib.get('accurate', True)  # Default to True if not present
+        })
+
+        # Track this pair
+        seen_lib_version_pairs.add((libname, version, detected_lib['location']))
+
+    # Process PTV-Original second
+    ptv_original_detection_list = url_data.get('PTV-Original', {}).get('detection', [])
+    ptv_original_detection_list = ptv_original_detection_list[0] if len(ptv_original_detection_list) else []
+
+    for detected_lib in ptv_original_detection_list:
+        libname = detected_lib['libname']
+        version = detected_lib['version']
+        location = detected_lib['location'] if 'location' in detected_lib else ''
+        location = location.replace('window', '').replace('.', '')
+        # Normalize and expand locations if mapping provides a list
+        if location == '':
+            if libname in mapping:
+                mapped_location = mapping[libname]
+                candidate_locations = mapped_location if isinstance(mapped_location, list) else [mapped_location]
+            else:
+                candidate_locations = [libname]
+        else:
+            candidate_locations = [location]
+
+        for loc in candidate_locations:            
+            # Skip if already detected by PTV
+            if (libname, version, loc) in seen_lib_version_pairs:
+                continue
+
+            if libname not in mod_lib_mapping:
+                mod_lib_mapping[libname] = []
+
+            mod_lib_mapping[libname].append({
+                'mod': False,
+                'location': loc,
+                'version': version,
+                'accurate': detected_lib.get('accurate', True)
+            })
+
+            seen_lib_version_pairs.add((libname, version, loc))
+
+    # Process DEBUN last (lowest priority)
+    debun_detection_list = url_data.get('DEBUN', {}).get('detection', [])
+    debun_detection_list = debun_detection_list[0] if len(debun_detection_list) else []
+
+    for detected_lib in debun_detection_list:
+        libname = detected_lib['libname']
+        version = detected_lib['version']
+        mapped_location = mapping[libname] if libname in mapping else libname
+        candidate_locations = mapped_location if isinstance(mapped_location, list) else [mapped_location]
+
+        for loc in candidate_locations:
+            # Skip if already detected by PTV or PTV-Original
+            if (libname, version, loc) in seen_lib_version_pairs:
+                continue
+
+            if libname not in mod_lib_mapping:
+                mod_lib_mapping[libname] = []
+
+            mod_lib_mapping[libname].append({
+                'mod': False,
+                'location': loc,
+                'version': version,
+                'accurate': detected_lib.get('accurate', True)
+            })
+
+            seen_lib_version_pairs.add((libname, version, loc))
+
     return mod_lib_mapping
 
     

@@ -4,6 +4,7 @@
  *   			third-party imports
  * ------------------------------------------------
 **/
+const puppeteer = require('puppeteer');
 const { chromium } = require('playwright');
 const fs = require('fs');
 const pathModule = require('path');
@@ -20,7 +21,6 @@ const { URL } = require('url');
 const lift = require('../driver/utilities/lift');
 const transform = require('../driver/utilities/transform');
 const logger = require('../driver/utilities/logger');
-const {parseUrl} = require('../driver/utilities/webtools');
 
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
@@ -102,8 +102,12 @@ function readFile(file_path_name){
 	}
 }
 
-
-
+function createStartCrawlUrl(url) {
+	const condition = 'soak';
+	const query = { target: url, type: condition };
+	const params = new URLSearchParams(query);
+	return `http://240.240.240.240/?${params.toString()}`;
+}
 
 const stringIsAValidUrl = (s, protocols) => {
     try {
@@ -184,8 +188,7 @@ function hashURL(url){
  * @return creates a directory to store the data of the input url and returns the directory name.
 **/
 function getOrCreateDataDirectoryForWebsite(url){
-	const parsedUrl = parseUrl(url);
-	const folderName = getNameFromURL(parsedUrl);
+	const folderName = getNameFromURL(url);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	console.log("folderPath", folderPath)
 	if(!fs.existsSync(folderPath)){
@@ -196,8 +199,8 @@ function getOrCreateDataDirectoryForWebsite(url){
 
 
 function directoryExists(url){
-	const parsedUrl = parseUrl(url);
-	const folderName = getNameFromURL(parsedUrl);
+
+	const folderName = getNameFromURL(url);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(fs.existsSync(folderPath)){
 		return true;
@@ -210,8 +213,8 @@ function directoryExists(url){
 
 
 function cleanDirectory(url){
-	const parsedUrl = parseUrl(url);
-	const folderName = getNameFromURL(parsedUrl);
+
+	const folderName = getNameFromURL(url);
 	const folderPath = pathModule.join(dataStorageDirectory, folderName);
 	if(fs.existsSync(folderPath)){
 		// Recursively remove everything inside folderPath
@@ -635,11 +638,15 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		let requestUrl = request.url();
 		// filter out data:image urls
 		if (!requestUrl.startsWith('data:image')){
-			let requestHeaders = await request.allHeaders();
-			let requestBody = request.postData();
-			httpRequests[requestUrl] = {
-				'headers': requestHeaders,
-				'postData': requestBody,
+			try {
+				let requestHeaders = await request.allHeaders();
+				let requestBody = request.postData();
+				httpRequests[requestUrl] = {
+					'headers': requestHeaders,
+					'postData': requestBody,
+				}
+			} catch (err) {
+				DEBUG && console.log('[RequestCollectionError]', err);
 			}
 		}
 	});
@@ -651,15 +658,15 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		// redirect browser console log in the browser to node js log
 		BROWSER_LOG && page.on('console', consoleObj => console.log('[BrowserConsole] ' + consoleObj.text()));
 
-		response = await page.goto(url, {waitUntil: 'load', timeout: 60000});
-		await page.waitForTimeout(1000);
-		DEBUG && console.log('[pageLoad] new page loaded successfully');
-
-		// wait for page to load and scripts to be captured
-		DEBUG && console.log('[pageLoad] waiting for 5 seconds.');
-		await page.waitForTimeout(5000);
-
-		DEBUG && console.log('[pageLoadCompleted] new page loaded successfully');
+		try {
+			response = await page.goto(url, {waitUntil: 'load', timeout: 60000});
+			await page.waitForTimeout(1000);
+			DEBUG && console.log('[pageLoad] new page loaded successfully');
+			DEBUG && console.log('[pageLoad] waiting for 5 seconds.');
+			await page.waitForTimeout(5000);
+		} catch (error) {
+			DEBUG && console.log('[pageLoad] error loading new page:', error);
+		}
 
 		frontier.visited.push(url);
 		frontier.unvisited = frontier.unvisited.filter(e => e !== url); // remove visited url from unvisited list
@@ -683,7 +690,6 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 
 		finished = true; // lock scripts for saving
 
-		// console.log("html:", html)
 		const virtualDOM = new JSDOM(html);
 		const scriptTagsDOM = virtualDOM.window.document.querySelectorAll('script')
 		// DEBUG && console.log("scriptTags bf slice", JSON.stringify(scriptTags))		
@@ -735,7 +741,7 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		DEBUG && console.log('[Crawler] All external scripts loaded.');
 
 		for(const [index, scriptItem] of allScripts.entries()){
-			console.log(`index: ${index}, script: ${scriptItem}`)
+			console.log(`index: ${index}, script: ${scriptItem[0]}, ${(scriptItem[1].startsWith('http')) ? scriptItem[1] : '' }...`)
 
 			let scriptKind = scriptItem[0];
 
@@ -789,29 +795,44 @@ async function crawlWebsitePlaywright(browser, url, domain, frontier, dataDirect
 		DEBUG && console.log('[Crawler] Done collecting scripts.');
 
 		// web storage data
-		webStorageData = await page.evaluate( () => {
+		try {
+			webStorageData = await page.evaluate( () => {
 
-			function getWebStorageData() {
-			    let storage = {};
-			    let keys = Object.keys(window.localStorage);
-			    let i = keys.length;
-			    while ( i-- ) {
-			        storage[keys[i]] = window.localStorage.getItem(keys[i]);
-			    }
-			    return storage;
-			}
+				function getWebStorageData() {
+					let storage = {};
+					let keys = Object.keys(window.localStorage);
+					let i = keys.length;
+					while ( i-- ) {
+						storage[keys[i]] = window.localStorage.getItem(keys[i]);
+					}
+					return storage;
+				}
 
-			let webStorageData = getWebStorageData();
-			return webStorageData;
-		});
-		DEBUG && console.log('[Crawler] Done getting webstorages.');
+				let webStorageData = getWebStorageData();
+				return webStorageData;
+			});
+			DEBUG && console.log('[Crawler] Done getting webstorages.');
 
+		} catch (error) {
+			DEBUG && console.log('[WebStorageError] error while getting web storage data');			
+		}
 		// cookies and local storage (Playwright uses context.storageState())
-		cookies = await page.context().storageState();
-		DEBUG && console.log('[Crawler] Done getting cookies.');
+		try {
+			cookies = await page.context().storageState();
+			DEBUG && console.log('[Crawler] Done getting cookies.');
+		}
+		catch (error) {	
+			DEBUG && console.log('[CookieError] error while getting cookies');
+		}
 
 		try{
 			// save the collected data
+			// probably have to cast the url to be the archive supported format
+			// Get's this msg instead: 2025-11-20 06:42:26,385 - JAW - INFO - 11-20 06:42:26 [error]: Failed visiting http://240.240.240.240/?target=https%3A%2F%2Fwww.ebay.de%2Fmyb%2FWatchListAdd%3Fitem%3D356600483502%26pt%3Dnull%26srt%3D01000a0000005045a7c6d77bfb126df373cddb6082560c92d21fe6d5d61f94c301de37e7d458fe23a8c532f3552aa922d49c4d21fb28607b713b0146cb4287881604bf8ee5792c2520578898edcde98f3d1991d2f42700%26ru%3Dhttps%253A%252F%252Fwww.ebay.de%252Fsch%252Fi.html%253F_from%253DR40%2526_nkw%253D%252B%2526_sacat%253D267%2526_fspt%253D1%2526LH_PrefLoc%253D99%2526
+			// if(!url.startsWith('http://240.240.240.240/')){
+			// 	url = createStartCrawlUrl(url);
+			// }
+			DEBUG && console.log('[Crawler] started saving page data.');
 			await savePageData(url, html, allScripts, cookies, webStorageData, httpRequests, httpResponses, dataDirectory, lift_enabled, transform_enabled);
 		}catch(e){
 			DEBUG && console.log('[PageSaveError] error while saving the webpage data');
@@ -928,8 +949,6 @@ async function launch_playwright(headless_mode, additional_args=undefined){
 	// Create temp user data directory for session isolation
 	const userDataDir = fs.mkdtempSync(pathModule.join(os.tmpdir(), 'playwright-'));
 	
-	console.log('additional_args', JSON.stringify(additional_args, 4))
-
 	let options = {
 		channel: 'chromium',
 		bypassCSP: true,

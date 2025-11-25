@@ -14,7 +14,7 @@ if (!fs.existsSync(path.join(__dirname, '../logs'))) {
 const logger = winston.createLogger({
     level: 'debug',
     format: winston.format.combine(
-      winston.format.colorize(),
+      winston.format.colorize({ all: true }),  // Force colorization even when not TTY
       winston.format.timestamp({ format: 'MM-DD HH:mm:ss' }),
       winston.format.splat(),
       winston.format.simple(),
@@ -23,8 +23,14 @@ const logger = winston.createLogger({
       })
     ),
     transports: [
-      // Write to console
-      new winston.transports.Console(),
+      // Write to console (force output to stdout for Python subprocess capture)
+      new winston.transports.Console({
+        stderrLevels: [],  // Don't use stderr, send everything to stdout
+        consoleWarnLevels: [],  // Don't use console.warn
+        handleExceptions: true,
+        handleRejections: true,
+        forceConsole: true  // Force console output even in non-TTY environments
+      }),
       // Write to a unique log file for each run
       new winston.transports.File({ 
         filename: path.join(__dirname, '../logs', `detector-${uniqueId}.log`),

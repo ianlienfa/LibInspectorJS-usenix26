@@ -36,7 +36,7 @@ from utils.logging import logger as LOGGER
 detector_driver_program = 'dlv.js'
 lib_detection_cwd = os.path.join(os.path.dirname(__file__), "..", "..", "driver")
 
-
+# Nov 19: we don't need the -l option here, target directory will be decided by url
 def lib_detection_single_url(data_dir, url, timeout=60):
     lib_detection_command = "node {0} -u '{1}' -l {2}".format(
         detector_driver_program,

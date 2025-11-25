@@ -11,7 +11,10 @@ const {parseUrl} = require('./utilities/webtools');
 const { PTdetectorExtensionPath, PTdetectorExtensionId, PTVExtensionPath, PTVOriginalExtensionPath, ProxyServerPath, PTVPuppeteerLaunchConfig, PTVOriginalLaunchConfig } = require('./config')
 const { Command } = require('commander');
 const { exit } = require('process');
-const { dir } = require('console');
+
+// DEBUN library detection path
+const debunPath = path.resolve(__dirname, '../../JAW4C-DEBUN');
+const debunScriptPath = path.join(debunPath, 'debun.sh');
 
 function createStartCrawlUrl(url) {
   const condition = 'soak';
@@ -22,6 +25,120 @@ function createStartCrawlUrl(url) {
   const q = encodeURIComponent(query.toString())
   return `http://240.240.240.240/%3F${q}`;
 }
+
+const DEBUN = async (dataDir = "") => {
+  // Run DEBUN library detection on original scripts
+  let result = {
+    detection: []
+  };
+
+  try {
+    // Validate input directory
+    if (!dataDir || typeof dataDir !== 'string') {
+      logger.warn(`Invalid dataDir provided to DEBUN: ${dataDir}`);
+      return result;
+    }
+
+    logger.info(`Running DEBUN detection on ${dataDir}`);
+
+    // DEBUN expects JavaScript files named as 0.js, 1.js, etc.
+    const originalDir = path.join(dataDir, 'original');
+
+    // Use the original directory if it exists, otherwise use dataDir
+    const scriptsDir = fs.existsSync(originalDir) ? originalDir : dataDir;
+
+    // Check if directory exists
+    if (!fs.existsSync(scriptsDir)) {
+      logger.warn(`Scripts directory does not exist: ${scriptsDir}`);
+      return result;
+    }
+
+    // Check if directory has any JavaScript files
+    const files = fs.readdirSync(scriptsDir);
+    const jsFiles = files.filter(f => f.endsWith('.js'));
+    if (jsFiles.length === 0) {
+      logger.warn(`No JavaScript files found in: ${scriptsDir}`);
+      return result;
+    }
+
+    logger.info(`Using scripts directory: ${scriptsDir}`);
+
+    // Call DEBUN from command line
+    const { execSync } = require('child_process');
+    const debunCommand = `${debunScriptPath} detect --dir "${scriptsDir}"`;
+
+    logger.info(`Executing: ${debunCommand}`);
+
+    let output;
+    try {
+      output = execSync(debunCommand, {
+        cwd: debunPath,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 60000 // 60 second timeout
+      });
+    } catch (execError) {
+      // Handle command execution errors
+      logger.error(`DEBUN command failed: ${execError.message}`);
+      if (execError.stderr) {
+        logger.error(`DEBUN stderr: ${execError.stderr}`);
+      }
+      return result;
+    }
+
+    // Validate output
+    if (!output || typeof output !== 'string') {
+      logger.warn('DEBUN produced no output');
+      return result;
+    }
+
+    // Parse the output to extract detected libraries
+    // Output format is "DETECTED LIBRARIES:\nlibrary@version\nlibrary@version\n..."
+    const lines = output.split('\n');
+    const detectionStartIndex = lines.findIndex(line => line.includes('DETECTED LIBRARIES:'));
+
+    const detections = [];
+    if (detectionStartIndex !== -1) {
+      for (let i = detectionStartIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        // Skip empty lines, loading messages, and error messages
+        if (line &&
+            !line.startsWith('Loading') &&
+            !line.toLowerCase().includes('error') &&
+            !line.toLowerCase().includes('warning')) {
+          // Parse library@version format
+          const match = line.match(/^(.+?)@(.+)$/);
+          if (match) {
+            const library = match[1].trim();
+            const version = match[2].trim();
+            // Validate library name and version
+            if (library && version && library.length > 0 && version.length > 0) {
+              detections.push({
+                libname: library,
+                version: version
+              });
+            }
+          }
+        }
+      }
+    }
+
+    logger.info(`DEBUN detected ${detections.length} libraries`);
+
+    result.detection = [detections];
+
+    return result;
+
+  } catch (error) {
+    // Catch any unexpected errors
+    logger.error(`Unexpected error in DEBUN detection: ${error.message}`);
+    if (error.stack) {
+      logger.error(`Stack trace: ${error.stack}`);
+    }
+    // Always return valid structure
+    return result;
+  }
+};
 
 const PTVOriginal = async (url, launchConfig, dataDir = "") => {
   // visit a page with original (non-lifted) scripts
@@ -53,9 +170,9 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
       });
     });
 
-    // page.on('console', msg => {
-    //   LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
-    // });
+    page.on('console', msg => {
+      LOGGER('PAGE LOG:' + msg.text().substring(0, 500));
+    });
 
     // Request interception with Playwright
     if(fs.existsSync(dataDir)){
@@ -89,34 +206,22 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
     }
 
     try {
-      await page.goto(url, {waitUntil: 'load'}).then(async () => {
-        LOGGER("waiting for extension detection...");
-        try {
-          await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
-
-          result["detection"] = await page.evaluate(() => {
-            return window._eventLog
-          });
-        } catch (timeoutError) {
-          logger.warn(`PTVOriginal extension detection timeout for ${url} - continuing with available data`);
-          result["detection"] = [];
-        }
-      });
+      await page.goto(url, {waitUntil: 'load'});
     } catch (error) {
-      logger.error(`[PTVOriginal] Failed visiting ${url}: ${error}`)
+      logger.error(`Failed visiting ${url}: ${error}`)
     }
 
-    
-    // try {
-    //   await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
+    LOGGER("waiting for extension detection...")
+    try {
+      await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
 
-    //   result["detection"] = await page.evaluate(() => {
-    //     return window._eventLog
-    //   });
-    // } catch (timeoutError) {
-    //   logger.warn(`PTVOriginal extension detection timeout for ${url} - continuing with available data`);
-    //   result["detection"] = [];
-    // }
+      result["detection"] = await page.evaluate(() => {
+        return window._eventLog
+      });
+    } catch (timeoutError) {
+      logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
+      result["detection"] = [];
+    }
 
     await browser.close();
 
@@ -217,72 +322,71 @@ const PTV = async (url, launchConfig, dataDir = "") => {
     }
 
     try {
-      await page.goto(url, {waitUntil: 'load'}).then(async () => {
-        // Collect lift_arr_str
-        result["lift_arr_str"] = await page.evaluate(() => {
-          try {
-            if (typeof lift_arr !== 'undefined') {
-              console.log("lift_arr:", JSON.stringify(lift_arr));
-              return lift_arr;
-            } else {
-              console.log("lift_arr is not defined on this page.");
-            }
-          } catch (e) {
-            console.log("Error checking lift_arr:", e.toString());
-          }
-          return "";
-        });
-
-        // Collect webpackObjStr
-        result["webpackObjStr"] = await page.evaluate(() => {
-          const webpackObjs = Object.getOwnPropertyNames(window).filter(x => x.includes('webpack'));
-          let returnObj = {};
-          str = ""
-          for (const i of webpackObjs) {
-            let mod_wrap;
-            try {
-              mod_wrap = eval(`window.${i}`);
-            } catch (e) {
-              console.log(`Failed to eval window.${i}:`, e.message);
-              continue;
-            }
-
-            returnObj["mod_wrap"] = mod_wrap;
-
-            if (mod_wrap && typeof mod_wrap[Symbol.iterator] === 'function') {
-              for (const j of mod_wrap) {
-                if (j?.[1]) {
-                  const keys = Object.keys(j[1]);
-                  str += JSON.stringify(keys) + ";";
-                }
-              }
-            } else {
-              str += `[non-iterable:${i}];`;
-            }
-          }
-          returnObj["str"] = str;
-          return returnObj;
-        });
-
-        // Wait for detection with timeout handling
-        LOGGER("waiting for extension detection...")
-        try {
-          await page.waitForFunction(() => window.detectionReady === true, { timeout: 30000 });
-
-          LOGGER("waiting for eventLog")
-          result["detection"] = await page.evaluate(() => {
-            console.log("Evaluating event log...", window._eventLog);
-            return window._eventLog
-          });
-        } catch (timeoutError) {
-          logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
-          result["detection"] = [];
-        }
-      });
+      await page.goto(url, {waitUntil: 'load'});
     } catch (error) {
-      logger.error(`[PTV] Failed visiting ${url}: ${error}`)
+      logger.error(`Failed visiting ${url}: ${error}`)
     }
 
+      // Collect lift_arr_str
+      result["lift_arr_str"] = await page.evaluate(() => {
+        try {
+          if (typeof lift_arr !== 'undefined') {
+            console.log("lift_arr:", JSON.stringify(lift_arr));
+            return lift_arr;
+          } else {
+            console.log("lift_arr is not defined on this page.");
+          }
+        } catch (e) {
+          console.log("Error checking lift_arr:", e.toString());
+        }
+        return "";
+      });
+
+      // Collect webpackObjStr
+      result["webpackObjStr"] = await page.evaluate(() => {
+        const webpackObjs = Object.getOwnPropertyNames(window).filter(x => x.includes('webpack'));
+        let returnObj = {};
+        str = ""
+        for (const i of webpackObjs) {
+          let mod_wrap;
+          try {
+            mod_wrap = eval(`window.${i}`);
+          } catch (e) {
+            console.log(`Failed to eval window.${i}:`, e.message);
+            continue;
+          }
+
+          returnObj["mod_wrap"] = mod_wrap;
+
+          if (mod_wrap && typeof mod_wrap[Symbol.iterator] === 'function') {
+            for (const j of mod_wrap) {
+              if (j?.[1]) {
+                const keys = Object.keys(j[1]);
+                str += JSON.stringify(keys) + ";";
+              }
+            }
+          } else {
+            str += `[non-iterable:${i}];`;
+          }
+        }
+        returnObj["str"] = str;
+        return returnObj;
+      });
+
+    // Wait for detection with timeout handling
+    LOGGER("waiting for extension detection...")
+    try {
+      await page.waitForFunction(() => window.detectionReady === true, { timeout: 60000 });
+
+      LOGGER("waiting for eventLog")
+      result["detection"] = await page.evaluate(() => {
+        console.log("Evaluating event log...", window._eventLog);
+        return window._eventLog
+      });
+    } catch (timeoutError) {
+      logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
+      result["detection"] = [];
+    }
 
     LOGGER("waiting for browser close...")
     await browser.close();
@@ -309,7 +413,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
 
 
 
-module.exports = {PTV, PTVOriginal};
+module.exports = {PTV, PTVOriginal, DEBUN};
 
 
 
@@ -338,8 +442,8 @@ if (require.main === module) {
       const BASE_DIR = path.resolve(__dirname, '..')
       const dataStorageDirectory = path.join(BASE_DIR, 'data');
       const parsedUrl = parseUrl(url);
-      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);
-      const hashfolderName = crawler.hashURL(url);
+      const folderName = dirPath ?? crawler.getNameFromURL(parsedUrl);      
+      const hashfolderName = crawler.hashURL(url)
       dirPath = path.join(dataStorageDirectory, folderName)
       hashdirPath = path.join(dataStorageDirectory, folderName, hashfolderName);
       if(!fs.existsSync(dirPath)){
@@ -357,6 +461,11 @@ if (require.main === module) {
       for(const url of urlList){
         LOGGER(`url: ${url}`)
         res[url] = {}
+
+        // Run DEBUN detection first (works on static files, no browser needed)
+        res[url]['DEBUN'] = await DEBUN(hashdirPath)
+        if(res[url]['DEBUN']?.['detection'])LOGGER(JSON.stringify(res[url]['DEBUN']['detection']))
+
         res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, hashdirPath)
         if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
         res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, hashdirPath);
