@@ -1143,6 +1143,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
 
     // IPCG
     var call_graph_alias_check = [];
+    var ALIAS_NAME_PATTERN = /^[A-Za-z0-9]+$/;
     function normalizeIdentifierCandidate(identifierCandidate) {
         if(typeof identifierCandidate !== 'string'){
             return null;
@@ -1151,22 +1152,8 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
         if(!trimmed.length){
             return null;
         }
-        try{
-            var ast = esprimaParser.parseAST(trimmed, {range: true, loc: true, tokens: true});
-            if(ast && ast.tokens && ast.tokens.length === 1){
-                var token = ast.tokens[0];
-                if(token.type === 'Identifier' && token.value === trimmed){
-                    return trimmed;
-                }
-            }
-            if(ast && ast.body && ast.body.length === 1){
-                var stmt = ast.body[0];
-                if(stmt.type === 'ExpressionStatement' && stmt.expression && stmt.expression.type === 'Identifier' && stmt.expression.name === trimmed){
-                    return trimmed;
-                }
-            }
-        }catch(parseError){
-            return null;
+        if(ALIAS_NAME_PATTERN.test(trimmed)){
+            return trimmed;
         }
         return null;
     }
@@ -1180,8 +1167,7 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
             target.push([function_actual_name, function_alias_name]);
         }
         else{
-            debugger;
-            DEBUG && console.log('skipped alias entry due to normalization failure:', aliasEntry);
+            // DEBUG && console.log('skipped alias entry due to normalization failure:', aliasEntry);
         }
     }
     const IIFE_CALLEE_TYPES = new Set(['FunctionExpression', 'ArrowFunctionExpression']);

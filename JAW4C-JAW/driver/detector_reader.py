@@ -73,7 +73,7 @@ def get_mod_lib_mapping(raw_detection_obj, url, mapping=[]):
 
     # Process PTV first (highest priority)
     ptv_detection_list = url_data.get('PTV', {}).get('detection', [])
-    ptv_detection_list = ptv_detection_list[0] if len(ptv_detection_list) else []    
+    ptv_detection_list = ptv_detection_list[0] if len(ptv_detection_list) and ptv_detection_list[0] else []    
 
     for detected_lib in ptv_detection_list:
         if 'mod_' not in detected_lib['location']:

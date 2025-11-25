@@ -58,7 +58,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 		debug_flag = "--inspect"
 		disable_heuristic_skip = "--disable_heuristic_skip=True"
 	else:
-		debug_flag = "--inspect"
+		debug_flag = ""
 		disable_heuristic_skip = ""
 
 	if all_patterns is not None and len(all_patterns) > 0:
@@ -131,8 +131,24 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 poc_str: a str that decribes poc
 """
 def get_patterns_from_poc_str(poc_str: str) -> list:
-	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,(){}:;."\s]', poc_str)))
-	return patterns
+	# First, remove HTML/XML/SVG fragments completely
+	# Remove anything that looks like '<tag...>content</tag>' including nested structures
+	# This handles patterns like '<svg><a xlink:href="...">click</a></svg>'
+	cleaned_poc_str = re.sub(r'[\'"]?<[^>]+>.*?</[^>]+>[\'"]?', '', poc_str)
+	# Also remove any remaining standalone tags like '<tag>' or '</tag>'
+	cleaned_poc_str = re.sub(r'<[^>]+>', '', cleaned_poc_str)
+
+	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,=(){}:;."\s]', cleaned_poc_str)))
+
+	# Sanitize patterns to remove shell-breaking characters
+	sanitized_patterns = []
+	for pattern in patterns:
+		# Remove or escape problematic shell characters: quotes, angle brackets, backticks, etc.
+		# Keep only alphanumeric, underscore, hyphen, forward slash, and period
+		sanitized = re.sub(r'[^a-zA-Z0-9_\-/]', '', pattern)
+		if sanitized:  # Only add non-empty patterns after sanitization
+			sanitized_patterns.append(sanitized)
+	return sanitized_patterns
 
 def grep_matching_pattern(website_url: str, poc_str: str) -> bool:			
 	website_folder_name = utilityModule.getDirectoryNameFromURL(website_url)

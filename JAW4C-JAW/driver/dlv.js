@@ -111,11 +111,13 @@ const DEBUN = async (dataDir = "") => {
           if (match) {
             const library = match[1].trim();
             const version = match[2].trim();
+            // replace '@' with ', ' in version 
+            const formattedVersion = version.replace(/@/g, ', ');
             // Validate library name and version
-            if (library && version && library.length > 0 && version.length > 0) {
+            if (library && formattedVersion && library.length > 0 && formattedVersion.length > 0) {
               detections.push({
                 libname: library,
-                version: version
+                version: formattedVersion
               });
             }
           }
