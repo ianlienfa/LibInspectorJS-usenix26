@@ -126,8 +126,9 @@ class PostgresDB:
                 )
                 try:
                     if all:
-                        all = [ json.loads(i[0])[0] for i in all ]
-                        res += all                      
+                        
+                        all =[ json.loads(i[0])[0] if len(i) and i[0] else None for i in all ]                        
+                        res += all                                              
                 except Exception as e:                    
                     raise RuntimeError('error parsing database output', all)
         else:
@@ -155,7 +156,8 @@ class PostgresDB:
                     res = [item for row in all for item in json.loads(row[0])]
             except Exception as e:
                 raise RuntimeError('error parsing database output', all)
-        print("package_vuln_search on ", package_name, "res: ", res)  
+        print("package_vuln_search on ", package_name, "res: ", res)
+        res = list((filter(lambda x: x is not None, res)))          
         return res if res else None
 
 

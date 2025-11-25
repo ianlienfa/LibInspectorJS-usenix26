@@ -612,8 +612,8 @@ def get_function_def_of_block_stmt(tx, block_stmt_node):
 ## Internal Functions
 ## ------------------------------------------------------------------------------- ## 
 
-@make_hashable_decorator
-@lru_cache(maxsize=1000)
+# @make_hashable_decorator
+# @lru_cache(maxsize=1000)
 def _get_varname_value_from_context(tx, varname, context_node, knowledge_database = None, PDG_on_variable_declarations_only=False, PDG_on_arguments_only=False, context_scope=''):
 	"""
 	Description:
@@ -652,8 +652,9 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 		key = str(func_def_node['Id'])
 		if key in knowledge_database:
 			knowledge = knowledge_database[key]
-			print("knowledge in database", knowledge)
+			# print("knowledge in database", knowledge)
 		else:
+			print("knowledge not in database, computing...")
 			knowledge = get_function_call_values_of_function_definitions(tx, func_def_node)	
 			knowledge_database[key] = knowledge
 		
@@ -717,7 +718,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 								  [varname],
 								  iteratorNode['Location']]					
 						out_values.append(out)
-						logger.debug("match_signature out %s", out)
+						# logger.debug("match_signature out %s", out)
 						try:
 							varname_values_within_call_expressions = _get_all_call_values_of(varname, func_def_node)
 						except Exception as e:
@@ -764,7 +765,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 								
 								# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
 								top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
-								recurse= _get_varname_value_from_context(tx, each_argument['Value'], top_level_of_call_expr, context_scope=context_id_of_call_scope)
+								recurse= _get_varname_value_from_context(tx, each_argument['Value'], top_level_of_call_expr, knowledge_database=knowledge_database, context_scope=context_id_of_call_scope)
 								out_values.extend(recurse)
 
 							elif each_argument['Type'] == 'MemberExpression':
@@ -789,7 +790,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 								call_expr_id = _get_node_id_part(nid)
 								# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
 								top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
-								recurse= _get_varname_value_from_context(tx, top_most, top_level_of_call_expr, context_scope=context_id_of_call_scope)
+								recurse= _get_varname_value_from_context(tx, top_most, top_level_of_call_expr, knowledge_database=knowledge_database, context_scope=context_id_of_call_scope)
 								out_values.extend(recurse)
 
 							elif each_argument['Type'] == 'ObjectExpression':
@@ -815,7 +816,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 									for each_additional_identifier in additional_identifiers:
 										# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
 										top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
-										recurse= _get_varname_value_from_context(tx, each_additional_identifier, top_level_of_call_expr, context_scope=context_id_of_call_scope)
+										recurse= _get_varname_value_from_context(tx, each_additional_identifier, top_level_of_call_expr, knowledge_database=knowledge_database, context_scope=context_id_of_call_scope)
 										out_values.extend(recurse)	
 							else: 
 								# expression statements, call expressions (window.location.replace(), etc)
@@ -857,7 +858,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 
 										# def-use analysis over resolved `this` pointer
 										if owner_item != '' and owner_item is not None and owner_item!= constantsModule.WINDOW_GLOBAL_OBJECT and owner_item['Type'] == 'Identifier':
-											recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, PDG_on_variable_declarations_only=True)
+											recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, knowledge_database=knowledge_database, PDG_on_variable_declarations_only=True)
 											out_values.extend(recurse_values)
 
 
@@ -933,7 +934,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 
 					# def-use analysis over resolved `this` pointer
 					if owner_item != '' and owner_item is not None and owner_item!= constantsModule.WINDOW_GLOBAL_OBJECT and owner_item['Type'] == 'Identifier':
-						recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, PDG_on_variable_declarations_only=True)
+						recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, knowledge_database=knowledge_database, PDG_on_variable_declarations_only=True)
 						out_values.extend(recurse_values)
 
 
@@ -1004,7 +1005,7 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 				if is_func_call:
 					continue
 
-				v = _get_varname_value_from_context(tx, new_varname, contextNode, context_scope = context_scope)
+				v = _get_varname_value_from_context(tx, new_varname, contextNode, knowledge_database=knowledge_database, context_scope = context_scope)
 				out_values.extend(v)	
 
 

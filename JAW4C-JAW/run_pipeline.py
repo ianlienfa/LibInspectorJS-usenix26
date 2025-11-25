@@ -33,6 +33,7 @@ import time
 import uuid
 import logging
 from urllib.parse import urlencode, quote_plus
+import traceback
 
 import utils.io as IOModule
 from utils.logging import logger as LOGGER, LogFormatter
@@ -513,6 +514,8 @@ def process_single_website(website_url, config, domain_health_check, crawler_com
 			)
 		except Exception as te:
 			LOGGER.error(str(te))
+			# print stack trace	with logger
+			LOGGER.error(traceback.format_exc())			
 		finally:
 			signal.alarm(0)
 	else:
@@ -749,7 +752,12 @@ def main():
 			static_analysis_timeout=static_analysis_timeout
 		)
 	# ----------- Multiple-sites Analysis Section (Web Archive) -----------
-	else: 
+	else:
+		site_list_str = config["testbed"]["site_list"] if "site_list" in config["testbed"] else None
+		site_list = None
+		if site_list_str and os.path.exists(site_list_str):
+			with open(site_list_str, 'r') as f:				
+				site_list = set(json.load(f))
 		from_row = int(config["testbed"]["from_row"])
 		to_row = int(config["testbed"]["to_row"]) if not (config["testbed"]["to_row"] == 'end') else config["testbed"]["to_row"]
 		if config["testbed"]["archive"]["enable"] and config["testbed"]["archive"]["mappinglist"]:
@@ -761,6 +769,9 @@ def main():
 				for i in range(from_row, to_row+1):
 					LOGGER.info(f"[Archive working]=================={i}/{to_row+1}==================")
 					try:
+						if site_list and (archive_urls[i] not in site_list):
+							LOGGER.info(f"Skipping {archive_urls[i]} as it is not in the provided site list.")
+							continue
 						website_url = create_start_crawl_url(archive_urls[i])
 						LOGGER.info(f"Running on website: {website_url}")
 						process_single_website(

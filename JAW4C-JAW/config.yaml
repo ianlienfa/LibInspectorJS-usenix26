@@ -8,8 +8,9 @@ testbed:
   archive: 
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 736 # 736 # 580
-  to_row: 736 #736 # row number or 'end'
+  from_row: 824 # 824
+  to_row: 824 # 824 # row number or 'end'
+  # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
 # 2. crawler configuration
@@ -118,10 +119,10 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: false
-    lib_detection: false  
-    vulndb: false
-    static: false
+    crawling: true
+    lib_detection: true  
+    vulndb: true
+    static: true
     static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation
