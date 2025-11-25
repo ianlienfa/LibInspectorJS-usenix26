@@ -112,13 +112,13 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: true
-    lib_detection: true  
+    crawling: false #true
+    lib_detection: false #true  
     vulndb: true
     static: true
     static_neo4j: true  
-    lift: true  # enable lifting functionality
-    transform: true  # enable sequence expression transformation
+    lift: false #true  # enable lifting functionality
+    transform: false #true  # enable sequence expression transformation
     # verification: false
     # crawling: false
     # static: true
