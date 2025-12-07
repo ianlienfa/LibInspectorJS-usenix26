@@ -236,7 +236,7 @@ def wait_for_neo4j_bolt_connection(timeout=60, conn=constantsModule.NEO4J_CONN_H
 
 	while True:
 		try:
-			r = requests.get(conn, verify=False, timeout=3) # 3 seconds timeout
+			r = requests.get(conn, proxies={"http": None, "https": None}, verify=False, timeout=3) # 3 seconds timeout
 			s = str(r.status_code)
 			if s.startswith('2'):
 				logger.info('neo4j is now ready to accept bolt connections.')

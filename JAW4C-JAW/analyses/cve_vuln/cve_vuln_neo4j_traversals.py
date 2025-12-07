@@ -104,7 +104,7 @@ from utils.utility import get_name_from_url
 def neo4j_wait(try_attempt=3):
 	for _ in range(try_attempt):
 		logger.info('waiting for the tcp port 7474 of the neo4j container to be ready...')
-		connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+		connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150, conn=constantsModule.NEO4J_CONN_HTTP_STRING)
 		if connection_success:
 			break
 		else:
@@ -192,7 +192,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 
 	# setting index to increase performance
 	logger.info(f"Creating indexes...")
-	create_neo4j_indexes_out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.create_neo4j_indexes, conn_timeout=50)						
+	create_neo4j_indexes_out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.create_neo4j_indexes, conn=constantsModule.NEO4J_CONN_STRING, conn_timeout=50)						
 	logger.info(f"Index creation out: {create_neo4j_indexes_out}")
 	# breakpoint()
 
@@ -202,7 +202,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			webpage = os.path.join(webapp_data_directory, each_webpage)
 			logger.warning('HPG for: %s'%(webpage))
 
-			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150)
+			connection_success = neo4jDatabaseUtilityModule.wait_for_neo4j_bolt_connection(timeout=150, conn=constantsModule.NEO4J_CONN_HTTP_STRING)
 			if not connection_success:
 				raise RuntimeError("connection failure on making query")
 			navigation_url = get_url_for_webpage(webpage)
@@ -237,7 +237,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, knowledge_database, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
 							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
 									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, knowledge_database,
-									code_matching_cutoff, call_count_limit,
+									code_matching_cutoff, call_count_limit, conn=constantsModule.NEO4J_CONN_STRING,
 									conn_timeout=container_transaction_timeout)
 						except Exception as e:
 							logger.error(traceback.format_exc())

@@ -1,15 +1,15 @@
 // const PTdetectorExtensionPath = '/home/ian/BundlerResearch/Bundle-PTV';
 // const PTdetectorExtensionId = 'mgmamlecpkakbphhnfciemcofnmdaakg';
 // TODO: how to get these from docker config?
-// const PTVExtensionPath = '/JAW4C/JAW4C-PTV';
-// const PTVOriginalExtensionPath = '/JAW4C/JAW4C-PTVOriginal';
-// const ProxyServerPath = 'http://proxy:8002';  // localhost (when)?
-// const JAWPath = "/JAW4C/JAW4C-JAW"
+const PTVExtensionPath = '/JAW4C/JAW4C-PTV';
+const PTVOriginalExtensionPath = '/JAW4C/JAW4C-PTVOriginal';
+const ProxyServerPath = 'http://proxy:8002';  // localhost (when)?
+const JAWPath = "/JAW4C/JAW4C-JAW"
 
-const PTVExtensionPath = '/home/ian/JAW4C/JAW4C-PTV';
-const PTVOriginalExtensionPath = '/home/ian/BundlerResearch/PTV';
-const ProxyServerPath = 'http://localhost:8002';
-const JAWPath = "/home/ian/JAW4C/JAW4C-JAW"
+// const PTVExtensionPath = '/home/ian/JAW4C/JAW4C-PTV';
+// const PTVOriginalExtensionPath = '/home/ian/BundlerResearch/PTV';
+// const ProxyServerPath = 'http://localhost:8002';
+// const JAWPath = "/home/ian/JAW4C/JAW4C-JAW"
 
 const PTVPuppeteerLaunchConfig = {
   headless: true, // Extensions won't work in headless mode
