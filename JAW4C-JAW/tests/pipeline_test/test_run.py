@@ -52,6 +52,9 @@ sys.path.insert(0, str(BASE_DIR))
 
 from test_phases import test_detection, test_vuln_db, test_graph_gen, test_analysis
 
+# Import get_name_from_url from utils (defined in utils/utility.py)
+from utils.utility import get_name_from_url
+
 
 # Action definitions - maps action to required phases
 ACTIONS = {
@@ -284,10 +287,25 @@ def get_data_dir_from_test(test_dir):
     # Data directory is at BASE_DIR/data/
     data_base = BASE_DIR / 'data' / url_dir_name
 
-    if not data_base.exists():
-        return None
+    if data_base.exists():
+        return data_base
 
-    return data_base
+    # Fallback: path from get_name_from_url()
+    alt_url_dir_name = get_name_from_url(f"http://localhost:3000{url_path}")
+    alt_data_base = BASE_DIR / 'data' / alt_url_dir_name
+
+    # If alt path exists, rename/move it to the correct location
+    if alt_data_base.exists():
+        try:
+            print(f"  Renaming {alt_data_base} to {data_base}")
+            alt_data_base.rename(data_base)
+        except OSError:
+            print(f"  Rename failed, copying and removing instead.")
+            shutil.move(str(alt_data_base), str(data_base))
+        return data_base
+
+    print(f"  No data directory found for URL path: {url_path}")
+    return None
 
 
 def compare_results(test_dir, action):
