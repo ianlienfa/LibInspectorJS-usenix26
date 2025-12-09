@@ -52,11 +52,11 @@ def run_os_command(cmd, print_stdout=True, timeout=30*60, cwd='default', log_com
 	"""
 
 	def kill(process): 
-		logger.warning('Killing Process.')
+		logger.warning('Killing Process. %s'%(process.pid))
 		logger.warning('TimeoutExpired (%s seconds) for cmd: %s'%(str(timeout), cmd))
 		# kill the whole process group (i.e., including all subprocesses, not just the process)
-		# process.kill()
-		os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+		process.kill()
+		os.killpg(os.getpgid(process.pid), signal.SIGKILL)
 		
 
 	
@@ -107,7 +107,8 @@ def run_os_command(cmd, print_stdout=True, timeout=30*60, cwd='default', log_com
 		ret = 1
 	except subprocess.TimeoutExpired:
 		logger.warning('TimeoutExpired (%s s)for cmd: %s'%(str(timeout), cmd))
-		os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+		# process.kill()
+		# os.killpg(os.getpgid(process.pid), signal.SIGTERM)
 		ret = -1
 	finally:
 		my_timer.cancel()

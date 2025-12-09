@@ -191,18 +191,30 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
 
       // Playwright request interception
       await page.route('**/*', async (route) => {
-        const requestUrl = route.request().url();
-        logger.info(`[PTVOriginal] Requested URL: ${requestUrl}`);
-        if (requestUrl in overrideMapping) {
-          logger.info(`[PTVOriginal] Intercepting ${requestUrl} -> ${overrideMapping[requestUrl]}`);
-          const fileContent = fs.readFileSync(overrideMapping[requestUrl]);
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/javascript',
-            body: fileContent
-          });
-        } else {
-          await route.continue();
+        try {
+          const requestUrl = route.request().url();
+          logger.info(`[PTVOriginal] Requested URL: ${requestUrl}`);
+          if (requestUrl in overrideMapping) {
+            logger.info(`[PTVOriginal] Intercepting ${requestUrl} -> ${overrideMapping[requestUrl]}`);
+            const fileContent = fs.readFileSync(overrideMapping[requestUrl]);
+            await route.fulfill({
+              status: 200,
+              contentType: 'application/javascript',
+              body: fileContent
+            });
+          } else {
+            await route.continue();
+          }
+        } catch (error) {
+          logger.error(`[PTVOriginal] Route handler error for ${route.request().url()}: ${error}`);
+          // Fallback: try to continue the request normally
+          try {
+            await route.continue();
+          } catch (continueError) {
+            logger.error(`[PTVOriginal] Failed to continue route: ${continueError}`);
+            // If we can't continue, abort the request
+            await route.abort('failed');
+          }
         }
       });
     }
@@ -221,7 +233,7 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
         return window._eventLog
       });
     } catch (timeoutError) {
-      logger.warn(`PTV extension detection timeout for ${url} - continuing with available data`);
+      logger.warn(`PTV Orginal extension detection timeout for ${url} - continuing with available data`);
       result["detection"] = [];
     }
 
@@ -237,9 +249,9 @@ const PTVOriginal = async (url, launchConfig, dataDir = "") => {
     return result;
 
   } catch (error) {
-    logger.error(`error visiting ${url}`, error)
+    logger.error(`[PTVOriginal] error visiting ${url}`, error)
     console.error('Stack trace:', error.stack);
-    return {};
+    return result;
   }
 };
 
@@ -307,18 +319,30 @@ const PTV = async (url, launchConfig, dataDir = "") => {
 
       // Playwright request interception
       await page.route('**/*', async (route) => {
-        const requestUrl = route.request().url();
-        // logger.info(`[Playwright] Requested URL: ${requestUrl}`);
-        if (requestUrl in overrideMapping) {
-          logger.info(`[Playwright] Intercepting ${requestUrl} -> ${overrideMapping[requestUrl]}`);
-          const fileContent = fs.readFileSync(overrideMapping[requestUrl]);
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/javascript',
-            body: fileContent
-          });
-        } else {
-          await route.continue();
+        try {
+          const requestUrl = route.request().url();
+          // logger.info(`[Playwright] Requested URL: ${requestUrl}`);
+          if (requestUrl in overrideMapping) {
+            logger.info(`[Playwright] Intercepting ${requestUrl} -> ${overrideMapping[requestUrl]}`);
+            const fileContent = fs.readFileSync(overrideMapping[requestUrl]);
+            await route.fulfill({
+              status: 200,
+              contentType: 'application/javascript',
+              body: fileContent
+            });
+          } else {
+            await route.continue();
+          }
+        } catch (error) {
+          logger.error(`[PTV] Route handler error for ${route.request().url()}: ${error}`);
+          // Fallback: try to continue the request normally
+          try {
+            await route.continue();
+          } catch (continueError) {
+            logger.error(`[PTV] Failed to continue route: ${continueError}`);
+            // If we can't continue, abort the request
+            await route.abort('failed');
+          }
         }
       });
     }
@@ -330,6 +354,7 @@ const PTV = async (url, launchConfig, dataDir = "") => {
     }
 
       // Collect lift_arr_str
+    try {
       result["lift_arr_str"] = await page.evaluate(() => {
         try {
           if (typeof lift_arr !== 'undefined') {
@@ -374,6 +399,9 @@ const PTV = async (url, launchConfig, dataDir = "") => {
         returnObj["str"] = str;
         return returnObj;
       });
+    } catch (e) {
+      logger.error(`Error collecting lift/webpack data: ${e}`);
+    }
 
     // Wait for detection with timeout handling
     LOGGER("waiting for extension detection...")
@@ -407,9 +435,10 @@ const PTV = async (url, launchConfig, dataDir = "") => {
     return result;
 
   } catch (error) {
-    logger.error(`error visiting ${url}`, error)
-    console.error('Stack trace:', error.stack);
-    return {};
+    logger.error(`[PTV] error visiting ${url}`, error)
+    // console.error('Stack trace:', error.stack);
+    debugger;
+    return result;
   }
 };
 
@@ -471,7 +500,9 @@ if (require.main === module) {
 
         res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, hashdirPath)
         if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))
+        debugger;
         res[url]['PTV'] = await PTV(url, PTVPuppeteerLaunchConfig, hashdirPath);
+        debugger;
         if(res[url]['PTV']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV']['detection']))
       }
       fs.writeFileSync(path.join(hashdirPath, "lib.detection.json"), JSON.stringify(res,null, "\t"))
