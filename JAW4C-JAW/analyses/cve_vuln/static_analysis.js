@@ -278,6 +278,7 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/^\d+\.js$/i) && !elm.match(/\.min\.js$/i);});
 	for(let i=0; i<scriptFiles.length; i++){
 		let script_short_name = '' + i + '.js';
+		DEBUG && console.log(`[Analyzer] Processing ${script_short_name}`)
 		let script_full_name = pathModule.join(webpageFolder, script_short_name);
 		let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
 
@@ -330,11 +331,13 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		if(sourcemap_content != -1){
 			sourcemaps[script_short_name] = JSON.parse(sourcemap_content);
 		}
+
+		DEBUG && console.log(`[Analyzer] scripts ${script_short_name}: script_content != -1: ${script_content !== -1}, has_pattern_in_script: ${has_pattern_in_script}, script_short_name in scripts_mapping: ${script_short_name in scripts_mapping}`)
 	}
 
 	let library_scripts_path_name = pathModule.join(webpageFolder, 'library_scripts.json');
 	fs.writeFileSync(library_scripts_path_name, JSON.stringify(library_scripts));
-	
+	DEBUG && console.log(`[Analyzer] scripts ${scripts.length}`)
 	/*
 	*  ----------------------------------------------
 	*  [START] 

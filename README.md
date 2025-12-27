@@ -30,7 +30,7 @@ The pipeline configuration is in JAW4C-JAW/config.yaml
     ```
     Then in the container:
     ```
-    mkdir proxy_logs
+    mkdir -p proxy_logs
     echo "Launching proxy instance 8002"
     mitmdump \
     --listen-host=0.0.0.0 \
@@ -44,7 +44,7 @@ The pipeline configuration is in JAW4C-JAW/config.yaml
     --set onlyUseCache=false \
     --set useBabel=true \
     --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
-    --set warcPath="/proxy/archive-70" \
+    --set warcPath="/proxy/archive-dec24" \
     --set replayNearest=true \
     --set replay=true \
     --set archive=false \
@@ -53,7 +53,7 @@ The pipeline configuration is in JAW4C-JAW/config.yaml
     ```
     ```
     # Example testing command 
-    curl -v --proxy http://localhost:8002 http://240.240.240.240/\?target\=https%3A%2F%2Fwww.google.com.pr%2Fimghp%3Fhl%3Den%26ogbl\&type\=soak
+    curl -v --proxy http://localhost:8002 http://240.240.240.240/?target=https%3A%2F%2Fwww.google.com&type=soak
     ```
     - If you see http response code 301, then the archive is working correctly
 

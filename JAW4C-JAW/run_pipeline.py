@@ -56,6 +56,7 @@ import analyses.open_redirect.static_analysis_py_api as or_neo4j_analysis_api
 import analyses.cve_vuln.cve_vuln_neo4j_traversals as CVETraversalsModule
 import analyses.cve_vuln.static_analysis_api as cve_stat_model_construction_api
 import analyses.cve_vuln.lib_detection_api as lib_detection_api
+from analyses.cve_vuln.parse_sink_flows import process_sink_flows_file
 
 import driver.detector_reader as DetectorReader
 
@@ -383,11 +384,12 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 								continue
 							else:
 								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+								all_patterns.add(detection_info['location'])
 
 								# Setup ground truth for this particular site
 								for poc in vuln:
 									try:
-										poc_str = poc['poc']
+										poc_str = poc['poc']										
 										# grep for the poc fragments existence in the files
 										grep_found = cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str) 
 										all_patterns.update(cve_stat_model_construction_api.get_patterns_from_poc_str(poc_str))
@@ -395,7 +397,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 									except Exception as e:
 										print('poc formatting problem from database', poc)
-
+								LOGGER.debug(f"all_patterns: {all_patterns}")
 								vuln_list.append({
 									"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
 								})
@@ -457,6 +459,11 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					if not config['staticpass']['keep_docker_alive']:
 						dockerModule.stop_neo4j_container(container_name)
 						dockerModule.remove_neo4j_container(container_name)
+				
+				# Parse sink.flows.out if exist and generate trace.json 
+				sink_flows_out_path = os.path.join(webpage_folder, 'sink.flows.out')
+				if os.path.exists(sink_flows_out_path):					
+					process_sink_flows_file(sink_flows_out_path)
 
 def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode, code_matching_cutoff, call_count_limit, static_analysis_timeout):
 	"""

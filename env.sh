@@ -94,10 +94,10 @@ echo "WebArchive session ID: $WEBARCHIVE_SESSION"
 
 # Start the docker container in the WebArchive session
 echo "Starting mitmproxy container..."
-tmux send-keys -t $WEBARCHIVE_SESSION 'docker run --rm -d -i -t -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316 --entrypoint=bash -v "$(pwd)/archive/archive-70":/proxy/archive-70 mitmproxy' Enter
+tmux send-keys -t $WEBARCHIVE_SESSION 'docker build -t mitmproxy . && docker run --name mitmproxy_container --rm -d -i -t -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316  --entrypoint=bash -v "$(pwd)/archive/archive-dec24":/proxy/archive-dec24 mitmproxy' Enter
 
 # Wait a moment for container to start
-sleep 3
+sleep 7
 
 # Get the container ID
 echo "Getting container ID..."
@@ -122,7 +122,7 @@ if [ ! -z "$CONTAINER_ID" ]; then
     --set onlyUseCache=false \
     --set useBabel=true \
     --set jalangiArgs='--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js' \
-    --set warcPath='/proxy/archive-70' \
+    --set warcPath='/proxy/archive-dec24' \
     --set replayNearest=true \
     --set replay=true \
     --set archive=false \

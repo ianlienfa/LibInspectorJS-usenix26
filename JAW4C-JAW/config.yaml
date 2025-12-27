@@ -7,9 +7,10 @@ testbed:
   # sitelist: /input/tranco_Z2QWG_unique.csv
   archive: 
     enable: true
-    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 1659 # 824
-  to_row: end # 824 # row number or 'end'
+    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
+    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
+  from_row: 2 # 2058
+  to_row: end # 1973 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 

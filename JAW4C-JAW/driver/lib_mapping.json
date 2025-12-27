@@ -47,7 +47,7 @@
   "bokeh": ["Bokeh"],
   "boomerangjs": ["BOOMR"],
   "bootbox.js": ["bootbox"],
-  "bootstrap": ["bootstrap"],
+  "bootstrap": ["bootstrap", "$"],
   "bootstrap-calendar": ["Calendar"],
   "bounce.js": ["bounce"],
   "bowser": ["bowser"],
