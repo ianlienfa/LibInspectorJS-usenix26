@@ -2338,6 +2338,9 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			if taintPropTilASTTopmostDepth is None:
 				raise RuntimeError("taintPropTilASTTopmostDepth parameter must be provided to taintThroughEdgeProperty for tracking")
 
+			if node['Id'] == '62377':
+				breakpoint()	
+
 			# Forward PDG dependency querying
 			query = """ 
 			MATCH (n_s { Id: '%s' })-[:PDG_parentOf { Arguments: '%s' }]->(n_t) RETURN collect(distinct n_t) AS resultset
@@ -2436,6 +2439,8 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			
 			# Add debug print here
 			# logger.debug(f"nodeTagTainting: node {node['Id']} var_full_name: {var_full_name}, taintTag: {taintTag}")
+			if node['Id'] == '62377':
+				breakpoint()
 			if var_full_name:
 				try:					
 					queue_call(taintThroughEdgeProperty, node, contextNode, var_full_name, taintTag, nodeid_to_matches, out_values, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)

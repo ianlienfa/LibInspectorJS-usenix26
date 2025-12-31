@@ -970,10 +970,10 @@ app.get('/api/vuln-stats', async (req, res) => {
             }
         }
 
-        // Get top 10 libraries
+        // Get top 20 libraries
         const topLibs = Object.entries(libCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 10)
+            .slice(0, 20)
             .map(([name, count]) => ({ name, count }));
 
         // Get top 10 versions
@@ -996,6 +996,99 @@ app.get('/api/vuln-stats', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching vulnerability stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API endpoint for detected libraries statistics
+app.get('/api/detected-libs', async (req, res) => {
+    try {
+        let parentDirs = [];
+        try {
+            parentDirs = await fs.readdir(DATA_DIR);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                return res.json({
+                    totalDetectedLibs: 0,
+                    topLibs: []
+                });
+            }
+            throw err;
+        }
+
+        const libCounts = {};
+
+        for (const parentDir of parentDirs) {
+            const parentPath = path.join(DATA_DIR, parentDir);
+            const parentStats = await fs.stat(parentPath);
+            if (!parentStats.isDirectory()) continue;
+
+            const siteHashes = await fs.readdir(parentPath);
+            for (const hash of siteHashes) {
+                const sitePath = path.join(parentPath, hash);
+                const siteStats = await fs.stat(sitePath);
+                if (!siteStats.isDirectory()) continue;
+
+                const libDetectionFile = path.join(sitePath, 'lib.detection.json');
+                try {
+                    const libDetectionContent = await fs.readFile(libDetectionFile, 'utf8');
+
+                    try {
+                        const detectionData = JSON.parse(libDetectionContent);
+
+                        // Iterate through each URL in the detection file
+                        for (const urlKey in detectionData) {
+                            const urlData = detectionData[urlKey];
+
+                            // Create a set to track unique libraries detected in this file
+                            const uniqueLibsInFile = new Set();
+
+                            // Check each detector: DEBUN, PTV-Original, PTV
+                            const detectors = ['DEBUN', 'PTV-Original', 'PTV'];
+
+                            detectors.forEach(detector => {
+                                if (urlData[detector] && urlData[detector].detection && Array.isArray(urlData[detector].detection)) {
+                                    urlData[detector].detection.forEach(detectionArray => {
+                                        if (Array.isArray(detectionArray)) {
+                                            detectionArray.forEach(lib => {
+                                                if (lib.libname) {
+                                                    uniqueLibsInFile.add(lib.libname);
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+
+                            // Now count each unique library from this file
+                            uniqueLibsInFile.forEach(libname => {
+                                libCounts[libname] = (libCounts[libname] || 0) + 1;
+                            });
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing lib.detection.json:', parseError);
+                    }
+                } catch (e) {
+                    // File not found or error reading
+                }
+            }
+        }
+
+        // Get top 20 libraries
+        const topLibs = Object.entries(libCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 100)
+            .map(([name, count]) => ({ name, count }));
+
+        // Calculate total detected libs (sum of all counts)
+        const totalDetectedLibs = topLibs.reduce((sum, lib) => sum + lib.count, 0);
+
+        res.json({
+            totalDetectedLibs,
+            topLibs
+        });
+    } catch (error) {
+        console.error('Error fetching detected libraries:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

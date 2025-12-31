@@ -140,6 +140,8 @@ ModelBuilder.prototype.buildIntraProceduralModels = function () {
  * @returns {Model|null} Connected model or null
  * @memberof ModelBuilder.prototype
  * @private
+ * 
+ * What are the assumptions for caller and callee models?
  */
 function connectCallerCalleeScopeRelatedModelsAtCallSite(callerModel, calleeModel, callSite) {
     "use strict";
@@ -256,12 +258,23 @@ function findFunctionDefinitionFromReachInSet(reachIns, scope, calleeName, flag)
  */
 function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
     "use strict";
+	console.log(`scope type: ${scope.ast.type}`, (scope.ast && scope.ast.loc) ? `loc: start {line: ${scope.ast.loc.start.line}, col: ${scope.ast.loc.start.column}} end {line: ${scope.ast.loc.end.line}, col: ${scope.ast.loc.end.column}}` : `no location`);
 	var scopeModel = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
 	var resultModel = null;
 	var callSiteMapCalleeScope = new Map();
+	// debugger;
+	
+	if(scope.ast.range[0] === 53521 && scope.ast.range[1] === 53999){
+		debugger;
+	}
+	if(scope.ast.loc.start.line === 4307 && scope.ast.loc.start.column === 0){
+		debugger;
+	}
 	if (!!scopeModel && scopeModel.graph) {
         for(let node of scopeModel.graph[2]){
-
+			if((!!node.astNode) && node.astNode.loc && node.astNode.loc.start.line === 1595 && node.astNode.loc.start.column === 27){
+				// debugger;
+			}
         	//// handle setTimeout function calls;
             // this block of code addresses function argument to parameter binding for calls like setTimeout('functionName()', ms) c
         	if(node.astNode && node.astNode.type === 'AssignmentExpression' && node.astNode.right.type === 'CallExpression'){
@@ -382,9 +395,18 @@ function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
 
 	if (callSiteMapCalleeScope.size > 0) {
 		callSiteMapCalleeScope.forEach(function (callee, callSite) {
+			if(callee.ast.range[0] === 53521 && callee.ast.range[1] === 53999){
+				debugger;
+			}			
+			// Don't connect if callee is the same as the current scope (recursive call)
+			if(callee.ast._id === scope.ast._id)
+				return;			
+
+			console.log(`Entering stack call: callee function at range ${callee.ast.range} from call-site at range ${callSite.astNode.range}`);
 			var connectedModel =
 				modelCtrl.getInterProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, callee) ||
 				getInterProceduralModelStartFromTheScope(callee, scopeTree);
+			console.log(`Exiting stack call: callee function at range ${callee.ast.range} from call-site at range ${callSite.astNode.range}`);
 			resultModel = connectCallerCalleeScopeRelatedModelsAtCallSite(resultModel || scopeModel, connectedModel, callSite);
 		});
 	} else {
@@ -402,6 +424,7 @@ function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
 ModelBuilder.prototype.buildInterProceduralModels = function () {
     "use strict";
 
+	// Go through all scope of each page scope trees
     for(let scopeTree of scopeCtrl.pageScopeTrees){
 		var scopesToSearch = scopeTree.scopes, searchedScopes = new Set();
 		for (var searchIndex = 0; searchIndex < scopesToSearch.length; ++searchIndex) {

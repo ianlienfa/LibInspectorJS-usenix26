@@ -682,11 +682,18 @@ async function openVulnLibModal() {
     modal.classList.add('show');
 
     try {
-        const response = await fetch('/api/vuln-stats');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Fetch both vulnerability stats and detected libraries in parallel
+        const [vulnResponse, detectedLibsResponse] = await Promise.all([
+            fetch('/api/vuln-stats'),
+            fetch('/api/detected-libs')
+        ]);
+
+        if (!vulnResponse.ok || !detectedLibsResponse.ok) {
+            throw new Error('HTTP error while fetching stats');
         }
-        const stats = await response.json();
+
+        const stats = await vulnResponse.json();
+        const detectedLibsData = await detectedLibsResponse.json();
 
         // Update stats boxes
         document.getElementById('total-vuln-libs').textContent = stats.totalVulnLibs;
@@ -704,7 +711,7 @@ async function openVulnLibModal() {
         createTopLibsChart(stats.topLibs);
         createVulnTypesChart(stats.vulnTypes);
         createVersionsChart(stats.versions);
-        createConfidenceChart(stats.confidenceScores);
+        createLibrariesRanking(detectedLibsData.topLibs);
 
     } catch (error) {
         console.error('Error loading vulnerability stats:', error);
@@ -863,55 +870,32 @@ async function refreshStats() {
     }
 }
 
-function createConfidenceChart(confidenceScores) {
-    const ctx = document.getElementById('confidence-chart').getContext('2d');
+function createLibrariesRanking(libraries) {
+    const container = document.getElementById('top-libraries-ranking');
 
-    const labels = ['0-25%', '26-50%', '51-75%', '76-100%'];
-    const data = [
-        confidenceScores['0-25'],
-        confidenceScores['26-50'],
-        confidenceScores['51-75'],
-        confidenceScores['76-100']
-    ];
+    if (!libraries || libraries.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No libraries detected</p>';
+        return;
+    }
 
-    vulnCharts.confidence = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Count',
-                data: data,
-                backgroundColor: [
-                    'rgba(239, 68, 68, 0.7)',   // Red for low
-                    'rgba(245, 158, 11, 0.7)',  // Amber for medium-low
-                    'rgba(59, 130, 246, 0.7)',  // Blue for medium-high
-                    'rgba(16, 185, 129, 0.7)'   // Green for high
-                ],
-                borderColor: [
-                    'rgba(239, 68, 68, 1)',
-                    'rgba(245, 158, 11, 1)',
-                    'rgba(59, 130, 246, 1)',
-                    'rgba(16, 185, 129, 1)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
+    let html = '<div class="libraries-ranking-list">';
+
+    libraries.forEach((lib, index) => {
+        const rank = index + 1;
+        const medalClass = rank <= 3 ? 'top-three' : '';
+        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+
+        html += `
+            <div class="ranking-item ${medalClass}">
+                <div class="rank-number">${medal || rank}</div>
+                <div class="lib-info">
+                    <div class="lib-name">${lib.name}</div>
+                </div>
+                <div class="lib-count">${lib.count}</div>
+            </div>
+        `;
     });
+
+    html += '</div>';
+    container.innerHTML = html;
 }

@@ -137,6 +137,8 @@ function analyzeFunctionDeclaration(model) {
 
 /**
  * Analyze closure variables: variables used in a function but defined in parent scopes
+ * OLD VERSION: Creates fake definitions at entry node (broken PDG chains)
+ * This is kept for initial analysis pass before parent reachOuts are available
  * @param {Model} model
  */
 function analyzeClosureVariables(model) {
@@ -157,7 +159,7 @@ function analyzeClosureVariables(model) {
     // For Program scopes, use the entry node's AST, for functions use scope.ast.body
     var ast = (scope.type === 'page') ? scopeEntryNode.astNode : scope.ast.body;
 
-    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Analyzing scope:', scope.name);
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Analyzing scope:', scope.name, `(${scope.ast.loc.start.line}, ${scope.ast.loc.start.column}), (${scope.ast.loc.end.line}, ${scope.ast.loc.end.column})`);
     constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Scope type:', scope.type);
     constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] Scope AST type:', scope.ast ? scope.ast.type : 'null');
     constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE] AST to walk type:', ast ? ast.type : 'null');
@@ -182,7 +184,7 @@ function analyzeClosureVariables(model) {
 
         // Check if defined in parent scope (getVariable walks up the parent chain)
         if(scope.hasVariable(varName)) {
-            constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE]   -', varName, 'is closure variable, adding');
+            constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE]   -', varName, 'is closure variable, adding to GEN');
             var closureVar = scope.getVariable(varName);
             // Create a def for this closure variable at entry node
             vardefOfClosureVars.add(
@@ -200,6 +202,124 @@ function analyzeClosureVariables(model) {
 }
 
 /**
+ * Analyze closure variables using REAL definitions from parent scope's reachOuts
+ * NEW VERSION: Links parent scope definitions via extraReachIns (proper PDG chains)
+ * This should be called AFTER parent scope has been analyzed and has reachOuts
+ * @param {Model} model The child scope model
+ * @param {ScopeTree} scopeTree The scope tree containing the model
+ */
+function analyzeClosureVariablesWithParentDefs(model, scopeTree) {
+    "use strict";
+    if(!model.graph) return;
+
+    var scope = model.mainlyRelatedScope;
+    // Only function scopes have closures (not Program/domain scopes)
+    if(!scope.parent || scope.type === 'page' || scope.type === 'domain') {
+        return;
+    }
+
+    var scopeEntryNode = model.graph[0];
+
+    // Collect identifiers used in this function
+    var ast = (scope.type === 'page') ? scopeEntryNode.astNode : scope.ast.body;
+    var usedIdentifiers = new Set();
+    walkes(ast, {
+        Identifier: function (node) {
+            usedIdentifiers.add(node.name);
+        }
+    });
+
+    // Find closure variables and their REAL definitions from parent
+    var closureVarDefs = new Set();
+
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE-LINK] Analyzing scope:', scope.name, `(${scope.ast.loc.start.line}, ${scope.ast.loc.start.column}), (${scope.ast.loc.end.line}, ${scope.ast.loc.end.column})`);
+
+    usedIdentifiers.forEach(function(varName) {
+        // Skip if local to this scope
+        if(scope.hasLocalVariable(varName)) {
+            return;
+        }
+
+        // Check if defined in parent scope
+        var scopeAndVar = scope.hasVariableGetScope(varName)
+        if(scopeAndVar !== null) {
+            var parentScope = scopeAndVar[0];
+            var closureVar = scopeAndVar[1];
+
+            // Get parent scope's model
+            var parentModel = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, parentScope);
+
+            if (!parentModel || !parentModel.graph) {
+                constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE-LINK] Parent model not available for scope:', scope.name);
+                return;
+            }
+
+            var parentExitNode = parentModel.graph[1];  // Exit node
+            var parentReachOuts = parentExitNode.reachOuts || new Set();
+            constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE-LINK] Parent reachOuts count:', parentReachOuts.size);
+
+            if (parentReachOuts.size === 0) {
+                constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE-LINK] Parent has no reachOuts for scope:', scope.name);
+                return;
+            }
+
+            // Find the REAL VarDef from parent's reachOuts
+            var foundCount = 0;
+            parentReachOuts.forEach(function(parentVarDef) {
+                if (parentVarDef.variable === closureVar) {
+                    closureVarDefs.add(parentVarDef);  // Use real VarDef!
+                    foundCount++;
+                }
+            });
+
+            constantsModule.DEBUG_CLOSURE_ANALYSIS && foundCount > 0 && console.log(
+                '[CLOSURE-LINK]   Found', foundCount, 'real definitions for closure variable:', varName
+            );
+        }
+    });
+
+    if (closureVarDefs.size === 0) {
+        constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log('[CLOSURE-LINK] No closure variables found for scope:', scope.name);
+        return;
+    }
+
+    // Set extraReachIns on entry node to receive parent's definitions
+    if (!scopeEntryNode.extraReachIns) {
+        scopeEntryNode.extraReachIns = new Set();
+    }
+
+    // Clear any fake definitions from generate that were added by old analyzeClosureVariables
+    // (We keep other GEN items like function declarations, just remove closure fakes)
+    // if (scopeEntryNode.generate) {
+    //     var newGenerate = new Set();
+    //     scopeEntryNode.generate.forEach(function(vardef) {
+    //         var isClosure = false;
+    //         usedIdentifiers.forEach(function(varName) {
+    //             if (!scope.hasLocalVariable(varName) &&
+    //                 scope.hasVariable(varName) &&
+    //                 vardef.variable === scope.getVariable(varName)) {
+    //                 isClosure = true;
+    //             }
+    //         });
+    //         if (!isClosure) {
+    //             newGenerate.add(vardef);
+    //         }
+    //     });
+    //     scopeEntryNode.generate = newGenerate;
+    // }
+
+    // Add parent's real VarDefs to extraReachIns
+    scopeEntryNode.extraReachIns = Set.union(
+        scopeEntryNode.extraReachIns,
+        closureVarDefs
+    );
+
+    constantsModule.DEBUG_CLOSURE_ANALYSIS && console.log(
+        '[CLOSURE-LINK] Set', closureVarDefs.size, 'parent definitions as extraReachIns for scope:', scope.name
+    );
+}
+
+/**
  * Initially analyze intra-procedural models
  */
 DefUseAnalyzer.prototype.initiallyAnalyzeIntraProceduralModels = function () {
@@ -207,7 +327,7 @@ DefUseAnalyzer.prototype.initiallyAnalyzeIntraProceduralModels = function () {
     var pageScopeTrees = scopeCtrl.pageScopeTrees;
     pageScopeTrees.forEach(function (scopeTree) {
         var scopes = scopeTree.scopes;
-        scopes.forEach(function (scope) {
+        scopes.forEach(function (scope) {            
             var model = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
 
             /* Calling this will create ReachIn definitions
@@ -219,7 +339,7 @@ DefUseAnalyzer.prototype.initiallyAnalyzeIntraProceduralModels = function () {
             // analyzeBuiltInObjects(model);
             analyzeDefaultValueOfLocalVariables(model);
             analyzeFunctionDeclaration(model);
-            analyzeClosureVariables(model);
+            // analyzeClosureVariables(model);
 
 
         });
@@ -313,6 +433,11 @@ DefUseAnalyzer.prototype.findDUPairs = function (model) {
 
 
     for(let node of model.graph[2]){
+        console.log("node.reachIns for node: ", (!!node.astNode) && `{${node.astNode.loc.start.line}, ${node.astNode.loc.start.column}} - {${node.astNode.loc.end.line}, ${node.astNode.loc.end.column}}`);
+        (!!node.reachIns._values) && node.reachIns._values.forEach(vardef => {            
+            console.log(`${(!!vardef.variable.name) && vardef.variable.name} at {${(vardef.definition?.fromNodeActual?.loc.start.line)}, ${vardef.definition.fromNodeActual?.loc.start.column}}`)
+            debugger;
+        });
 
         var nodeCUse = getUsedDefs(node.reachIns, node.cuse),
             nodePUse = getUsedDefs(node.reachIns, node.puse);
@@ -401,21 +526,6 @@ DefUseAnalyzer.prototype.doAnalysis = function (model) {
 
             var currentNode = this;
             
-            // THIS IS SUPER SLOW
-            // // Support global var def-use for scoped access: Propagate parent scope definitions at ENTRY nodes
-            // // e.g. x = ...; function f() { ... x ... }
-            // if (currentNode.type === FlowNode.ENTRY_NODE_TYPE &&
-            //     currentNode.scope && currentNode.scope.parent) {
-            //     var parentReachIns = currentNode.scope.parent.lastReachIns;
-            //     if (parentReachIns && parentReachIns.size > 0) {
-            //         if (!!input) {
-            //             input = Set.union(input, parentReachIns);
-            //         } else {
-            //             input = new Set(parentReachIns);
-            //         }
-            //     }
-            // }
-
             if (!!currentNode.extraReachIns) {
                 if (!!input) {
                     input = Set.union(input, currentNode.extraReachIns);
@@ -798,6 +908,16 @@ DefUseAnalyzer.prototype.findUSESet = function (cfgNode) {
     cfgNode.cuse = cuseVars;
     cfgNode.puse = puseVars;
     return {cuse: cuseVars, puse: puseVars};
+};
+
+/**
+ * Analyze closure variables with parent definitions
+ * @param {Model} model
+ * @param {ScopeTree} scopeTree
+ */
+DefUseAnalyzer.prototype.analyzeClosureVariablesWithParentDefs = function (model, scopeTree) {
+    "use strict";
+    analyzeClosureVariablesWithParentDefs(model, scopeTree);
 };
 
 var singleton = new DefUseAnalyzer();
