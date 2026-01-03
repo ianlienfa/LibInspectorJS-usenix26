@@ -1,0 +1,10 @@
+{
+  "detection": {
+    "PTV": {
+      "detection": [
+        {"libname": "jquery", "version": "3.4.0"},
+        {"libname": "lodash", "version": "4.17.21"}
+      ]
+    }
+  }
+}

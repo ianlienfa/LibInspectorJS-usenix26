@@ -239,6 +239,9 @@ const js_builtin = js_builtin_methods.concat(buildint_dom_api);
 
 
 var lib_content_heuristics = [
+    // Bundlers
+    "For license information",
+    "webpackChunk",
     // jquery
     "*! jQuery v",
     "(c) OpenJS Foundation and other contributors | jquery.org/license",

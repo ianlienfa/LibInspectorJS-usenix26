@@ -33,10 +33,13 @@ import hpg_neo4j.db_utility as DU
 import constants as constantsModule
 import jsbeautifier
 import json
+import debugpy
 from functools import lru_cache, wraps
 
 from utils.logging import logger
 
+debug_new_var_dicts = {}
+LARGE_CALL_SITE_CUTOFF = 3
 
 ## ------------------------------------------------------------------------------- ##
 ## Utility Functions
@@ -484,6 +487,8 @@ def get_function_call_values_of_function_definitions(tx, function_def_node):
 	@param {node} function_def_node: a 'FunctionExpression', 'FunctionDeclaration', or 'ArrowFunctionExpression' node of esprima AST
 	@return {dictionary} { call_line: {p1: val1, p2:val2}, call_line: {p1: val1, p2: val2}, ... }
 	"""
+	if function_def_node['Id'] == '36419':
+		debugpy.breakpoint()
 
 	out = {}
 	query = """
@@ -614,7 +619,7 @@ def get_function_def_of_block_stmt(tx, block_stmt_node):
 
 # @make_hashable_decorator
 # @lru_cache(maxsize=1000)
-def _get_varname_value_from_context(tx, varname, context_node, knowledge_database = None, PDG_on_variable_declarations_only=False, PDG_on_arguments_only=False, context_scope=''):
+def _get_varname_value_from_context(tx, varname, context_node, call_values_cache = None, PDG_on_variable_declarations_only=False, PDG_on_arguments_only=False, context_scope='', depth=0):
 	"""
 	Description:
 	-------------
@@ -625,9 +630,18 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 	@param {dict} context_node: node specifying the CFG-level statement where varname is defined
 	@param {bool} PDG_on_variable_declarations_only: internal val to keep state in recursions
 	@param {string} context_scope: internal val to keep context scope in recursions
+	@param {dict} call_values_cache: cache to store call site analysis results 
+	      call_values_cache[key] = {  # DICT
+          'call_nid__Loc=location1': {
+              'param1': {...},
+              'param2': {...}
+          }
+      }
 	@return {list}: a 2d list where each entry is of the following format
 		[program_slice, literals, dict of identifer mapped to identifer node is, location dict]
 	"""
+
+	logger.debug(f"_get_varname_value_from_context depth: {depth}, varname: {varname},context_node: {context_node}")
 
 	# Extract node ID for queries
 	node_id = context_node['Id']
@@ -639,8 +653,8 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 	# output
 	out_values = []
 	# stores a map: funcDef id -->> get_function_call_values_of_function_definitions(funcDef)
-	if knowledge_database is None:
-		knowledge_database = {}
+	if call_values_cache is None:
+		call_values_cache = {}
 
 	if param_stack_has(varname):
 		return []
@@ -650,13 +664,13 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 	def _get_all_call_values_of(varname, func_def_node):
 		
 		key = str(func_def_node['Id'])
-		if key in knowledge_database:
-			knowledge = knowledge_database[key]
+		if key in call_values_cache:
+			knowledge = call_values_cache[key]
 			# print("knowledge in database", knowledge)
 		else:
 			print("knowledge not in database, computing...")
 			knowledge = get_function_call_values_of_function_definitions(tx, func_def_node)	
-			knowledge_database[key] = knowledge
+			call_values_cache[key] = knowledge
 		
 		ret = {}
 		for nid, values in knowledge.items():
@@ -671,343 +685,353 @@ def _get_varname_value_from_context(tx, varname, context_node, knowledge_databas
 	## Main logic 
 	## ------------------------------------------------------------------------------- ## 
 
-	# starting from the identifier of the sink variable, trace back its PDG relations
-	if PDG_on_variable_declarations_only:
-		# for VariableDeclaration PDG relations
-		query = """
-		MATCH (n_s { Id: '%s' })<-[:PDG_parentOf { Arguments: '%s' }]-(n_t {Type: 'VariableDeclaration'}) RETURN collect(distinct n_t) AS resultset
-		"""%(node_id, varname)
-	elif PDG_on_arguments_only:
-		# for all PDG relations
-		query = """
-		MATCH (n_s { Id: '%s' })<-[:PDG_parentOf { Arguments: '%s' }]-(n_t) RETURN collect(distinct n_t) AS resultset
-		"""%(node_id, varname)
-		print("pdg query - PDG_on_arguments_only", query, "at segment", QU.getCodeOf(tx, context_node))		
-	else:
-		# for different kinds of POC formats
-		query = """
-		MATCH (n_s { Id: '%s' })<-[:PDG_parentOf]-(n_t) RETURN collect(distinct n_t) AS resultset
-		"""%(node_id)
-		# print("pdg query - other", query, "at segment", QU.getCodeOf(tx, context_node))
-
-	results = tx.run(query)
-	for item in results: 
-		currentNodes = item['resultset'] 
+	if depth <= 5:
+		# starting from the identifier of the sink variable, trace back its PDG relations
+		if PDG_on_variable_declarations_only:
+			# for VariableDeclaration PDG relations
+			query = """
+			MATCH (n_s { Id: '%s' })<-[:PDG_parentOf { Arguments: '%s' }]-(n_t {Type: 'VariableDeclaration'}) RETURN collect(distinct n_t) AS resultset
+			"""%(node_id, varname)
+		elif PDG_on_arguments_only:
+			# for all PDG relations
+			query = """
+			MATCH (n_s { Id: '%s' })<-[:PDG_parentOf { Arguments: '%s' }]-(n_t) RETURN collect(distinct n_t) AS resultset
+			"""%(node_id, varname)
+			# logger.warning(f"pdg query - PDG_on_arguments_only: {query}")
+		else:
+			# for different kinds of POC formats
+			query = """
+			MATCH (n_s { Id: '%s' })<-[:PDG_parentOf]-(n_t) RETURN collect(distinct n_t) AS resultset
+			"""%(node_id)
+			# print("pdg query - other", query, "at segment", QU.getCodeOf(tx, context_node))
 		
-		for iteratorNode in currentNodes:
-			# print('iteratorNode', iteratorNode)
-			if iteratorNode['Type'] == 'Program': continue
+		results = tx.run(query)
+		for item in results: 
+			currentNodes = item['resultset'] 
+			
+			for iteratorNode in currentNodes:
+				# print('iteratorNode', iteratorNode)
+				if iteratorNode['Type'] == 'Program': continue
 
-			if iteratorNode['Type'] == 'BlockStatement': 
-				# the parameter 'varname' is a function argument
+				if iteratorNode['Type'] == 'BlockStatement': 
+					# the parameter 'varname' is a function argument
 
-				func_def_node = get_function_def_of_block_stmt(tx, iteratorNode) # check if func def has a varname parameter 
-				# print("func_def_node", func_def_node, "at segment", QU.getCodeOf(tx, func_def_node))
-				if func_def_node['Type'] in ['FunctionExpression', 'FunctionDeclaration', 'ArrowFunctionExpression']:
+					func_def_node = get_function_def_of_block_stmt(tx, iteratorNode) # check if func def has a varname parameter 
+					# print("func_def_node", func_def_node, "at segment", QU.getCodeOf(tx, func_def_node))
+					if func_def_node['Type'] in ['FunctionExpression', 'FunctionDeclaration', 'ArrowFunctionExpression']:
 
-					match_signature = check_if_function_has_param(tx, varname, func_def_node)
-					if match_signature:
-						if context_scope == '':
-							out = ['%s = %s'%(varname, constantsModule.LOCAL_ARGUMENT_TAG_FOR_FUNC),
-								  [],
-								  [varname],
-								  iteratorNode['Location']]
-						else:
-							out = ['%s %s = %s'%(context_scope, varname, constantsModule.LOCAL_ARGUMENT_TAG_FOR_FUNC),
-								  [],
-								  [varname],
-								  iteratorNode['Location']]					
-						out_values.append(out)
-						# logger.debug("match_signature out %s", out)
-						try:
-							varname_values_within_call_expressions = _get_all_call_values_of(varname, func_def_node)
-						except Exception as e:
-							logger.error("Error in _get_all_call_values_of: %s", str(e))
-							varname_values_within_call_expressions = {}
-						for nid in varname_values_within_call_expressions:
-							each_argument = varname_values_within_call_expressions[nid]
+						match_signature = check_if_function_has_param(tx, varname, func_def_node)
+						if match_signature:
+							if context_scope == '':
+								out = ['%s = %s'%(varname, constantsModule.LOCAL_ARGUMENT_TAG_FOR_FUNC),
+									[],
+									[varname],
+									iteratorNode['Location']]
+							else:
+								out = ['%s %s = %s'%(context_scope, varname, constantsModule.LOCAL_ARGUMENT_TAG_FOR_FUNC),
+									[],
+									[varname],
+									iteratorNode['Location']]					
+							out_values.append(out)
+							# logger.debug("match_signature out %s", out)
+							try:
+								varname_values_within_call_expressions = _get_all_call_values_of(varname, func_def_node)
+							except Exception as e:
+								logger.error("Error in _get_all_call_values_of for %s, %s: %s", varname, func_def_node, str(e))
+								varname_values_within_call_expressions = {}
+							varname_vals = [f for f in varname_values_within_call_expressions]
+							if(len(varname_vals) > LARGE_CALL_SITE_CUTOFF):
+								logger.warning(f"Large number of call sites for function def {func_def_node['Id']} and varname {varname}, taking only first {LARGE_CALL_SITE_CUTOFF}")
+								varname_vals = varname_vals[:LARGE_CALL_SITE_CUTOFF] # 3
+							for nid in varname_vals:
+								each_argument = varname_values_within_call_expressions[nid]
 
-							location_line = _get_location_part(nid)
+								location_line = _get_location_part(nid)
 
-							if each_argument['Type'] == 'Literal':
-								if context_scope == '':
-									out = ['%s <--(invocation-value)-- \"%s\"'%(varname, each_argument['Value']),
-										  [each_argument['Value']],
-										  [varname],
-										  location_line]
-								else:
-									out = ['%s %s <--(invocation-value)-- \"%s\"'%(context_scope, varname, each_argument['Value']),
-										  [each_argument['Value']],
-										  [varname],
-										  location_line]
+								if each_argument['Type'] == 'Literal':
+									if context_scope == '':
+										out = ['%s <--(invocation-value)-- \"%s\"'%(varname, each_argument['Value']),
+											[each_argument['Value']],
+											[varname],
+											location_line]
+									else:
+										out = ['%s %s <--(invocation-value)-- \"%s\"'%(context_scope, varname, each_argument['Value']),
+											[each_argument['Value']],
+											[varname],
+											location_line]
 
-								out_values.append(out)
+									out_values.append(out)
 
-							elif each_argument['Type'] == 'Identifier':
+								elif each_argument['Type'] == 'Identifier':
 
-								call_expr_id = _get_node_id_part(nid)
-								# use this as an id to mark variables in this scope when doing def-use analsis
-								context_id_of_call_scope = '[scope-id=%s]'%call_expr_id  
+									call_expr_id = _get_node_id_part(nid)
+									# use this as an id to mark variables in this scope when doing def-use analsis
+									context_id_of_call_scope = '[scope-id=%s]'%call_expr_id  
 
-								if context_scope == '':
-									out = ['%s <--(invocation-value)-- [def-scope-id=%s] %s'%(varname, call_expr_id, each_argument['Value']),
-										  [],
-										  [varname, each_argument['Value']],
-										  location_line]
-								else:
-									out = ['%s %s <--(invocation-value)-- [def-scope-id=%s] %s'%(context_scope, varname, call_expr_id, each_argument['Value']),
-											  [],
-											  [varname, each_argument['Value']],
-											  location_line]
+									if context_scope == '':
+										out = ['%s <--(invocation-value)-- [def-scope-id=%s] %s'%(varname, call_expr_id, each_argument['Value']),
+											[],
+											[varname, each_argument['Value']],
+											location_line]
+									else:
+										out = ['%s %s <--(invocation-value)-- [def-scope-id=%s] %s'%(context_scope, varname, call_expr_id, each_argument['Value']),
+												[],
+												[varname, each_argument['Value']],
+												location_line]
 
-								out_values.append(out)
+									out_values.append(out)
 
-								
-								# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
-								top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
-								recurse= _get_varname_value_from_context(tx, each_argument['Value'], top_level_of_call_expr, knowledge_database=knowledge_database, context_scope=context_id_of_call_scope)
-								out_values.extend(recurse)
+									
+									# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
+									top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
+									recurse= _get_varname_value_from_context(tx, each_argument['Value'], top_level_of_call_expr, call_values_cache=call_values_cache, context_scope=context_id_of_call_scope, depth=depth+1)
+									out_values.extend(recurse)
 
-							elif each_argument['Type'] == 'MemberExpression':
+								elif each_argument['Type'] == 'MemberExpression':
 
-								call_expr_id = _get_node_id_part(nid)
-								context_id_of_call_scope = '[scope-id=%s]'%call_expr_id  
+									call_expr_id = _get_node_id_part(nid)
+									context_id_of_call_scope = '[scope-id=%s]'%call_expr_id  
 
-								if context_scope == '':
-									out = ['%s <--(invocation-value)-- [def-scope-id=%s] %s'%(varname, call_expr_id, each_argument['Value']),
-										  [],
-										  [varname, each_argument['Value']],
-										  location_line]
-								else:
-									out = ['%s %s <--(invocation-value)-- [def-scope-id=%s] %s'%(context_scope, varname, call_expr_id, each_argument['Value']),
-											  [],
-											  [varname, each_argument['Value']],
-											  location_line]						
-								out_values.append(out)	
+									if context_scope == '':
+										out = ['%s <--(invocation-value)-- [def-scope-id=%s] %s'%(varname, call_expr_id, each_argument['Value']),
+											[],
+											[varname, each_argument['Value']],
+											location_line]
+									else:
+										out = ['%s %s <--(invocation-value)-- [def-scope-id=%s] %s'%(context_scope, varname, call_expr_id, each_argument['Value']),
+												[],
+												[varname, each_argument['Value']],
+												location_line]						
+									out_values.append(out)	
 
-								# PDG on member expressions-> do PDG on the top most parent of it!
-								top_most = each_argument['Value'].split('.')[0]
-								call_expr_id = _get_node_id_part(nid)
-								# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
-								top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
-								recurse= _get_varname_value_from_context(tx, top_most, top_level_of_call_expr, knowledge_database=knowledge_database, context_scope=context_id_of_call_scope)
-								out_values.extend(recurse)
+									# PDG on member expressions-> do PDG on the top most parent of it!
+									top_most = each_argument['Value'].split('.')[0]
+									call_expr_id = _get_node_id_part(nid)
+									# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
+									top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
+									recurse= _get_varname_value_from_context(tx, top_most, top_level_of_call_expr, call_values_cache=call_values_cache, context_scope=context_id_of_call_scope, depth=depth+1)
+									out_values.extend(recurse)
 
-							elif each_argument['Type'] == 'ObjectExpression':
-								
-								call_expr_id = _get_node_id_part(nid)
-								context_id_of_call_scope = '[scope-id=%s]'%call_expr_id  
+								elif each_argument['Type'] == 'ObjectExpression':
+									
+									call_expr_id = _get_node_id_part(nid)
+									context_id_of_call_scope = '[scope-id=%s]'%call_expr_id  
 
-								if context_scope == '':
-									out = ['%s <--(invocation-value)-- [def-scope-id=%s] %s'%(varname, call_expr_id, each_argument['Value']),
-										  [],
-										  [varname, each_argument['Value']],
-										  location_line]
-								else:
-									out = ['%s %s <--(invocation-value)-- [def-scope-id=%s] %s'%(context_scope, varname, call_expr_id, each_argument['Value']),
-											  [],
-											  [varname, each_argument['Value']],
-											  location_line]
+									if context_scope == '':
+										out = ['%s <--(invocation-value)-- [def-scope-id=%s] %s'%(varname, call_expr_id, each_argument['Value']),
+											[],
+											[varname, each_argument['Value']],
+											location_line]
+									else:
+										out = ['%s %s <--(invocation-value)-- [def-scope-id=%s] %s'%(context_scope, varname, call_expr_id, each_argument['Value']),
+												[],
+												[varname, each_argument['Value']],
+												location_line]
 
-								out_values.append(out)	
+									out_values.append(out)	
 
+									additional_identifiers = each_argument['ResolveIdentifiers']
+									if additional_identifiers is not None:
+										for each_additional_identifier in additional_identifiers:
+											# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
+											top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
+											recurse= _get_varname_value_from_context(tx, each_additional_identifier, top_level_of_call_expr, call_values_cache=call_values_cache, context_scope=context_id_of_call_scope, depth=depth+1)
+											out_values.extend(recurse)	
+								else: 
+									# expression statements, call expressions (window.location.replace(), etc)
+									if context_scope == '':
+										out = ['%s <--(invocation-value)-- %s'%(varname, each_argument['Value']),
+											[],
+											[varname, each_argument['Value']],
+											location_line]
+										
+									else:
+										out = ['%s %s <--(invocation-value)-- %s'%(context_scope, varname, each_argument['Value']),
+											[],
+											[varname, each_argument['Value']],
+											location_line]
+
+									out_values.append(out)				
+
+
+
+								## ThisExpression Pointer Analysis
+								## NOTE: this code block must be executed for ALL branches, so we have to place it outside of all conditional branches
 								additional_identifiers = each_argument['ResolveIdentifiers']
 								if additional_identifiers is not None:
-									for each_additional_identifier in additional_identifiers:
-										# top_level_of_call_expr = get_non_anonymous_call_expr_top_node(tx, {'Id': call_expr_id})
-										top_level_of_call_expr = QU.get_ast_topmost(tx, {'Id': call_expr_id})
-										recurse= _get_varname_value_from_context(tx, each_additional_identifier, top_level_of_call_expr, knowledge_database=knowledge_database, context_scope=context_id_of_call_scope)
-										out_values.extend(recurse)	
-							else: 
-								# expression statements, call expressions (window.location.replace(), etc)
-								if context_scope == '':
-									out = ['%s <--(invocation-value)-- %s'%(varname, each_argument['Value']),
-										  [],
-										  [varname, each_argument['Value']],
-										  location_line]
-									
-								else:
-									out = ['%s %s <--(invocation-value)-- %s'%(context_scope, varname, each_argument['Value']),
-										  [],
-										  [varname, each_argument['Value']],
-										  location_line]
+									if 'ThisExpression' in additional_identifiers:
+										this_expression_node_id = additional_identifiers['ThisExpression']
+										pointer_resolutions = get_this_pointer_resolution(tx, {'Id': this_expression_node_id })
+										for item in pointer_resolutions['methods']:
+											owner_item = item['owner']
+											owner_top = item['top']
+											tree_owner = QU.getChildsOf(tx, owner_item)
+											tree_owner_exp = QU.get_code_expression(tree_owner)[0]
+											location_line = owner_item['Location']
+											out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope,tree_owner_exp, this_expression_node_id)
+											out = [out_line.lstrip(),
+												[],
+												[tree_owner_exp[0]],
+												location_line]
+											out_values.append(out)
 
-								out_values.append(out)				
-
-
-
-							## ThisExpression Pointer Analysis
-							## NOTE: this code block must be executed for ALL branches, so we have to place it outside of all conditional branches
-							additional_identifiers = each_argument['ResolveIdentifiers']
-							if additional_identifiers is not None:
-								if 'ThisExpression' in additional_identifiers:
-									this_expression_node_id = additional_identifiers['ThisExpression']
-									pointer_resolutions = get_this_pointer_resolution(tx, {'Id': this_expression_node_id })
-									for item in pointer_resolutions['methods']:
-										owner_item = item['owner']
-										owner_top = item['top']
-										tree_owner = QU.getChildsOf(tx, owner_item)
-										tree_owner_exp = QU.get_code_expression(tree_owner)[0]
-										location_line = owner_item['Location']
-										out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope,tree_owner_exp, this_expression_node_id)
-										out = [out_line.lstrip(),
-											  [],
-											  [tree_owner_exp[0]],
-											  location_line]
-										out_values.append(out)
-
-										# def-use analysis over resolved `this` pointer
-										if owner_item != '' and owner_item is not None and owner_item!= constantsModule.WINDOW_GLOBAL_OBJECT and owner_item['Type'] == 'Identifier':
-											recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, knowledge_database=knowledge_database, PDG_on_variable_declarations_only=True)
-											out_values.extend(recurse_values)
+											# def-use analysis over resolved `this` pointer
+											if owner_item != '' and owner_item is not None and owner_item!= constantsModule.WINDOW_GLOBAL_OBJECT and owner_item['Type'] == 'Identifier':
+												recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, call_values_cache=call_values_cache, PDG_on_variable_declarations_only=Tru, depth=depth+1)
+												out_values.extend(recurse_values)
 
 
-									# handle `this` that resolves to DOM elements in events 
-									for element in pointer_resolutions['events']:
-										if 'relation' in element:
-											# fetched via analysis
-											item = element['relation']
-											target_node_id = item['Arguments'].split('___')[1]
-											if target_node_id == 'xx': 
-												continue
+										# handle `this` that resolves to DOM elements in events 
+										for element in pointer_resolutions['events']:
+											if 'relation' in element:
+												# fetched via analysis
+												item = element['relation']
+												target_node_id = item['Arguments'].split('___')[1]
+												if target_node_id == 'xx': 
+													continue
+												else:
+													tree_owner = QU.getChildsOf({'Id': target_node_id})
+													tree_owner_exp = QU.get_code_expression(tree_owner)
+													location_line = tree_owner['Location']
+													out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
+													out = [out_line.lstrip(),
+														[],
+														[tree_owner_exp],
+														location_line]
+													out_values.append(out) 
 											else:
+												# fetched from DB
+												item = element['owner']
+												target_node_id = item['Id']		
 												tree_owner = QU.getChildsOf({'Id': target_node_id})
 												tree_owner_exp = QU.get_code_expression(tree_owner)
 												location_line = tree_owner['Location']
 												out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
 												out = [out_line.lstrip(),
-													  [],
-													  [tree_owner_exp],
-													  location_line]
-												out_values.append(out) 
-										else:
-											# fetched from DB
-											item = element['owner']
-											target_node_id = item['Id']		
-											tree_owner = QU.getChildsOf({'Id': target_node_id})
-											tree_owner_exp = QU.get_code_expression(tree_owner)
-											location_line = tree_owner['Location']
-											out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
-											out = [out_line.lstrip(),
-												  [],
-												  [tree_owner_exp],
-												  location_line]
-											out_values.append(out) 				
+													[],
+													[tree_owner_exp],
+													location_line]
+												out_values.append(out) 				
 
 
-				continue
+					continue
 
 
-			tree = QU.getChildsOf(tx, iteratorNode)
-			contextNode = tree['node']
-			if contextNode['Id'] == constantsModule.PROGRAM_NODE_INDEX: 
-				continue
+				tree = QU.getChildsOf(tx, iteratorNode)
+				contextNode = tree['node']
+				if contextNode['Id'] == constantsModule.PROGRAM_NODE_INDEX: 
+					continue
 
-			if contextNode['Type'] == "Program":
-				continue
+				if contextNode['Type'] == "Program":
+					continue
 
-			ex = QU.get_code_expression(tree)
-			loc = iteratorNode['Location']
-			[code_expr, literals, idents] = ex
-			if context_scope != '':
-				code_expr = context_scope + '  ' + code_expr 
-			out_values.append([code_expr, literals, idents, loc])
-			new_varnames = list(set((list(idents)))) # get unique vars
-			# print(f"new_varnames from {code_expr}: {new_varnames}")
+				ex = QU.get_code_expression(tree)
+				loc = iteratorNode['Location']
+				[code_expr, literals, idents] = ex
+				if context_scope != '':
+					code_expr = context_scope + '  ' + code_expr 
+				out_values.append([code_expr, literals, idents, loc])
+				new_varnames = list(set((list(idents)))) # get unique vars
+				# print(f"new_varnames from {code_expr}: {new_varnames}")
 
-			# handle `this` expressions
-			if 'ThisExpression' in new_varnames:
-				this_expression_node_id = idents['ThisExpression']
-				pointer_resolutions = get_this_pointer_resolution(tx, {'Id': this_expression_node_id })
-				for item in pointer_resolutions['methods']:
-					owner_item = item['owner']
-					owner_top = item['top']
-					tree_owner = QU.getChildsOf(tx, owner_item)
-					tree_owner_exp = QU.get_code_expression(tree_owner)[0]
-					location_line = owner_item['Location']
-					out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
-					out = [out_line.lstrip(),
-						  [],
-						  [tree_owner_exp[0]],
-						  location_line]
-					out_values.append(out)
+				# handle `this` expressions
+				if 'ThisExpression' in new_varnames:
+					this_expression_node_id = idents['ThisExpression']
+					pointer_resolutions = get_this_pointer_resolution(tx, {'Id': this_expression_node_id })
+					for item in pointer_resolutions['methods']:
+						owner_item = item['owner']
+						owner_top = item['top']
+						tree_owner = QU.getChildsOf(tx, owner_item)
+						tree_owner_exp = QU.get_code_expression(tree_owner)[0]
+						location_line = owner_item['Location']
+						out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
+						out = [out_line.lstrip(),
+							[],
+							[tree_owner_exp[0]],
+							location_line]
+						out_values.append(out)
 
-					# def-use analysis over resolved `this` pointer
-					if owner_item != '' and owner_item is not None and owner_item!= constantsModule.WINDOW_GLOBAL_OBJECT and owner_item['Type'] == 'Identifier':
-						recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, knowledge_database=knowledge_database, PDG_on_variable_declarations_only=True)
-						out_values.extend(recurse_values)
+						# def-use analysis over resolved `this` pointer
+						if owner_item != '' and owner_item is not None and owner_item!= constantsModule.WINDOW_GLOBAL_OBJECT and owner_item['Type'] == 'Identifier':
+							recurse_values = _get_varname_value_from_context(tx, tree_owner_exp, owner_top, call_values_cache=call_values_cache, PDG_on_variable_declarations_only=True, depth=depth+1)
+							out_values.extend(recurse_values)
 
 
-				# handle `this` that resolves to DOM elements in events 
-				for element in pointer_resolutions['events']:
-					if 'relation' in element:
-						# fetched via analysis
-						item = element['relation']
-						target_node_id = item['Arguments'].split('___')[1]
-						if target_node_id == 'xx': 
-							continue
+					# handle `this` that resolves to DOM elements in events 
+					for element in pointer_resolutions['events']:
+						if 'relation' in element:
+							# fetched via analysis
+							item = element['relation']
+							target_node_id = item['Arguments'].split('___')[1]
+							if target_node_id == 'xx': 
+								continue
+							else:
+								tree_owner = QU.getChildsOf({'Id': target_node_id})
+								tree_owner_exp = QU.get_code_expression(tree_owner)
+								location_line = tree_owner['Location']
+								out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
+								out = [out_line.lstrip(),
+									[],
+									[tree_owner_exp],
+									location_line]
+								out_values.append(out) 
 						else:
+							# fetched from DB
+							item = element['owner']
+							target_node_id = item['Id']		
 							tree_owner = QU.getChildsOf({'Id': target_node_id})
 							tree_owner_exp = QU.get_code_expression(tree_owner)
 							location_line = tree_owner['Location']
 							out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
 							out = [out_line.lstrip(),
-								  [],
-								  [tree_owner_exp],
-								  location_line]
+								[],
+								[tree_owner_exp],
+								location_line]
 							out_values.append(out) 
-					else:
-						# fetched from DB
-						item = element['owner']
-						target_node_id = item['Id']		
-						tree_owner = QU.getChildsOf({'Id': target_node_id})
-						tree_owner_exp = QU.get_code_expression(tree_owner)
-						location_line = tree_owner['Location']
-						out_line = '%s this --(points-to)--> %s [this-nid: %s]'%(context_scope, tree_owner_exp, this_expression_node_id)
-						out = [out_line.lstrip(),
-							  [],
-							  [tree_owner_exp],
-							  location_line]
-						out_values.append(out) 
 
+				debug_new_var_dicts[context_node['Id']] = new_varnames
+				logger.debug(f"debug_new_var_dicts: {debug_new_var_dicts}")
+				# main recursion flow				
+				for new_varname in new_varnames:
+					if new_varname == varname or new_varname in constantsModule.JS_DEFINED_VARS: continue
 
-			# main recursion flow
-			for new_varname in new_varnames:
-				if new_varname == varname or new_varname in constantsModule.JS_DEFINED_VARS: continue
+					# check if new_varname is a function call
+					# i.e., it has a `callee` relation to a parent of type `CallExpression`
+					new_varname_id = idents[new_varname]
+					check_function_call_query="""
+					MATCH (n { Id: '%s' })<-[:AST_parentOf {RelationType: 'callee'}]-(fn_call {Type: 'CallExpression'})-[:CG_parentOf]->(call_definition)
+					RETURN call_definition
+					"""%(new_varname_id)
+					call_definition_result = tx.run(check_function_call_query)
+					is_func_call = False
+					for definition in call_definition_result:
+						item = definition['call_definition']
+						if item is not None:
+							is_func_call = True
+							logger.warning(f"Getting child of function definition for call def: {item}")
+							# wrapper_node_function_definition = QU.getChildsOf(tx, item)
+							# ce_function_definition = QU.get_code_expression(wrapper_node_function_definition)
+							ce_function_definition, _ = QU.getChildsOfAndCodeExpression(tx, item)
+							location_function_definition = item['Location']
+							body = ce_function_definition[0]
+							body = jsbeautifier.beautify(body)
+							out_line = """%s `%s` is %s\n\t\t\t %s"""%(context_scope, new_varname, constantsModule.FUNCTION_CALL_DEFINITION_BODY, body)
+							out = [out_line.strip(),
+								[],
+								[],
+								location_function_definition]
+							if out not in out_values:
+								# avoid returning/printing twice
+								out_values.append(out)
 
-				# check if new_varname is a function call
-				# i.e., it has a `callee` relation to a parent of type `CallExpression`
-				new_varname_id = idents[new_varname]
-				check_function_call_query="""
-				MATCH (n { Id: '%s' })<-[:AST_parentOf {RelationType: 'callee'}]-(fn_call {Type: 'CallExpression'})-[:CG_parentOf]->(call_definition)
-				RETURN call_definition
-				"""%(new_varname_id)
-				call_definition_result = tx.run(check_function_call_query)
-				is_func_call = False
-				for definition in call_definition_result:
-					item = definition['call_definition']
-					if item is not None:
-						is_func_call = True
-						wrapper_node_function_definition = QU.getChildsOf(tx, item)
-						ce_function_definition = QU.get_code_expression(wrapper_node_function_definition)
-						location_function_definition = item['Location']
-						body = ce_function_definition[0]
-						body = jsbeautifier.beautify(body)
-						out_line = """%s `%s` is %s\n\t\t\t %s"""%(context_scope, new_varname, constantsModule.FUNCTION_CALL_DEFINITION_BODY, body)
-						out = [out_line.strip(),
-							  [],
-							  [],
-							  location_function_definition]
-						if out not in out_values:
-							# avoid returning/printing twice
-							out_values.append(out)
-
-				if is_func_call:
-					continue
-
-				v = _get_varname_value_from_context(tx, new_varname, contextNode, knowledge_database=knowledge_database, context_scope = context_scope)
-				out_values.extend(v)	
-
+					if is_func_call:
+						continue
+					
+					# logger.info(f"out_values before recursing on {new_varname} at depth {depth}: {out_values}")
+					v = _get_varname_value_from_context(tx, new_varname, contextNode, call_values_cache=call_values_cache, context_scope = context_scope, depth=depth+1, PDG_on_arguments_only=True)
+					out_values.extend(v)	
+	else:
+		logger.debug(f"Max depth reached for varname {varname} at context {context_node}")
 
 	param_stack_pop()
 

@@ -305,7 +305,7 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		let script_content = await readFile(script_full_name);
 		
 		// search for existence of all_pattern elements in script
-		let has_pattern_in_script = true;		
+		let has_pattern_in_script = false;		
 		if(script_content !== -1){
 			for(let pattern of all_patterns){
 				if(script_content.includes(pattern)){

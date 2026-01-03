@@ -84,7 +84,7 @@ echo "Starting JAW4C services..."
 
 # Create tmux session for vuln_db
 echo "Creating tmux session for vuln_db..."
-VULN_DB_SESSION=$(tmux new-session -d -c "./vuln_db_llm/" "docker compose up --build" \; display-message -p "#{session_id}")
+VULN_DB_SESSION=$(tmux new-session -d -c "./vuln_db_vulnerable/" "docker compose up --build" \; display-message -p "#{session_id}")
 echo "Vuln DB session ID: $VULN_DB_SESSION"
 
 # Create tmux session for WebArchive

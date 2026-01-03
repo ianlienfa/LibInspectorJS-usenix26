@@ -45,6 +45,7 @@ import threading
 from pathlib import Path
 from contextlib import contextmanager
 from flask import Flask, send_from_directory, redirect, request       
+import debugpy
 
 # Add parent directory to path for imports
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -528,10 +529,13 @@ def main():
     args = parser.parse_args()
     if args.server_only:
         host_server(args.test, args.port)
-    else:
+    else:        
         success = run_test(args.test, args.action, args.port, args.config, args.skip_setup, args.keep_alive)
         sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':
+    debugpy.listen(5678)
+    print("Waiting for debugger attach...")
+    debugpy.wait_for_client()
     main()

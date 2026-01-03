@@ -208,7 +208,8 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			navigation_url = get_url_for_webpage(webpage)
 
 			# Graph based shared information initialization
-			knowledge_database = {} # stores a map: funcDef id -->> get_function_call_values_of_function_definitions(funcDef)
+			call_sites_cache = {}  # stores a map: funcDef id -> list of call expression nodes
+			call_values_cache = {}  # stores a map: funcDef id -> get_function_call_values_of_function_definitions(funcDef)
 			nodeid_to_matches = {}
 			processed_pattern = set()
 
@@ -234,9 +235,9 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f"[{entry_idx+1}/{len(vuln_list)}]-[{i+1}/{len(vuln)}] Starting tainting-based sink detection\n vuln_info:", vuln_info)
 							logger.info(f"{vuln_info}")
 							logger.info("=======================================================================================================")
-							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, knowledge_database, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
+							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
 							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
-									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, knowledge_database,
+									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,
 									code_matching_cutoff, call_count_limit,
 									conn_timeout=container_transaction_timeout)
 						except Exception as e:

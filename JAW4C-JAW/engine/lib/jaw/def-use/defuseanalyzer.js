@@ -433,11 +433,11 @@ DefUseAnalyzer.prototype.findDUPairs = function (model) {
 
 
     for(let node of model.graph[2]){
-        console.log("node.reachIns for node: ", (!!node.astNode) && `{${node.astNode.loc.start.line}, ${node.astNode.loc.start.column}} - {${node.astNode.loc.end.line}, ${node.astNode.loc.end.column}}`);
-        (!!node.reachIns._values) && node.reachIns._values.forEach(vardef => {            
-            console.log(`${(!!vardef.variable.name) && vardef.variable.name} at {${(vardef.definition?.fromNodeActual?.loc.start.line)}, ${vardef.definition.fromNodeActual?.loc.start.column}}`)
-            debugger;
-        });
+        // console.log("node.reachIns for node: ", (!!node.astNode) && `{${node.astNode.loc.start.line}, ${node.astNode.loc.start.column}} - {${node.astNode.loc.end.line}, ${node.astNode.loc.end.column}}`);
+        // (!!node.reachIns._values) && node.reachIns._values.forEach(vardef => {            
+        //     console.log(`${(!!vardef.variable.name) && vardef.variable.name} at {${(vardef.definition?.fromNodeActual?.loc.start.line)}, ${vardef.definition.fromNodeActual?.loc.start.column}}`)
+        //     debugger;
+        // });
 
         var nodeCUse = getUsedDefs(node.reachIns, node.cuse),
             nodePUse = getUsedDefs(node.reachIns, node.puse);

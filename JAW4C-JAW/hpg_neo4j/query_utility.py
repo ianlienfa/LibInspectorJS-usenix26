@@ -28,6 +28,8 @@
 from functools import lru_cache
 from analyses.general import data_flow
 import constants as constantsModule
+from utils.logging import logger
+import pyjson5
 
 # -------------------------------------------------------------------------- #
 #		Cycle Detection for Alias Analysis
@@ -594,6 +596,8 @@ def get_code_expression(wrapper_node, is_argument = False, relation_type='', sho
 
 
 def getChildsOf(tx, node, relation_type=''):
+	range_obj = pyjson5.loads(node['Range'])
+	# logger.debug("Getting childs of node Id: %s, relation_type: %s"%(node['Id'], relation_type))
 	"""
 	@param {pointer} tx
 	@param {node object} node
@@ -618,6 +622,16 @@ def getChildsOf(tx, node, relation_type=''):
 		for childNode in childNodes:
 			outNode['children'].append(getChildsOf(tx, childNode))
 	return outNode
+
+
+def getChildsOfAndCodeExpression(tx, node, relationtype='', linelimit=10, rangelimit = 1500):
+	range_obj = pyjson5.loads(node['Range'])
+	location_obj = pyjson5.loads(node['Location'])
+	if (int(range_obj[1]) - int(range_obj[0])) >= rangelimit or (int(location_obj['start']['line']) - int(location_obj['end']['line'])) >= linelimit:
+		return [f'{node["Type"]} at ({location_obj["start"]["line"]},{location_obj["start"]["column"]}) - ({location_obj["end"]["line"]}, {location_obj["end"]["column"]})'], {'node': node, 'children': []}
+	tree = getChildsOf(tx, node, relation_type=relationtype)
+	ex = get_code_expression(tree)	
+	return ex, tree
 
 
 def getChildByRelationType(tx, node, relation_type):

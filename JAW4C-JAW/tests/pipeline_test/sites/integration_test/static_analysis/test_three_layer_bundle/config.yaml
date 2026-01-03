@@ -4,7 +4,7 @@ testbed:
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
   from_row: 2070
   to_row: end
-  site: http://localhost:3000/integration_test/static_analysis/test_complex_jquery_CVE-2020-7656
+  site: http://localhost:3000/integration_test/static_analysis/test_three_layer_bundle
 crawler:
   maxurls: 5
   sitetimeout: 180
