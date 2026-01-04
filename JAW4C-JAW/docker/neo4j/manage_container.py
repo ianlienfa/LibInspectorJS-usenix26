@@ -38,6 +38,7 @@ import shutil
 # set up neo4j volume folder
 VOLUME_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "volume")
 CONF_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "conf")
+PLUGINS_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "plugins")
 PROCESS_USER_ID = os.getuid()
 PROCESS_GROUP_ID = os.getgid()
 
@@ -60,6 +61,7 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
 			os.makedirs(p)
 			os.chown(p, -1, 7474)
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
+		shutil.copytree(PLUGINS_HOME, plugins_dir, dirs_exist_ok=True) # copy apoc plugin
 			
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
@@ -78,7 +80,6 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
-    -e NEO4JLABS_PLUGINS='["apoc"]' \
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
@@ -140,7 +141,6 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
-    -e NEO4JLABS_PLUGINS='["apoc"]' \
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
@@ -189,10 +189,13 @@ def restart_neo4j_container(container_name, cleanup=True):
 
 
 def remove_neo4j_container(container_name):
-
+	container_data_path = os.path.join(VOLUME_HOME, container_name, 'neo4j')
 	command = "docker rm %s"%str(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.warning('Docker container %s is being removed.'%str(container_name))
+	if os.path.exists(container_data_path):
+		shutil.rmtree(container_data_path)
+		logger.warning('Docker container %s data is being removed at %s.'%(str(container_name), str(container_data_path)))
 
 
 def import_data_inside_container_with_cypher(tx, database_name, relative_import_path):
@@ -207,54 +210,163 @@ def import_data_inside_container_with_cypher(tx, database_name, relative_import_
 	return results
 
 
+def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name, database_name='neo4j', nodes_file=None, edges_file=None, edges_dynamic_file=None, volume_home=VOLUME_HOME):
+	"""
+	Creates a Neo4j container and imports CSV data in a single docker run command.
+	This combines container creation and data import to avoid database locking issues.
+
+	@param {string} container_name: Name for the Docker container
+	@param {string} weburl_suffix: Parent directory name (e.g., 'localhost-hash')
+	@param {string} webapp_name: Webpage directory name (hash)
+	@param {string} database_name: Neo4j database name (default: 'neo4j')
+	@param {string} nodes_file: Name of nodes CSV file (default: nodes.csv)
+	@param {string} edges_file: Name of relationships CSV file (default: rels.csv)
+	@param {string} edges_dynamic_file: Name of dynamic relationships CSV file (default: rels.dynamic.csv)
+	@param {string} volume_home: Docker volume home directory (default: VOLUME_HOME)
+	"""
+	# Setup directory structure
+	if not os.path.exists(volume_home):
+		os.makedirs(volume_home)
+	container_data_path = os.path.join(volume_home, container_name, 'neo4j')
+	logger.info(f"container_data_path: {container_data_path}")
+
+	if not os.path.exists(container_data_path):
+		data_dir = os.path.join(container_data_path, 'data')
+		logs_dir = os.path.join(container_data_path, 'logs')
+		plugins_dir = os.path.join(container_data_path, 'plugins')
+		conf_dir = os.path.join(container_data_path, 'conf')
+		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
+			os.makedirs(p)
+			os.chown(p, -1, 7474)
+		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
+		shutil.copytree(PLUGINS_HOME, plugins_dir, dirs_exist_ok=True)
+
+	# Determine CSV file paths
+	csv_path = os.path.join('/var/lib/neo4j/import', webapp_name)
+	if nodes_file is None:
+		nodes_path = os.path.join(csv_path, constants.NODE_INPUT_FILE_NAME)
+	else:
+		nodes_path = os.path.join(csv_path, nodes_file)
+
+	if edges_file is None:
+		rels_path = os.path.join(csv_path, constants.RELS_INPUT_FILE_NAME)
+	else:
+		rels_path = os.path.join(csv_path, edges_file)
+
+	# Check if dynamic relationships file exists
+	local_csv_path = os.path.join(constants.DATA_DIR, weburl_suffix, webapp_name)
+	if edges_dynamic_file is None:
+		local_rels_dynamic_path = os.path.join(local_csv_path, constants.RELS_DYNAMIC_INPUT_FILE_NAME)
+	else:
+		local_rels_dynamic_path = os.path.join(local_csv_path, edges_dynamic_file)
+
+	# Build neo4j-admin import command
+	if os.path.exists(local_rels_dynamic_path) and os.path.isfile(local_rels_dynamic_path):
+		rels_dynamic_path = os.path.join(csv_path, constants.RELS_DYNAMIC_INPUT_FILE_NAME if edges_dynamic_file is None else edges_dynamic_file)
+		if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
+			neo4j_import_cmd = f"neo4j-admin import --force--database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}','{rels_dynamic_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
+		else:
+			neo4j_import_cmd = f"neo4j-admin import --mode=csv --database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}','{rels_dynamic_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
+	else:
+		if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
+			neo4j_import_cmd = f"neo4j-admin import --force --database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
+		else:
+			neo4j_import_cmd = f"neo4j-admin import --mode=csv --database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
+
+	# Run docker with neo4j-admin import command (no -d flag, runs synchronously)
+	# Automatically removes container for later recreation
+	command_base = f"""docker run \
+	--rm \
+    --name {container_name} \
+    -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
+    -v {volume_home}/{container_name}/neo4j/data:/data \
+    -v {volume_home}/{container_name}/neo4j/logs:/logs \
+    -v {constants.DATA_DIR}/{weburl_suffix}:/var/lib/neo4j/import/{webapp_name} \
+    -v {volume_home}/{container_name}/neo4j/plugins:/plugins \
+    -v {volume_home}/{container_name}/neo4j/conf:/conf \
+    -u neo4j:neo4j"""
+	env_strs = [
+		'-e NEO4J_apoc_export_file_enabled=true',
+		'-e NEO4J_apoc_import_file_enabled=true',
+		'-e NEO4J_apoc_import_file_use__neo4j__config=true',
+		# '-e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\*',
+		'-e PYTHONUNBUFFERED=1',
+		f'-e NEO4J_AUTH={constants.NEO4J_USER}/{constants.NEO4J_PASS}'
+	]
+	command = f"""{command_base} \
+	{' '.join(env_strs)} \
+    arm64v8/neo4j:4.4 \
+    {neo4j_import_cmd}
+	"""
+
+	logger.info(f'Running docker with neo4j-admin import for container {container_name}')
+	ret, output = utilityModule.run_os_command(command, print_stdout=True, prettify=True, return_output=True)
+
+	if ret != 0:
+		logger.error(f'Failed to import data into container {container_name}')
+		logger.error(f'Output: {output}')
+		raise RuntimeError(f'Neo4j import failed for container {container_name}')
+
+	logger.info(f'Successfully imported data into container {container_name}')
+	return 1
+
+
 def import_data_inside_container(container_name, database_name, relative_import_path, mode='graphML', nodes_file=None, edges_file=None, edges_dynamic_file=None):
 
 	"""
 	@param {string} container_name
 	@param {string} database_name
 	@param {string} relative_import_path: path relative to ./hpg_construction/outputs/
-		in case of CSV: path of the folder containing nodes.csv, rels.csv 
+		in case of CSV: path of the folder containing nodes.csv, rels.csv
 		in case of graphML: path of the graphML file
 	@param {string} mode: type of input (options are 'CSV' or 'graphML')
 	"""
 
 	if mode == 'CSV':
 
-		csv_path = os.path.join('/var/lib/neo4j/import', relative_import_path)
-		if nodes_file is None:
-			nodes_path = os.path.join(csv_path, constants.NODE_INPUT_FILE_NAME)
-		else:
-			nodes_path = os.path.join(csv_path, nodes_file)
-
-		if edges_file is None:
-			rels_path = os.path.join(csv_path, constants.RELS_INPUT_FILE_NAME)
-		else:
-			rels_path = os.path.join(csv_path, edges_file)
-
-		if edges_dynamic_file is None:
-			rels_dynamic_path = os.path.join(csv_path, constants.RELS_DYNAMIC_INPUT_FILE_NAME)
-		else:
-			rels_dynamic_path = os.path.join(csv_path, edges_dynamic_file)
-
-		if os.path.exists(rels_dynamic_path) and os.path.isfile(rels_dynamic_path):
-	
-			# see: https://neo4j.com/docs/operations-manual/current/tools/neo4j-admin-import/#import-tool-option-skip-duplicate-nodes
-			if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
-				neo4j_import_cmd = "neo4j-admin import --database=%s --nodes='%s' --relationships='%s','%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
+		for try_attempt in range(2):
+			csv_path = os.path.join('/var/lib/neo4j/import', relative_import_path)
+			if nodes_file is None:
+				nodes_path = os.path.join(csv_path, constants.NODE_INPUT_FILE_NAME)
 			else:
-				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s','%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
+				nodes_path = os.path.join(csv_path, nodes_file)
 
-		else:
-			# see: https://neo4j.com/docs/operations-manual/current/tools/neo4j-admin-import/#import-tool-option-skip-duplicate-nodes
-			if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
-				neo4j_import_cmd = "neo4j-admin import --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
+			if edges_file is None:
+				rels_path = os.path.join(csv_path, constants.RELS_INPUT_FILE_NAME)
 			else:
-				neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
+				rels_path = os.path.join(csv_path, edges_file)
+
+			if edges_dynamic_file is None:
+				rels_dynamic_path = os.path.join(csv_path, constants.RELS_DYNAMIC_INPUT_FILE_NAME)
+			else:
+				rels_dynamic_path = os.path.join(csv_path, edges_dynamic_file)
+
+			if os.path.exists(rels_dynamic_path) and os.path.isfile(rels_dynamic_path):
+		
+				# see: https://neo4j.com/docs/operations-manual/current/tools/neo4j-admin-import/#import-tool-option-skip-duplicate-nodes
+				if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
+					neo4j_import_cmd = "neo4j-admin import --database=%s --nodes='%s' --relationships='%s','%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
+				else:
+					neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s','%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path, rels_dynamic_path)
+
+			else:
+				# see: https://neo4j.com/docs/operations-manual/current/tools/neo4j-admin-import/#import-tool-option-skip-duplicate-nodes
+				if constants.NEO4J_VERSION.startswith(constants.NEOJ_VERSION_4X):
+					neo4j_import_cmd = "neo4j-admin import --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
+				else:
+					neo4j_import_cmd = "neo4j-admin import --mode=csv --database=%s --nodes='%s' --relationships='%s' --delimiter='\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"%(database_name, nodes_path, rels_path)
 
 
-		# directly run the command inside the neo4j container with docker exec
-		cmd = "docker exec -it %s %s"%(container_name, neo4j_import_cmd)
-		utilityModule.run_os_command(cmd, print_stdout=True, prettify=True)
+			# directly run the command inside the neo4j container with docker exec
+			cmd = "docker exec -it %s %s"%(container_name, neo4j_import_cmd)
+			ret, output = utilityModule.run_os_command(cmd, print_stdout=True, prettify=True, return_output=True)
+			if 'The database is in use.' in output:
+				logger.warning(f'[Attempt: {try_attempt}]Neo4j database is in use, retrying import after restarting the container...')
+				stop_neo4j_container(container_name, cleanup=False)
+				time.sleep(5)
+			else:
+				break
+
 		return 1
 
 	elif mode == 'graphML':

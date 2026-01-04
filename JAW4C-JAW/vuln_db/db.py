@@ -125,12 +125,13 @@ class PostgresDB:
                     fetch="all"
                 )
                 try:
-                    if all:
-                        
-                        all =[ json.loads(i[0])[0] if len(i) and i[0] else None for i in all ]                        
+                    if all:     
+                        all = [json.loads(i[0]) if len(i) else None for i in all] # parse json from each row                 
+                        all = [ i[0] if i and len(i) else None for i in all ] # unwrap one level array, there could be empty arrays
+                        all = list(filter(lambda x: x is not None, all)) # filter out None values                                               
                         res += all                                              
-                except Exception as e:                    
-                    raise RuntimeError('error parsing database output', all)
+                except Exception as e:   
+                    raise RuntimeError('error parsing versioned database output', all)
         else:
             query_str = """
                 WITH input AS (

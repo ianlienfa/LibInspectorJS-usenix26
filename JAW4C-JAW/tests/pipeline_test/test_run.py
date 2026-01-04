@@ -535,7 +535,7 @@ def main():
 
 
 if __name__ == '__main__':
-    debugpy.listen(5678)
-    print("Waiting for debugger attach...")
-    debugpy.wait_for_client()
+    # debugpy.listen(5678)
+    # print("Waiting for debugger attach...")
+    # debugpy.wait_for_client()
     main()

@@ -39,7 +39,7 @@ from functools import lru_cache, wraps
 from utils.logging import logger
 
 debug_new_var_dicts = {}
-LARGE_CALL_SITE_CUTOFF = 3
+LARGE_CALL_SITE_CUTOFF = 2 # Essential, to prevent large call site explosion
 
 ## ------------------------------------------------------------------------------- ##
 ## Utility Functions

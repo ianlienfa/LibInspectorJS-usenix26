@@ -26,7 +26,7 @@ var jsParser = require('../parser/jsparser'),
     loggerModule = require('./../../../core/io/logging');
 
 const { performance } = require('perf_hooks');
-
+const PDG_DEBUG = false;
 
 function DefUseAnalysisExecutor() {
 }
@@ -134,6 +134,7 @@ DefUseAnalysisExecutor.prototype.buildIntraProceduralModelsOfEachPageModels = fu
         let models = pageModels.intraProceduralModels;
 
         for (let j = 0; j < models.length; j++) {
+            console.log(`[StaticAnalysis] Building def-use intraprocedural models for model ${j}/${models.length} of page ${i}/${pageModelsCollection.size}`);
             defuseAnalyzer.doAnalysis(models[j]);
             defuseAnalyzer.findDUPairs(models[j]);
 
@@ -142,18 +143,18 @@ DefUseAnalysisExecutor.prototype.buildIntraProceduralModelsOfEachPageModels = fu
                 if(constantsModule.staticModelPrintPhases){
                     let model = models[j];
                     let scopeName = (model && model.mainlyRelatedScope && model.mainlyRelatedScope.name)? model.mainlyRelatedScope.name : 'UNKNOWN_SCOPE';
-                    console.log('[PDG-DEBUG] Model scope:', scopeName, `(${model.mainlyRelatedScope.ast.loc.start.line}, ${model.mainlyRelatedScope.ast.loc.start.column}), (${model.mainlyRelatedScope.ast.loc.end.line}, ${model.mainlyRelatedScope.ast.loc.end.column})`);
+                    // console.log('[PDG-DEBUG] Model scope:', scopeName, `(${model.mainlyRelatedScope.ast.loc.start.line}, ${model.mainlyRelatedScope.ast.loc.start.column}), (${model.mainlyRelatedScope.ast.loc.end.line}, ${model.mainlyRelatedScope.ast.loc.end.column})`);
 
                     // CFG node summary
-                    if(model.graph && model.graph[2]){
-                        console.log('[PDG-DEBUG]   CFG nodes:', model.graph[2].length);
-                        model.graph[2].forEach(n => {
-                            let reachIns = (n.reachIns)? n.reachIns.size : 0;
-                            let cuse = (n.cuse)? n.cuse.size : 0;
-                            let puse = (n.puse)? n.puse.size : 0;
-                            console.log('[PDG-DEBUG]     node', n.uniqueId, (n.astNode?.loc) ? `start: {line: ${n.astNode.loc.start.line}, col: ${n.astNode.loc.start.column}} end: {line: ${n.astNode.loc.end.line}, col: ${n.astNode.loc.end.column}}` : `no location`, 'reachIns=', reachIns, 'cuse=', cuse, 'puse=', puse);
-                        });
-                    }
+                    // if(model.graph && model.graph[2]){
+                    //     console.log('[PDG-DEBUG]   CFG nodes:', model.graph[2].length);
+                    //     model.graph[2].forEach(n => {
+                    //         let reachIns = (n.reachIns)? n.reachIns.size : 0;
+                    //         let cuse = (n.cuse)? n.cuse.size : 0;
+                    //         let puse = (n.puse)? n.puse.size : 0;
+                    //         console.log('[PDG-DEBUG]     node', n.uniqueId, (n.astNode?.loc) ? `start: {line: ${n.astNode.loc.start.line}, col: ${n.astNode.loc.start.column}} end: {line: ${n.astNode.loc.end.line}, col: ${n.astNode.loc.end.column}}` : `no location`, 'reachIns=', reachIns, 'cuse=', cuse, 'puse=', puse);
+                    //     });
+                    // }
 
                     // DUPairs summary (print up to 5 variables and up to 5 pairs each)
                     let dupairs = model.dupairs;
@@ -161,12 +162,12 @@ DefUseAnalysisExecutor.prototype.buildIntraProceduralModelsOfEachPageModels = fu
                         try{
                             // Some Map/Set polyfills in older runtimes aren't iterable with `for..of`.
                             // Use `forEach` which is supported by the Map/Set implementations used in this repo.
-                            console.log('[PDG-DEBUG]   DUPairs variables count:', dupairs.size);
+                            // PDG_DEBUG && console.log('[PDG-DEBUG]   DUPairs variables count:', dupairs.size);
                             let vcount = 0;
                             dupairs.forEach(function (pairs, variable) {
                                 if(vcount >= 5) return;
                                 let varName = (variable && variable.name)? variable.name : (variable && variable.toString)? variable.toString() : String(variable);
-                                console.log('[PDG-DEBUG]     var:"', varName, '" pairs_count=', pairs.size);
+                                // PDG_DEBUG && console.log('[PDG-DEBUG]     var:"', varName, '" pairs_count=', pairs.size);
                                 let pcount = 0;
                                 pairs.forEach(function (pair) {
                                     if(pcount >= 5) return;
@@ -175,7 +176,7 @@ DefUseAnalysisExecutor.prototype.buildIntraProceduralModelsOfEachPageModels = fu
                                     let useNode = pair.use || pair.second || null;
                                     let defId = defNode && defNode.uniqueId? defNode.uniqueId : JSON.stringify(defNode);
                                     let useDesc = (Array.isArray(useNode))? ('IF-predicate AST id=' + (useNode[0] && useNode[0]._id)) : (useNode && useNode.uniqueId? ('useNode ' + useNode.uniqueId) : JSON.stringify(useNode));
-                                    console.log('[PDG-DEBUG]       def -> use :', defId, '->', useDesc);
+                                    // PDG_DEBUG && console.log('[PDG-DEBUG]       def -> use :', defId, '->', useDesc);
                                     pcount++;
                                 });
                                 vcount++;
@@ -221,6 +222,7 @@ DefUseAnalysisExecutor.prototype.buildInterProceduralModelsOfEachPageModels = fu
     for (let i=0; i< pageModelsCollection.size; i++){
         let models = pageModelsIterator.next().value.interProceduralModels; // array
         for (let j=0; j< models.length; j++){
+            console.log(`[StaticAnalysis] Building def-use interprocedural models for model ${j}/${models.length} of page ${i}/${pageModelsCollection.size}`);
             defuseAnalyzer.doAnalysis(models[j]);
             defuseAnalyzer.findDUPairs(models[j]);
 

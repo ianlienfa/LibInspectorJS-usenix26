@@ -34,6 +34,7 @@ import uuid
 import logging
 from urllib.parse import urlencode, quote_plus
 import traceback
+import debugpy
 
 import utils.io as IOModule
 from utils.logging import logger as LOGGER, LogFormatter
@@ -397,7 +398,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 									except Exception as e:
 										print('poc formatting problem from database', poc)
-								LOGGER.debug(f"all_patterns: {all_patterns}")
+								LOGGER.debug(f"all_patterns: {all_patterns}")								
 								vuln_list.append({
 									"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
 								})
@@ -816,4 +817,8 @@ def main():
 	cleanup_current_url_handlers()
 
 if __name__ == "__main__":
+	# setup debugpy
+	# debugpy.listen(5678)
+	# print("Waiting for debugger attach...")
+	# debugpy.wait_for_client()
 	main()

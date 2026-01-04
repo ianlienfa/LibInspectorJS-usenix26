@@ -128,40 +128,34 @@ def build_hpg(container_name, webpage):
 	try:
 		logger.info('HPG for: %s'%(webpage))
 
-		# de-compress the hpg 
+		# de-compress the hpg
 		IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
 
 		# import
 		nodes_file = os.path.join(webpage, constantsModule.NODE_INPUT_FILE_NAME)
 		rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
 		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
-			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')			
+			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
 			raise RuntimeError("The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...")
-		
-		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
-		logger.info('waiting 5 seconds for the neo4j container to be ready.')
-		time.sleep(5)
 
-		logger.info(f'importing data inside container, container_name: {container_name}, database_name: {database_name}, relative_import_path: {relative_import_path}')		
-		
-		dockerModule.import_data_inside_container(container_name, database_name, relative_import_path, 'CSV')
+		# Create container and import data in a single docker run command
+		logger.info(f'Creating container and importing data: container_name: {container_name}, database_name: {database_name}')
+		dockerModule.create_and_import_neo4j_container(container_name, weburl_suffix, webapp_folder_name, database_name)
+
+		# After import completes, the container stops (it ran a one-off command)
+		# Now start it in normal mode for querying
+		logger.info(f'Starting Neo4j container in normal mode for querying')
+		dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
 
 		# Wait for the data to be stable
 		neo4j_wait()
 
 		# compress the hpg after the model import
+		logger.info('Compressing HPG after import...')
 		IOModule.compress_graph(webpage)
 
-		#### To avoid the neo4j admin <-> neo4j user racing for the same lock, recreate the whole stuff on the same volume
-		dockerModule.stop_neo4j_container(container_name, cleanup=False)
-		dockerModule.restart_neo4j_container(container_name)
-		# dockerModule.remove_neo4j_container(container_name)
-		# dockerModule.create_neo4j_container(container_name, weburl_suffix, webapp_folder_name)
-		####
+		
 
-		# Wait for the data to be stable
-		neo4j_wait()
-			
 	except Exception as e:
 		logger.error(f"[build_hpg] Error found during execution {str(e)}")
 		dockerModule.stop_neo4j_container(container_name)
@@ -210,7 +204,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			# Graph based shared information initialization
 			call_sites_cache = {}  # stores a map: funcDef id -> list of call expression nodes
 			call_values_cache = {}  # stores a map: funcDef id -> get_function_call_values_of_function_definitions(funcDef)
-			nodeid_to_matches = {}
+			nodeid_to_matches = {}  # stores a map: nodeid -> set of matched poc strings
 			processed_pattern = set()
 
 			for entry_idx, entry in enumerate(vuln_list):
@@ -236,6 +230,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f"{vuln_info}")
 							logger.info("=======================================================================================================")
 							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
+							
 							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
 									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,
 									code_matching_cutoff, call_count_limit,

@@ -2,8 +2,8 @@ testbed:
   archive:
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 2070
-  to_row: end
+  from_row: 2301
+  to_row: 2301
   site: http://localhost:3000/integration_test/static_analysis/test_three_layer_bundle
 crawler:
   maxurls: 5
@@ -36,7 +36,7 @@ vuln_db:
   user: vulndb_annotated
   password: vulndb_pwd
 staticpass:
-  sitetimeout: 1200
+  sitetimeout: 1800
   pagetimeout: 600
   iterativeoutput: false
   memory: 64000
@@ -49,9 +49,9 @@ staticpass:
   neo4j_http_port: '7474'
   neo4j_bolt_port: '7476'
   neo4j_use_docker: true
-  keep_docker_alive: true
-  code_matching_cutoff: 200
-  call_count_limit: 10
+  keep_docker_alive: false
+  code_matching_cutoff: 50
+  call_count_limit: 5
 dynamicpass:
   sitetimeout: 10800
   browser:

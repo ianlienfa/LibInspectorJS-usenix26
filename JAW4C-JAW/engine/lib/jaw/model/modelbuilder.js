@@ -250,6 +250,7 @@ function findFunctionDefinitionFromReachInSet(reachIns, scope, calleeName, flag)
 
 /**
  * Get inter-procedural model start from the scope related to the input model
+ * Look at the current model of the provided scope, identify call-sites by looking into the ReachIn sets, find callee scopes
  * @param {Scope} scope
  * @param {ScopeTree} scopeTree
  * @returns {Model}
@@ -258,18 +259,12 @@ function findFunctionDefinitionFromReachInSet(reachIns, scope, calleeName, flag)
  */
 function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
     "use strict";
-	console.log(`scope type: ${scope.ast.type}`, (scope.ast && scope.ast.loc) ? `loc: start {line: ${scope.ast.loc.start.line}, col: ${scope.ast.loc.start.column}} end {line: ${scope.ast.loc.end.line}, col: ${scope.ast.loc.end.column}}` : `no location`);
+	// console.log(`scope type: ${scope.ast.type}`, (scope.ast && scope.ast.loc) ? `loc: start {line: ${scope.ast.loc.start.line}, col: ${scope.ast.loc.start.column}} end {line: ${scope.ast.loc.end.line}, col: ${scope.ast.loc.end.column}}` : `no location`);
 	var scopeModel = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
-	var resultModel = null;
+	var resultModel = scopeModel;
 	var callSiteMapCalleeScope = new Map();
 	// debugger;
 	
-	if(scope.ast.range[0] === 53521 && scope.ast.range[1] === 53999){
-		debugger;
-	}
-	if(scope.ast.loc.start.line === 4307 && scope.ast.loc.start.column === 0){
-		debugger;
-	}
 	if (!!scopeModel && scopeModel.graph) {
         for(let node of scopeModel.graph[2]){
 			if((!!node.astNode) && node.astNode.loc && node.astNode.loc.start.line === 1595 && node.astNode.loc.start.column === 27){
@@ -394,26 +389,26 @@ function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
 
 
 	if (callSiteMapCalleeScope.size > 0) {
+		// Recursive model building
 		callSiteMapCalleeScope.forEach(function (callee, callSite) {
-			if(callee.ast.range[0] === 53521 && callee.ast.range[1] === 53999){
-				debugger;
-			}			
 			// Don't connect if callee is the same as the current scope (recursive call)
 			if(callee.ast._id === scope.ast._id)
 				return;			
-
-			console.log(`Entering stack call: callee function at range ${callee.ast.range} from call-site at range ${callSite.astNode.range}`);
+			
+			// recursively get inter-procedural model of callee scope
 			var connectedModel =
 				modelCtrl.getInterProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, callee) ||
 				getInterProceduralModelStartFromTheScope(callee, scopeTree);
-			console.log(`Exiting stack call: callee function at range ${callee.ast.range} from call-site at range ${callSite.astNode.range}`);
+
+			// connect caller and callee models at the call-site
 			resultModel = connectCallerCalleeScopeRelatedModelsAtCallSite(resultModel || scopeModel, connectedModel, callSite);
 		});
-	} else {
-		resultModel = scopeModel;
-	}
+	} 
 	if (!!resultModel && resultModel.relatedScopes.length > 1) {
 		modelCtrl.addInterProceduralModelToAPage(scopeTree, resultModel);
+	}
+	if(!resultModel){
+		debugger;
 	}
 	return resultModel;
 }

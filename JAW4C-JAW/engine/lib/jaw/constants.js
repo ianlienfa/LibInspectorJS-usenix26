@@ -256,7 +256,7 @@ constantsModule.LANG = LANG;
 /**
  * Debug flag for closure variable analysis
  */
-constantsModule.DEBUG_CLOSURE_ANALYSIS = true;
+constantsModule.DEBUG_CLOSURE_ANALYSIS = false;
 
 
 module.exports = constantsModule;

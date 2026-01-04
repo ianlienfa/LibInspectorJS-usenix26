@@ -229,7 +229,7 @@ function isLibraryScript(script, options){
 
 	}else{ // [options.mode === 'content']
 
-		let script_content = script.toLowerCase();
+		let script_content = script;
 		for(let h of globalsModule.lib_content_heuristics){
 			if(script_content.includes(h)){ // check script content
 				return_flag = true;
@@ -305,21 +305,27 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		let script_content = await readFile(script_full_name);
 		
 		// search for existence of all_pattern elements in script
+		
 		let has_pattern_in_script = false;		
 		if(script_content !== -1){
 			for(let pattern of all_patterns){
-				if(script_content.includes(pattern)){
+				if((!globalsModule.overly_common_patterns.includes(pattern)) && (!globalsModule.js_builtin.includes(pattern)) && script_content.includes(pattern)){ 
+					// balance between overly common patterns, ex: lodash '_', 
+					// skip builtin js objects too, for poc with those patterns, the existance of libobj itself will do its work 
+					// ex: $.extend(), extend is a js builtin function, we don't look for files with extend pattern, but the existence of libObj $ will do its work
 					has_pattern_in_script = true;
+					console.log(`[Analyzer] Pattern match found in ${script_short_name} for pattern: ${pattern}`)
 					break;
 				}
 			}
 		}
+		
+		if(!has_pattern_in_script){
+			console.log(`[Analyzer] Skipping ${script_short_name}: no pattern match found`)
+			continue;
+		}
 
-		if(script_content !== -1 && has_pattern_in_script){
-			if(!has_pattern_in_script){
-				DEBUG && console.log(`[Analyzer] Skipping ${script_short_name}: no pattern match found`)
-				continue;
-			}
+		if(script_content !== -1 && has_pattern_in_script){			
 			scripts.push({
 				scriptId: i,
 				source: script_content,
@@ -332,7 +338,7 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 			sourcemaps[script_short_name] = JSON.parse(sourcemap_content);
 		}
 
-		DEBUG && console.log(`[Analyzer] scripts ${script_short_name}: script_content != -1: ${script_content !== -1}, has_pattern_in_script: ${has_pattern_in_script}, script_short_name in scripts_mapping: ${script_short_name in scripts_mapping}`)
+		// DEBUG && console.log(`[Analyzer] scripts ${script_short_name}: has_pattern_in_script: ${has_pattern_in_script}`)
 	}
 
 	let library_scripts_path_name = pathModule.join(webpageFolder, 'library_scripts.json');
@@ -360,14 +366,6 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	let parsingErrors = [];
 	for(let [idx, script] of scripts.entries()){
 		let scriptName = script.name; // '' + idx + '.js';
-		/* DEBUGGING for the libObj problem
-			4.js okay, // 1.js okay, 2.js okay
-		*/
-		// if(!scriptName.endsWith('4.js')){
-		// 	console.log("[static_analysis] skipping script: "+ scriptName);
-		// 	continue;
-		// }
-		/* DEBUGGING for the libObj problem end */
 		console.log(`[static_analysis] [${idx}/${scripts.length}] processing script: ${scriptName}`)
 		let parsingError = await SourceSinkAnalyzerInstance.api.initializeModelsFromSource(scriptName, script.source, constantsModule.LANG.js, do_ast_preprocessing_passes)
 		if(parsingError && parsingError === scriptName){

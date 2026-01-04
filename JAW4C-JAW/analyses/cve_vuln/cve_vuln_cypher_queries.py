@@ -58,9 +58,6 @@ from functools import lru_cache
 import analyses.general.data_flow as dfModule
 from analyses.general.data_flow import make_hashable_decorator
 
-
-
-
 # ----------------------------------------------------------------------- #
 #				Globals
 # ----------------------------------------------------------------------- #
@@ -2488,7 +2485,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 
 					# match leaf nodes in the libObjScope
 					matching_nodes = getCodeMatchInScope(tx, code, libObjScope)
-					# logger.debug(f"codeMatchingNodes of {code}: {matching_nodes}")					
+					logger.debug(f"Number of codeMatchingNodes of {code}: {len(matching_nodes)}")					
 					if not matching_nodes:
 						logger.debug(f"No matching nodes found for code: '{code}' in libObjScope: {libObjScope}")
 						raise EarlyHaltException(f"curr_construct: {curr_construct}")
@@ -2498,38 +2495,50 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 					# Tune code matching cutoff/call count limit here 
 					# Dynamic performance tuning: if we have a large match set, trade depth for breadth
 					# while preserving the original work budget (product of cutoff × limit)
-					try:
-						original_product = code_matching_cutoff * call_count_limit
-						match_count = len(matching_nodes)
+					# try:
+					# 	original_product = code_matching_cutoff * call_count_limit
+					# 	match_count = len(matching_nodes)
 
-						if match_count > code_matching_cutoff:
-							# Strategy: Maintain original_product while processing more matches at shallower depth
-							# Goal: adjusted_cutoff × adjusted_limit ≈ original_product
+					# 	if match_count > code_matching_cutoff:
+					# 		# Strategy: Maintain original_product while processing more matches at shallower depth
+					# 		# Goal: adjusted_cutoff × adjusted_limit ≈ original_product
 
-							# Expand breadth (how many matches to process), capped at 5x growth or actual match count
-							max_reasonable_cutoff = min(match_count, original_product)
-							adjusted_code_matching_cutoff = max_reasonable_cutoff
+					# 		# Expand breadth (how many matches to process), capped at 5x growth or actual match count
+					# 		max_reasonable_cutoff = min(match_count, original_product)
+					# 		adjusted_code_matching_cutoff = max_reasonable_cutoff
 
-							# Calculate depth to preserve product: depth = original_product / breadth
-							ideal_call_count_limit = original_product / adjusted_code_matching_cutoff
-							min_safe_depth = 1  # Absolute minimum for meaningful taint propagation
-							adjusted_call_count_limit = max(min_safe_depth, int(ideal_call_count_limit))
+					# 		# Calculate depth to preserve product: depth = original_product / breadth
+					# 		ideal_call_count_limit = original_product / adjusted_code_matching_cutoff
+					# 		min_safe_depth = 1  # Absolute minimum for meaningful taint propagation
+					# 		adjusted_call_count_limit = max(min_safe_depth, int(ideal_call_count_limit))
 
-							# Verify final product and log deviation
-							final_product = adjusted_code_matching_cutoff * adjusted_call_count_limit
-							deviation_ratio = final_product / original_product
+					# 		# Verify final product and log deviation
+					# 		final_product = adjusted_code_matching_cutoff * adjusted_call_count_limit
+					# 		deviation_ratio = final_product / original_product
 
-							if adjusted_code_matching_cutoff != code_matching_cutoff or adjusted_call_count_limit != call_count_limit:
-								logger.warning(f"[perf-tune] large match set ({match_count}). "
-											f"Adjusting: code_matching_cutoff {code_matching_cutoff}->{adjusted_code_matching_cutoff}, "
-											f"call_count_limit {call_count_limit}->{adjusted_call_count_limit}. "
-											f"Product: {original_product}->{final_product} ({deviation_ratio:.2f}x)")
-								code_matching_cutoff = int(adjusted_code_matching_cutoff)
-								call_count_limit = int(adjusted_call_count_limit)
-					except Exception as e:
-						logger.warning(f"[perf-tune] adjustment failed: {e}")
+					# 		if adjusted_code_matching_cutoff != code_matching_cutoff or adjusted_call_count_limit != call_count_limit:
+					# 			logger.warning(f"[perf-tune] large match set ({match_count}). "
+					# 						f"Adjusting: code_matching_cutoff {code_matching_cutoff}->{adjusted_code_matching_cutoff}, "
+					# 						f"call_count_limit {call_count_limit}->{adjusted_call_count_limit}. "
+					# 						f"Product: {original_product}->{final_product} ({deviation_ratio:.2f}x)")
+					# 			code_matching_cutoff = int(adjusted_code_matching_cutoff)
+					# 			call_count_limit = int(adjusted_call_count_limit)
+					# except Exception as e:
+					# 	logger.warning(f"[perf-tune] adjustment failed: {e}")
 					# End dynamic performance tuning
 
+					# we directly query the ast of those matching nodes and place them into nodeid_to_matches
+					if len(matching_nodes) > code_matching_cutoff:
+						logger.warning(f"Large number of matching nodes ({len(matching_nodes)}) for code: {code}. Directly tagging AST nodes to avoid performance issues.")
+						for matchingNode in matching_nodes:
+							context_node = neo4jQueryUtilityModule.get_ast_topmost(tx, matchingNode)
+							taintTag = str(code) 
+							# Tag current node
+							if context_node['Id'] not in nodeid_to_matches:
+								nodeid_to_matches[context_node['Id']] = set()
+							# logger.debug(f"taintTag: {taintTag}")
+							nodeid_to_matches[context_node['Id']].add(taintTag) # only add the code part, not the constructKey part			
+						continue  # skip further processing for this construct
 
 
 					for idx, matchingNode in enumerate(matching_nodes):
@@ -2585,6 +2594,21 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			# breakpoint()
 			raise e
 					
+		item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
+		# filter out items with empty intersection
+		item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
+		item_with_matches.sort(key=lambda x: len(x[1]), reverse=True)
+
+		for nodeId, matchSet in item_with_matches:
+			node = get_node_by_id(tx, nodeId)
+			if node:
+				all_poc_max_levels.append({
+					'node': node,
+					'matchSet': list(matchSet),
+					'file': getTopMostProgramPath(tx, node),
+					'location': node['Location'] if 'Location' in node else None
+				})
+
 		# Identify the root nodes from the matches
 		if 'root' in nodeid_to_matches:
 			# return the root nodes
@@ -2603,21 +2627,40 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 
 			return res, all_poc_max_levels
 		else:
-			# order the nodeid_to_matches by size of sets (descending)
+			# order the nodeid_to_matches by size of sets (descending)		
 			# logger.debug(f"nodeid_to_matches before processing max levels: {nodeid_to_matches}")
-			item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
-			# filter out items with empty intersection
-			item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
+			# item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
+			# # filter out items with empty intersection
+			# item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
+			# item_with_matches.sort(key=lambda x: len(x[1]), reverse=True)
 			# logger.debug(f"item_with_matches: {item_with_matches}")
+			
+			# detect full set if missed by earlier processing (if all pattern were skipped, no 'root' will be marked)
+			max_len = len(item_with_matches[0][1]) if item_with_matches else 0  # we only look at the largest match set
+			res = []
+			root_found = False
 			for nodeId, matchSet in item_with_matches:
-				node = get_node_by_id(tx, nodeId)
-				if node:
-					all_poc_max_levels.append({
-						'node': node,
-						'matchSet': list(matchSet),
-						'file': getTopMostProgramPath(tx, node),
-						'location': node['Location'] if 'Location' in node else None
+				if len(matchSet) != max_len:
+					break				
+				if poc['fullset'].issubset(matchSet):
+					rootNode = get_node_by_id(tx, nodeId)
+					res.append({
+						't': rootNode,
+						'poc_idents': code_set
 					})
+					root_found = True
+			if root_found:				
+				return res, all_poc_max_levels
+
+			# for nodeId, matchSet in item_with_matches:
+			# 	node = get_node_by_id(tx, nodeId)
+			# 	if node:
+			# 		all_poc_max_levels.append({
+			# 			'node': node,
+			# 			'matchSet': list(matchSet),
+			# 			'file': getTopMostProgramPath(tx, node),
+			# 			'location': node['Location'] if 'Location' in node else None
+			# 		})
 			return [], all_poc_max_levels
 
 	

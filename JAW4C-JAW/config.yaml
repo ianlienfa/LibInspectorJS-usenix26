@@ -9,8 +9,8 @@ testbed:
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
-  from_row: 2070 # 2058
-  to_row: end # 1973 # row number or 'end'
+  from_row: 2301 # 2070 has problem
+  to_row: 2301 # 1973 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -66,7 +66,7 @@ vuln_db:
 # 3. static analysis configuration
 staticpass:
   # time budget for static analysis of each page running taint static analysis (in seconds)
-  sitetimeout: 1200 # 20 min
+  sitetimeout: 1800 # 30 min
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
   pagetimeout: 600 # 5 min
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
@@ -91,9 +91,9 @@ staticpass:
   neo4j_use_docker: true
   keep_docker_alive: false
   # Maximum number of matching nodes to process per code pattern (prevents performance issues)
-  code_matching_cutoff: 200
+  code_matching_cutoff: 50
   # Maximum recursion depth for taint propagation (prevents stack overflow)
-  call_count_limit: 10
+  call_count_limit: 5
 
 
 # 4. dynamic analysis configuration
