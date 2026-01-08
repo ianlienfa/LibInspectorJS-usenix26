@@ -201,6 +201,7 @@ def exec_fn_within_transaction(fn, *args, conn=constantsModule.NEO4J_CONN_STRING
 	wraps a function within a neo4j transaction
 	@param {pointer} fn: function 
 	@param {param-list} *args: positional arguments
+	@
 	@return fn output: execute fn with transaction and the list of passed args 
 	"""
 	logger.info('quering on connection: %s'%str(conn))

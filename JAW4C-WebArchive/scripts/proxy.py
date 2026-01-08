@@ -341,14 +341,20 @@ class ArchiveStorage(object):
     def load_archive(self, url: URL) -> Path:
         eTLD = url.eTLD()
         path = url.path()
+        print(f'Loading archive for eTLD: {eTLD}, path: {path}')
+        print(f'self._store: {self._store}')
         archive_path_str = None
         found_eTLD = None
         if eTLD in self._store:
             found_eTLD = eTLD
+            print(f'Found eTLD match: {eTLD}')
         # Possibly apply www subdomain heuristic
         elif url.subdomain() == '' and 'www.' + eTLD in self._store:
+            print(f'Found eTLD match with www subdomain heuristic: {"www." + eTLD}')
             found_eTLD = 'www.' + eTLD
+        print(f'in between found_eTLD: {found_eTLD}')
         if found_eTLD:
+            print(f'Searching for path match in eTLD: {found_eTLD}')
             if path in self._store[found_eTLD]:
                 archive_path_str = self._store[found_eTLD][path]
             # Possibly apply trailing slash heuristic
@@ -360,6 +366,7 @@ class ArchiveStorage(object):
             elif '/' in self._store[found_eTLD]:
                 print(f'Defaulting to root path archive for URL: {url}')
                 archive_path_str = self._store[found_eTLD]['/']
+            print(f'Archive path found: {archive_path_str}')
         if not archive_path_str:
             raise Exception(f'No archive found for URL: {url}')
         return Path(archive_path_str)
@@ -646,9 +653,13 @@ class Replay(object):
         if self.archive_store is None:
             self.archive_store = ArchiveStorage(Path(ctx.options.warcPath))
 
+        print(f'archived store loaded: {self.archive_store._store_path}')
+
         # Load the mapping if None
         if self.archive_mapping is None:
             self.load_mapping()
+
+        print(f'archive mapping loaded')
 
         # Clear any existing archive data
         self.request_map = None 
@@ -676,6 +687,7 @@ class Replay(object):
         Parse a WARC archive on disk and store a mapping
         of request URLs to responses.
         """
+        print(f'Reading archive for URL: {url}')
         if not archive_path.exists():
             print(f'No archive found for URL: {url}')
             return None
@@ -865,7 +877,11 @@ class Replay(object):
         if flow.request.host == '240.240.240.240':
             target_url = URL.from_str(flow.request.query['target'])
             self.accessed_url = flow.request.query['target'] # Original URL accessed, not canonicalized
-            self.archive_root_url = target_url.serialize(include=['scheme', 'eTLD', 'path', 'params', 'query', 'fragment'])
+            print("target_url: ", target_url, " , scheme: ", target_url.scheme())
+            if target_url.scheme() == '':
+                self.archive_root_url = target_url.serialize(include=['eTLD', 'path', 'params', 'query', 'fragment'])
+            else:
+                self.archive_root_url = target_url.serialize(include=['scheme', 'eTLD', 'path', 'params', 'query', 'fragment'])
             self.exec_type = flow.request.query['type']
             print(f'Initializing archive replay for {self.archive_root_url} with exec type <{self.exec_type}>')
             print(f'archive_root_url: {self.archive_root_url}')
@@ -1060,6 +1076,7 @@ class Append(object):
 
             print(f'Archive loaded for URL: {url}')
         else:
+            print(f'No archive found for URL: {url}, creating new one...')
             self.archive_store.store_archive(url, warc_path)
 
             self.request_map = {}

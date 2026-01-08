@@ -239,7 +239,10 @@ const js_builtin = js_builtin_methods.concat(buildint_dom_api);
 
 
 var lib_content_heuristics = [
+    // Bundlers
+    "webpackChunk",
     // jquery
+    "jQuery requires a window with a document",
     "*! jQuery v",
     "(c) OpenJS Foundation and other contributors | jquery.org/license",
     "jQuery Foundation, Inc. | jquery.org/license *",
@@ -437,12 +440,16 @@ var lib_src_heuristics = [
     "gtm.js"
 ];
 
+var overly_common_patterns = [
+    "_", "url", "JSON"
+]
 
 
 module.exports = {
   js_builtin: js_builtin,
   lib_src_heuristics: lib_src_heuristics,
-  lib_content_heuristics: lib_content_heuristics
+  lib_content_heuristics: lib_content_heuristics,
+  overly_common_patterns: overly_common_patterns,
 };
 
 

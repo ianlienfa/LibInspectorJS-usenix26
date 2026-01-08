@@ -23,3 +23,4 @@ tldextract
 tld
 psycopg2-binary
 Flask
+pyjson5

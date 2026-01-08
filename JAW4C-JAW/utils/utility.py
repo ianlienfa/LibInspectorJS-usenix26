@@ -62,7 +62,7 @@ class Tee:
 
 
 
-def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False):
+def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False, return_output=False):
 	
 	"""
 	@description run a bash command 
@@ -78,16 +78,21 @@ def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False):
 	my_timer = Timer(timeout, kill, [p])
 
 	ret = -1
+	ret_str = ''
 	try:
 		my_timer.start()
 		if print_stdout:
 			if not prettify:
 				for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
 					logger.info(line.strip())
+					if return_output:
+						ret_str += line
 			else:
 				lst = []
 				for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
 					lst.append(line.strip())
+					if return_output:
+						ret_str += line
 				logger.info(re.sub(' +', ' ', '\n'.join(lst)))
 
 		p.wait()
@@ -96,6 +101,9 @@ def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False):
 		logger.warning('process timed out for cmd: %s'%cmd)
 	finally:
 		my_timer.cancel()
+
+	if return_output:
+		return ret, ret_str
 
 	return ret
 

@@ -193,7 +193,9 @@ async function buildInitializedModels(){
 
 	// build CFG and PDG
 	let timeoutPDG = false;
+	console.log('[StaticAnalysis] Building initial intraprocedural models.');
 	let timeoutTask1 = await GraphAnalyzer.buildIntraProceduralModelsOfEachPageModels();
+	console.log('[StaticAnalysis] Building initial interprocedural models.');
 	let timeoutTask2 = await GraphAnalyzer.buildInterProceduralModelsOfEachPageModels();
 	if(timeoutTask1 || timeoutTask2){
 		timeoutPDG = true;

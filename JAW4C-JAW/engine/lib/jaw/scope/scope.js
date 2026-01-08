@@ -262,6 +262,24 @@ Scope.prototype.hasVariable = function (name) {
 	return found;
 };
 
+Scope.prototype.hasVariableGetScope = function (name) {
+	'use strict';
+	var found = null;
+	if (typeof name === 'string') {
+		var current = this;
+		while (!!current) {
+			if (current.hasLocalVariable(name)) {
+				found = [current, current.getLocalVariable(name)];
+				break;
+			} else {
+				current = current.parent;
+			}
+		}
+	}
+	return found;
+};
+
+
 /**
  * Check if there is a named function with the specified name
  * @param {string} name

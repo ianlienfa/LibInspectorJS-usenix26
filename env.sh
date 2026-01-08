@@ -84,7 +84,7 @@ echo "Starting JAW4C services..."
 
 # Create tmux session for vuln_db
 echo "Creating tmux session for vuln_db..."
-VULN_DB_SESSION=$(tmux new-session -d -c "./vuln_db_llm/" "docker compose up --build" \; display-message -p "#{session_id}")
+VULN_DB_SESSION=$(tmux new-session -d -c "./vuln_db_vulnerable/" "docker compose up --build" \; display-message -p "#{session_id}")
 echo "Vuln DB session ID: $VULN_DB_SESSION"
 
 # Create tmux session for WebArchive
@@ -94,10 +94,10 @@ echo "WebArchive session ID: $WEBARCHIVE_SESSION"
 
 # Start the docker container in the WebArchive session
 echo "Starting mitmproxy container..."
-tmux send-keys -t $WEBARCHIVE_SESSION 'docker run --rm -d -i -t -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316 --entrypoint=bash -v "$(pwd)/archive/archive-70":/proxy/archive-70 mitmproxy' Enter
+tmux send-keys -t $WEBARCHIVE_SESSION 'docker build -t mitmproxy . && docker run --name mitmproxy_container --rm -d -i -t -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316  --entrypoint=bash -v "$(pwd)/archive/archive-70":/proxy/archive-70 mitmproxy' Enter
 
 # Wait a moment for container to start
-sleep 3
+sleep 7
 
 # Get the container ID
 echo "Getting container ID..."

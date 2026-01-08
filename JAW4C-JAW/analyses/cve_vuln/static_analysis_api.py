@@ -46,7 +46,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 		static_analysis_memory = memory
 
 	if timeout is None:
-		static_analysis_per_webpage_timeout = 600 # seconds
+		static_analysis_per_webpage_timeout = 600 # seconds (40 files requires about 5 mins)
 	else:
 		static_analysis_per_webpage_timeout = timeout
 
@@ -139,6 +139,9 @@ def get_patterns_from_poc_str(poc_str: str) -> list:
 	cleaned_poc_str = re.sub(r'<[^>]+>', '', cleaned_poc_str)
 
 	patterns = list(filter(lambda x: x and x not in constantsModule.POC_PRESERVED , re.split(r'[,=(){}:;."\s]', cleaned_poc_str)))
+
+	# filter out 'PAYLOAD' variants
+	patterns = [p for p in patterns if 'PAYLOAD' not in p]
 
 	# Sanitize patterns to remove shell-breaking characters
 	sanitized_patterns = []
