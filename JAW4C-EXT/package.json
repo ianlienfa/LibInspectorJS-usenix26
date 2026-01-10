@@ -1,0 +1,19 @@
+{
+  "name": "jaw4c-highlighter",
+  "displayName": "JAW4C Highlighter",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {},
+  "categories": [
+    "Other"
+  ],
+  "devDependencies": {
+    "vscode": "^1.1.37"
+  }
+}

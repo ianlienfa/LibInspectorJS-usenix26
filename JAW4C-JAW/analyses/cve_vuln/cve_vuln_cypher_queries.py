@@ -2566,8 +2566,8 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 											logger.warning(f"Max recursion depth ({call_count_limit}) reached in nodeTagTainting for taintTag {taintTag}. Halting further propagation.")
 											break
 									elif func is taintPropTilASTTopmost:
-										if taintPropTilASTTopmostDepth is not None and taintPropTilASTTopmostDepth >= call_count_limit * 2:
-											logger.warning(f"Max recursion depth ({call_count_limit * 2}) reached in taintPropTilASTTopmost for taintTag {taintTag}. Halting further propagation.")
+										if taintPropTilASTTopmostDepth is not None and taintPropTilASTTopmostDepth >= call_count_limit * 3:
+											logger.warning(f"Max recursion depth ({call_count_limit * 3}) reached in taintPropTilASTTopmost for taintTag {taintTag}. Halting further propagation.")
 											break
 									# Execute the queued function
 									# if func.__name__ == 'nodeTagTainting': # add debug print here

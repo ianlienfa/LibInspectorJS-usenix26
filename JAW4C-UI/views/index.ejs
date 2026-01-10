@@ -205,6 +205,15 @@
                     <div class="site-details" id="details-<%= site.hash %>">
                         <p><strong>URL:</strong> <a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
                         <p><strong>Hash:</strong> <%= site.hash %></p>
+                        <% if (site.tagCounts && Object.keys(site.tagCounts).length > 0) { %>
+                        <p><strong>Tag Counts:</strong>
+                            <%
+                            const tagEntries = Object.entries(site.tagCounts).sort((a, b) => b[1] - a[1]);
+                            const tagList = tagEntries.map(([tag, count]) => `${tag}: ${count}`).join(', ');
+                            %>
+                            <%= tagList %>
+                        </p>
+                        <% } %>
 
                         <div class="review-section">
                             <h4>Review Status</h4>
@@ -299,6 +308,26 @@
                     </div>
                 </div>
 
+                <h3 style="margin-top: 2rem;">Vulnerability Tag Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3 id="total-tags">-</h3>
+                        <p>Total Tags</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="unique-tags">-</h3>
+                        <p>Unique Tag Types</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="sites-with-tags">-</h3>
+                        <p>Sites with Tags</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="avg-tags-per-site">-</h3>
+                        <p>Avg Tags per Site</p>
+                    </div>
+                </div>
+
                 <div class="charts-container">
                     <div class="chart-wrapper">
                         <h3>Top 15 Detected Libraries</h3>
@@ -315,6 +344,10 @@
                     <div class="chart-wrapper">
                         <h3>Accuracy Distribution</h3>
                         <canvas id="accuracy-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Tag Type Distribution</h3>
+                        <canvas id="tag-distribution-chart"></canvas>
                     </div>
                 </div>
             </div>
