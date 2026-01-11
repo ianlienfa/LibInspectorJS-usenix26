@@ -2,8 +2,8 @@ testbed:
   archive:
     enable: true
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
-  from_row: 2301
-  to_row: 2301
+  from_row: 2302
+  to_row: end
   site: http://localhost:3000/integration_test/static_analysis/test_three_layer_bundle
 crawler:
   maxurls: 5
@@ -36,7 +36,7 @@ vuln_db:
   user: vulndb_annotated
   password: vulndb_pwd
 staticpass:
-  sitetimeout: 1800
+  sitetimeout: 2400
   pagetimeout: 600
   iterativeoutput: false
   memory: 64000

@@ -389,10 +389,29 @@ async function getSiteData() {
             // Process flows
             let hasFlows = false;
             let pocMatches = 0;
+            const tagCounts = {};
             const flowsContent = fileContents.get(`${compositeHash}:flows`);
             if (flowsContent) {
                 // Split flows by the separator pattern and filter out NON-REACH flows
                 const flowEntries = flowsContent.split(/(?=\[\*\] Tags:)/);
+
+                // Count tags from all flow entries
+                flowEntries.forEach(entry => {
+                    const tagsMatch = entry.match(/\[\*\] Tags:\s*\[([^\]]*)\]/);
+                    if (tagsMatch) {
+                        const tagsStr = tagsMatch[1];
+                        // Extract individual tags by splitting on comma and cleaning quotes
+                        const tags = tagsStr.split(',').map(tag =>
+                            tag.trim().replace(/['"]/g, '')
+                        ).filter(tag => tag.length > 0);
+
+                        // Count each tag
+                        tags.forEach(tag => {
+                            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                        });
+                    }
+                });
+
                 const validFlows = flowEntries.filter(entry => {
                     // Check if this flow entry contains NON-REACH tag
                     const tagsMatch = entry.match(/\[\*\] Tags:\s*(\[.*?\])/);
@@ -491,6 +510,7 @@ async function getSiteData() {
                 modifiedTime,
                 hasFlows,
                 pocMatches,
+                tagCounts,
                 vulnerableLibs,
                 files: availableFiles,
                 jsFiles: jsFiles,
@@ -882,6 +902,94 @@ app.get('/api/lib-detection-stats', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching library detection stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/tag-stats', async (req, res) => {
+    try {
+        let parentDirs = [];
+        try {
+            parentDirs = await fs.readdir(DATA_DIR);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                return res.json({
+                    totalTags: 0,
+                    uniqueTags: 0,
+                    sitesWithTags: 0,
+                    avgTagsPerSite: 0,
+                    tagCounts: {},
+                    topTags: []
+                });
+            }
+            throw err;
+        }
+
+        let totalTags = 0;
+        const globalTagCounts = {};
+        let sitesWithTags = 0;
+
+        // Iterate through all sites
+        for (const parentDir of parentDirs) {
+            const parentPath = path.join(DATA_DIR, parentDir);
+            const parentStats = await fs.stat(parentPath);
+            if (!parentStats.isDirectory()) continue;
+
+            const siteHashes = await fs.readdir(parentPath);
+            for (const hash of siteHashes) {
+                const sitePath = path.join(parentPath, hash);
+                const siteStats = await fs.stat(sitePath);
+                if (!siteStats.isDirectory()) continue;
+
+                const flowsFile = path.join(sitePath, 'sink.flows.out');
+                try {
+                    const flowsContent = await fs.readFile(flowsFile, 'utf8');
+                    const flowEntries = flowsContent.split(/(?=\[\*\] Tags:)/);
+                    let siteHasTags = false;
+
+                    flowEntries.forEach(entry => {
+                        const tagsMatch = entry.match(/\[\*\] Tags:\s*\[([^\]]*)\]/);
+                        if (tagsMatch) {
+                            const tagsStr = tagsMatch[1];
+                            const tags = tagsStr.split(',').map(tag =>
+                                tag.trim().replace(/['"]/g, '')
+                            ).filter(tag => tag.length > 0);
+
+                            tags.forEach(tag => {
+                                globalTagCounts[tag] = (globalTagCounts[tag] || 0) + 1;
+                                totalTags++;
+                            });
+
+                            if (tags.length > 0) siteHasTags = true;
+                        }
+                    });
+
+                    if (siteHasTags) sitesWithTags++;
+                } catch (e) {
+                    // File not found or error reading
+                }
+            }
+        }
+
+        // Get top tags sorted by count
+        const topTags = Object.entries(globalTagCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, count]) => ({ name, count }));
+
+        const avgTagsPerSite = sitesWithTags > 0
+            ? (totalTags / sitesWithTags).toFixed(2)
+            : 0;
+
+        res.json({
+            totalTags,
+            uniqueTags: Object.keys(globalTagCounts).length,
+            sitesWithTags,
+            avgTagsPerSite,
+            tagCounts: globalTagCounts,
+            topTags
+        });
+    } catch (error) {
+        console.error('Error fetching tag stats:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

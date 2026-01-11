@@ -1,5 +1,5 @@
 // Layer 1 (Top): Uses wrapped functions from layer2
-import { makeHeader, getAllParagraphs, getTopThree, safeCopy } from './layer2';
+import { makeHeader, getAllParagraphs, getTopThree, safeCopy, jCreateElement } from './layer2';
 
 // Application logic using layer2 functions
 export function initApp() {
@@ -16,6 +16,8 @@ export function initApp() {
     const original = { name: 'Test', value: 42 };
     const copied = safeCopy(original);
     console.log('Copied object:', copied);
+
+    // jCreateElement('div', 'Hello World');
 
     // Find paragraphs using layer2 wrapper
     // const paragraphs = getAllParagraphs();

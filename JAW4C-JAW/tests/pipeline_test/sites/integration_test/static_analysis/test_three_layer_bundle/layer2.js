@@ -1,5 +1,6 @@
 // Layer 2 (Middle): Wraps layer3 functions without directly using libraries
 import { createElement, findElements, getFirstThree, cloneData } from './layer3';
+// import $ from 'jquery';
 
 // Wrapper for jQuery createElement
 // export function makeHeader(text) {
@@ -10,6 +11,11 @@ import { createElement, findElements, getFirstThree, cloneData } from './layer3'
 // Wrapper for jQuery findElements
 // export function getAllParagraphs() {
 //     return findElements('p');
+// }
+
+// Simple jQuery function
+// export function jCreateElement(tagName, text) {
+//     return $('<' + tagName + '>').html(text);
 // }
 
 // Wrapper for Lodash getFirstThree

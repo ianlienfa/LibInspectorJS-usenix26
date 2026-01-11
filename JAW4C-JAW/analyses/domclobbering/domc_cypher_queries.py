@@ -75,7 +75,7 @@ def get_cfg_level_nodes_for_statements():
 	    "ThrowStatement",
 	    "TryStatement",
 	    "WithStatement",
-	    # "FunctionDeclaration",
+	    "FunctionDeclaration",
 	]
 
 	return esprimaCFGLevelNodeTypes

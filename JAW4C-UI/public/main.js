@@ -528,6 +528,21 @@ async function openLibDetectionModal() {
         createDetectedVersionsChart(stats.versions);
         createAccuracyChart(stats.accuracyStats);
 
+        // Fetch and display tag statistics
+        const tagResponse = await fetch('/api/tag-stats');
+        if (tagResponse.ok) {
+            const tagStats = await tagResponse.json();
+
+            // Update tag stats boxes
+            document.getElementById('total-tags').textContent = tagStats.totalTags;
+            document.getElementById('unique-tags').textContent = tagStats.uniqueTags;
+            document.getElementById('sites-with-tags').textContent = tagStats.sitesWithTags;
+            document.getElementById('avg-tags-per-site').textContent = tagStats.avgTagsPerSite;
+
+            // Create tag distribution chart
+            createTagDistributionChart(tagStats.topTags);
+        }
+
     } catch (error) {
         console.error('Error loading library detection stats:', error);
         alert('Failed to load library detection statistics. Please try again.');
@@ -668,6 +683,37 @@ function createAccuracyChart(accuracyStats) {
             plugins: {
                 legend: {
                     position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createTagDistributionChart(topTags) {
+    const ctx = document.getElementById('tag-distribution-chart').getContext('2d');
+
+    libDetectionCharts.tagDistribution = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topTags.map(tag => tag.name),
+            datasets: [{
+                label: 'Occurrences',
+                data: topTags.map(tag => tag.count),
+                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
                 }
             }
         }
