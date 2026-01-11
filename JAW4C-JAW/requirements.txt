@@ -24,3 +24,4 @@ tld
 psycopg2-binary
 Flask
 pyjson5
+debugpy

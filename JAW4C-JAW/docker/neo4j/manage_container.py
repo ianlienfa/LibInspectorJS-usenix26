@@ -96,6 +96,7 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
+    -e NEO4JLABS_PLUGINS='["apoc"]' \
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
@@ -313,19 +314,23 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 			neo4j_import_cmd = f"neo4j-admin import --force --database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
 		else:
 			neo4j_import_cmd = f"neo4j-admin import --mode=csv --database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
-
+	
 	# Run docker with neo4j-admin import command (no -d flag, runs synchronously)
 	# Automatically removes container for later recreation
 	command_base = f"""docker run \
 	--rm \
     --name {container_name} \
+	--network jaw4c-network \
+	--network-alias neo4j \
     -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
-    -v {volume_home}/{container_name}/neo4j/data:/data \
-    -v {volume_home}/{container_name}/neo4j/logs:/logs \
-    -v {constants.DATA_DIR}/{weburl_suffix}:/var/lib/neo4j/import/{webapp_name} \
-    -v {volume_home}/{container_name}/neo4j/plugins:/plugins \
-    -v {volume_home}/{container_name}/neo4j/conf:/conf \
-    -u neo4j:neo4j"""
+    -d \
+    -v {base_path}{volume_home}/{container_name}/neo4j/data:/data \
+    -v {base_path}{volume_home}/{container_name}/neo4j/logs:/logs \
+    -v {data_path}/{weburl_suffix}:/var/lib/neo4j/import/{webapp_name} \
+    -v {base_path}{volume_home}/{container_name}/neo4j/plugins:/plugins \
+	-v {base_path}{volume_home}/{container_name}/neo4j/conf:/conf \
+    -u neo4j:neo4j
+	"""
 	env_strs = [
 		'-e NEO4J_apoc_export_file_enabled=true',
 		'-e NEO4J_apoc_import_file_enabled=true',
@@ -336,9 +341,11 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 	]
 	command = f"""{command_base} \
 	{' '.join(env_strs)} \
-    arm64v8/neo4j:4.4 \
+    neo4j:4.4 \
     {neo4j_import_cmd}
 	"""
+
+	print(command)
 
 	logger.info(f'Running docker with neo4j-admin import for container {container_name}')
 	ret, output = utilityModule.run_os_command(command, print_stdout=True, prettify=True, return_output=True)
