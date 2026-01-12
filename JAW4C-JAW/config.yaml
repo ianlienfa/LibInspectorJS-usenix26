@@ -10,8 +10,8 @@ testbed:
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
-  from_row: 2884 # 2070 has problem
-  to_row: 2884 # 1973 # row number or 'end'
+  from_row: 2880 # 2070 has problem
+  to_row: end # 1973 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -67,7 +67,7 @@ vuln_db:
 # 3. static analysis configuration
 staticpass:
   # time budget for static analysis of each page running taint static analysis (in seconds)
-  sitetimeout: 2400 # 40 min
+  sitetimeout: 3000 # 40 min
   # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
   pagetimeout: 1200 # 20 min
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
@@ -121,10 +121,10 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: true
-    lib_detection: true  
-    vulndb: true
-    static: true
+    crawling: false
+    lib_detection: false  
+    vulndb: false
+    static: false
     static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation
