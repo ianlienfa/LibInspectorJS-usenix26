@@ -1,9 +1,9 @@
 services:
   postgres:
     build: .
-    container_name: vulndb_llm
+    container_name: vulndb_annotated
     ports:
-      - "5431:5432"
+      - "5430:5432"
     environment:
       POSTGRES_USER: vulndb_annotated
       POSTGRES_PASSWORD: vulndb_pwd

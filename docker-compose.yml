@@ -51,6 +51,10 @@ services:
     depends_on:
       - db
       - proxy
+    deploy:
+      resources:
+        limits:
+          memory: 8g
     command: >
       sh -c "while [ 1 ]; do echo '' > /dev/null; done"
 

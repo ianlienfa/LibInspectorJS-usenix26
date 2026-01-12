@@ -60,7 +60,6 @@ RUN (cd engine/lib/jaw/normalization && npm install)
 RUN (cd driver && npm install)
 RUN (cd /JAW4C/JAW4C-JAW/tests/pipeline_test && python3 test_prep.py) 
 
-
 # Copy aliasing source and Makefile for compilation
 COPY JAW4C-JAW/engine/lib/jaw/aliasing/ ./engine/lib/jaw/aliasing/
 

@@ -65,17 +65,7 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
 		shutil.copytree(PLUGINS_HOME, plugins_dir, dirs_exist_ok=True)  # copy apoc plugin
 
 	# Reconstruct volume mapping if in container
-	os.environ["HOSTNAME"] = os.environ.get("HOSTNAME", subprocess.check_output("hostname", shell=True, text=True).strip())
-	base_path = subprocess.check_output(
-		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C\"}}{{.Source}}{{end}}{{end}}' | sed 's|/JAW4C||'",
-		shell=True,
-		text=True
-	).strip()
-	data_path = subprocess.check_output(
-		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C/JAW4C-JAW/data\"}}{{.Source}}{{end}}{{end}}'",
-		shell=True,
-		text=True
-	).strip()
+	base_path, data_path = get_base_and_data_paths()
 			
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
@@ -85,6 +75,7 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     --name {0} \
 	--network jaw4c-network \
 	--network-alias neo4j \
+	--memory=8g \
     -p{5}:7474 -p{6}:7687 \
     -d \
     -v {9}{1}/{0}/neo4j/data:/data \
@@ -147,17 +138,7 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
 
 	# Reconstruct volume mapping if in container
-	os.environ["HOSTNAME"] = os.environ.get("HOSTNAME", subprocess.check_output("hostname", shell=True, text=True).strip())
-	base_path = subprocess.check_output(
-		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C\"}}{{.Source}}{{end}}{{end}}' | sed 's|/JAW4C||'",
-		shell=True,
-		text=True
-	).strip()
-	data_path = subprocess.check_output(
-		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C/JAW4C-JAW/data\"}}{{.Source}}{{end}}{{end}}' | sed 's|/JAW4C||'",
-		shell=True,
-		text=True
-	).strip()
+	base_path, data_path = get_base_and_data_paths()
 
 	# see: https://neo4j.com/labs/apoc/4.2/installation/#restricted
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
@@ -167,6 +148,7 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     --name {0} \
 	--network jaw4c-network \
 	--network-alias neo4j \
+	--memory=8g
     -p{5}:7474 -p{6}:7687 \
     -d \
     -v {8}{1}/{0}/neo4j/data:/data \
@@ -279,7 +261,7 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 		conf_dir = os.path.join(container_data_path, 'conf')
 		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
 			os.makedirs(p)
-			os.chown(p, -1, 7474)
+			os.chown(p, 7474, 7474)
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
 		shutil.copytree(PLUGINS_HOME, plugins_dir, dirs_exist_ok=True)
 
@@ -315,22 +297,9 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 		else:
 			neo4j_import_cmd = f"neo4j-admin import --mode=csv --database={database_name} --nodes='{nodes_path}' --relationships='{rels_path}' --delimiter='\\u001F' --skip-bad-relationships=true --skip-duplicate-nodes=true"
 	
-	# Run docker with neo4j-admin import command (no -d flag, runs synchronously)
-	# Automatically removes container for later recreation
-	command_base = f"""docker run \
-	--rm \
-    --name {container_name} \
-	--network jaw4c-network \
-	--network-alias neo4j \
-    -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
-    -d \
-    -v {base_path}{volume_home}/{container_name}/neo4j/data:/data \
-    -v {base_path}{volume_home}/{container_name}/neo4j/logs:/logs \
-    -v {data_path}/{weburl_suffix}:/var/lib/neo4j/import/{webapp_name} \
-    -v {base_path}{volume_home}/{container_name}/neo4j/plugins:/plugins \
-	-v {base_path}{volume_home}/{container_name}/neo4j/conf:/conf \
-    -u neo4j:neo4j
-	"""
+	# Reconstruct volume mapping if in container
+	base_path, data_path = get_base_and_data_paths()
+	
 	env_strs = [
 		'-e NEO4J_apoc_export_file_enabled=true',
 		'-e NEO4J_apoc_import_file_enabled=true',
@@ -339,11 +308,27 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 		'-e PYTHONUNBUFFERED=1',
 		f'-e NEO4J_AUTH={constants.NEO4J_USER}/{constants.NEO4J_PASS}'
 	]
-	command = f"""{command_base} \
-	{' '.join(env_strs)} \
-    neo4j:4.4 \
-    {neo4j_import_cmd}
-	"""
+
+	# Run docker with neo4j-admin import command (no -d flag, runs synchronously)
+	# Automatically removes container for later recreation
+	command = " ".join([
+		"docker", "run", "--rm",
+		"--name", container_name,
+		"--network", "jaw4c-network",
+		"--network-alias", "neo4j",
+		"--memory=8g",
+		f"-p{constants.NEO4J_HTTP_PORT}:7474",
+		f"-p{constants.NEO4J_BOLT_PORT}:7687",
+		"-v", f"{base_path}{volume_home}/{container_name}/neo4j/data:/data",
+		"-v", f"{base_path}{volume_home}/{container_name}/neo4j/logs:/logs",
+		"-v", f"{data_path}/{weburl_suffix}:/var/lib/neo4j/import/{webapp_name}",
+		"-v", f"{base_path}{volume_home}/{container_name}/neo4j/plugins:/plugins",
+		"-v", f"{base_path}{volume_home}/{container_name}/neo4j/conf:/conf",
+		"-u", "neo4j:neo4j",
+		*env_strs,
+		"neo4j:4.4",
+		neo4j_import_cmd,
+	])
 
 	print(command)
 
@@ -421,6 +406,21 @@ def import_data_inside_container(container_name, database_name, relative_import_
 		return DU.exec_fn_within_transaction(import_data_inside_container_with_cypher, database_name, relative_import_path)
 
 
+def get_base_and_data_paths():
+	# Reconstruct volume mapping if in container
+	os.environ["HOSTNAME"] = os.environ.get("HOSTNAME", subprocess.check_output("hostname", shell=True, text=True).strip())
+	base_path = subprocess.check_output(
+		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C\"}}{{.Source}}{{end}}{{end}}' | sed 's|/JAW4C||'",
+		shell=True,
+		text=True
+	).strip()
+	data_path = subprocess.check_output(
+		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C/JAW4C-JAW/data\"}}{{.Source}}{{end}}{{end}}'",
+		shell=True,
+		text=True
+	).strip()
+
+	return base_path, data_path
 
 #### Tests
 
