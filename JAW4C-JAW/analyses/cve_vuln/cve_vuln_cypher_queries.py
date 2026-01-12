@@ -1700,7 +1700,6 @@ def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
 			text=True
 		)
 		pocFlattenedJsonStr = p.stdout		
-		breakpoint()		
 		if not pocFlattenedJsonStr:
 			logger.error(f"POC parsing failed, stderr: {p.stderr}")
 			raise RuntimeError("POC parsing failed, no output from parser")			
