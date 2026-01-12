@@ -238,8 +238,8 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 									conn_timeout=container_transaction_timeout)
 						except Exception as e:
 							logger.error(traceback.format_exc())
-							logger.error(f"Error executing query, {e}")
-							raise RuntimeError(e)									   
+							logger.error(f"Error executing query, {e}, moving to the next vulnerability...")							
+							continue								   
 
 						# breakpoint()
 						logger.info(f"analysis out: {out}")
