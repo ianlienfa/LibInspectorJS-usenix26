@@ -21,7 +21,7 @@ function transform(code) {
     try {
         res = babelUtil.splitSequence(res);
     } catch (error) {
-        console.error("Error in splitSequence code transformation:", error);            
+        console.error("Error in splitSequence code transformation for code: ", res, error);            
     }
 
     return res;

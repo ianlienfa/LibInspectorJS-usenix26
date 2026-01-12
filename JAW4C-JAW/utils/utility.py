@@ -74,26 +74,33 @@ def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False, return
 		process.kill()
 
 	logger.debug('Running command: %s'%cmd)
-	p = subprocess.Popen(cmd, shell=True, stdout = subprocess.PIPE)
+	p = subprocess.Popen(cmd, shell=True, stdout = subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+	stdout, stderr = p.communicate()
 	my_timer = Timer(timeout, kill, [p])
 
 	ret = -1
-	ret_str = ''
 	try:
 		my_timer.start()
+		# if print_stdout:
+		# 	if not prettify:
+		# 		for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
+		# 			logger.info(line.strip())
+		# 			if return_output:
+		# 				out_str += line.strip()
+		# 		for line in io.TextIOWrapper(p.stderr, encoding="utf-8"):
+		# 			logger.info(line.strip())
+		# 			if return_output:
+		# 				err_str += line.strip()						
+		# 	else:
+		# 		for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
+		# 			if return_output:
+		# 				out_str += line.strip() + '\n'
+		# 		for line in io.TextIOWrapper(p.stderr, encoding="utf-8"):
+		# 			if return_output:
+		# 				err_str += line.strip() + '\n'
 		if print_stdout:
-			if not prettify:
-				for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
-					logger.info(line.strip())
-					if return_output:
-						ret_str += line
-			else:
-				lst = []
-				for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
-					lst.append(line.strip())
-					if return_output:
-						ret_str += line
-				logger.info(re.sub(' +', ' ', '\n'.join(lst)))
+			logger.debug('STDOUT: %s'%stdout)
+			logger.debug('STDERR: %s'%stderr)
 
 		p.wait()
 		ret = p.returncode
@@ -103,7 +110,7 @@ def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False, return
 		my_timer.cancel()
 
 	if return_output:
-		return ret, ret_str
+		return ret, stdout, stderr
 
 	return ret
 

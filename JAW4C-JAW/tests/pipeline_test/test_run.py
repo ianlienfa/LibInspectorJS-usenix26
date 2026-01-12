@@ -177,6 +177,8 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
     # Determine which phases to enable based on action
     phases_to_run = ACTIONS.get(action, [])
     phases_to_run = phases_to_run[-1:] if skip_setup else phases_to_run
+    if action == 'graph_gen':
+        phases_to_run = ['vuln_db', 'static']
     print("Phases to run: ", phases_to_run)
 
     # Update only the fields related to input arguments
@@ -311,7 +313,7 @@ def compare_results(test_dir, action):
     # Get actual pipeline output directory
     actual_data_dir = get_data_dir_from_test(test_dir)
     if not actual_data_dir:
-        print("  Warning: Could not find pipeline data directory")
+        print("  Warning: Could not find pipeline data directory: ", actual_data_dir)
         return True
 
     # Determine which test functions to run based on action

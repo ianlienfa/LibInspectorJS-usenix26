@@ -56,7 +56,8 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 
 	if debug:
 		debug_flag = "--inspect"
-		disable_heuristic_skip = "--disable_heuristic_skip=True"
+		# disable_heuristic_skip = "--disable_heuristic_skip=True"
+		disable_heuristic_skip = ""
 	else:
 		debug_flag = ""
 		disable_heuristic_skip = ""
