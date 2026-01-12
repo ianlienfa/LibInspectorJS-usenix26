@@ -1676,6 +1676,37 @@ def create_neo4j_indexes(tx):
 
 # 	return res, all_poc_max_levels	
 
+def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
+		"""
+		@param {object} vuln_info: vulnerability information containing 'poc_str', 'mod', and 'location'
+		@return {object} parsed JSON object from the flattened POC
+		"""
+		if 'LIBOBJ' not in vuln_info['poc_str']:
+			raise RuntimeError("poc_str format error")
+		
+		
+		if LIBOBJ_replacement:
+			if vuln_info['mod']:  # is a module detection
+				pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' + vuln_info['location'] + ')')]
+			else:
+				pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', vuln_info['location'])]
+		else:
+			pocStrArr = [vuln_info['poc_str']]
+			
+		json_arg = json.dumps(pocStrArr)
+		p = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True
+		)
+		pocFlattenedJsonStr = p.stdout		
+		breakpoint()		
+		if not pocFlattenedJsonStr:
+			logger.error(f"POC parsing failed, stderr: {p.stderr}")
+			raise RuntimeError("POC parsing failed, no output from parser")			
+		flatPoc = json.loads(pocFlattenedJsonStr)
+		flatPoc[0]['poc_str'] = vuln_info['poc_str']	
+		return flatPoc
 
 def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_pattern=None, call_sites_cache=None, code_matching_cutoff=100, call_count_limit=30):
 	"""
@@ -1725,30 +1756,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			# print(f"{nodeVal} == {constructVal}: {nodeVal == constructVal}")
 			return nodeVal == constructVal
 		else:
-			raise RuntimeError(f"not implemented pureContentCompare for PRESERVED value {construct['type']}")
-
-	def pocPreprocess(vuln_info):
-		"""
-		@param {object} vuln_info: vulnerability information containing 'poc_str', 'mod', and 'location'
-		@return {object} parsed JSON object from the flattened POC
-		"""
-		if 'LIBOBJ' not in vuln_info['poc_str']:
-			raise RuntimeError("poc_str format error")
-		
-		if vuln_info['mod']:  # is a module detection
-			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', 'LIBOBJ(' + vuln_info['location'] + ')')]
-		else:
-			pocStrArr = [vuln_info['poc_str'].replace('LIBOBJ', vuln_info['location'])]
-		
-		json_arg = json.dumps(pocStrArr)
-		pocFlattenedJsonStr = subprocess.run(['node', 'engine/lib/jaw/parser/pocparser.js', json_arg], 
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			text=True
-		).stdout		
-		flatPoc = json.loads(pocFlattenedJsonStr)
-		flatPoc[0]['poc_str'] = vuln_info['poc_str']
-		return flatPoc
+			raise RuntimeError(f"not implemented pureContentCompare for PRESERVED value {construct['type']}")	
 
 	def getLibObjList(tx, vuln_info):
 		"""
@@ -2692,6 +2700,249 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			logger.error(f"Exception in processing POC match: \n poc: {poc}\n error: {e}")
 	return [], []
 
+def processPayloadStringAndRelationships(tx, vuln_info, top_statement_node):
+	"""
+	Get the 'to-payload' relationship from poc, then identify that identifier's varname from the provided top statement node
+	@param {dict} vuln_info: vulnerability information including poc_str
+	@description process the payload string and relationships for tagTainting
+	@return the list of unique varnames
+	"""
+	def getIdentifiers(tx, node):
+		"""
+		Get all identifier nodes under the given node
+		@param {object} node: the AST node to search under
+		@return {list} list of identifier nodes
+		"""
+		if node['Type'] == 'Identifier':
+			return [node['Code']]
+		query = """
+		MATCH (n { Id: '%s' })-[:AST_parentOf*]->(ident_node { Type: 'Identifier' })
+		RETURN collect(distinct ident_node) AS identifiers
+		""" % (node['Id'])
+		results = tx.run(query)
+		identifiers = []
+		for record in results:		
+			identifierNodes = record['identifiers']	
+			for identNode in identifierNodes:
+				identifiers += [identNode['Code']] if (identNode and 'Code' in identNode) else []
+		return set(identifiers)
+
+	def getBasicPocComponents(tx, pocType, top_statement_node):
+		"""
+		Break a complex top_statement_node into possible poc components of type pocType
+		@param {string} pocType: type of poc component to get
+		@param {object} top_statement_node: the top statement AST node
+		@return {list} list of poc components
+		"""
+		# order by the range, smaller range first
+		def range_sort_key(component):
+			if 'Range' in component:
+				range = json.loads(component['Range'])
+				st, end = range[0], range[1]
+				return (end - st)
+			else:
+				return 0  # Place components without range at the end
+
+		# query = """
+		# MATCH (n { Id: '%s' })-[:AST_parentOf*..10]->(poc_component { Type: '%s' })
+		# WHERE NOT (poc_component)-[:AST_parentOf*..10]->({ Type: '%s' })
+		# RETURN collect(distinct poc_component) AS poc_components
+		# """ % (top_statement_node['Id'], pocType, pocType)
+		query = """
+		MATCH (n { Id: '%s' })-[:AST_parentOf*..10]->(poc_component { Type: '%s' })
+		RETURN collect(distinct poc_component) AS poc_components
+		""" % (top_statement_node['Id'], pocType)
+		results = tx.run(query)
+		poc_components = []
+		for record in results:
+			poc_components += record['poc_components']
+
+		poc_components.sort(key=range_sort_key)
+
+		return poc_components
+	
+	def findClosestPocNeighborIdentifier(pocConstructs, payload_construct_identifier, down=False, visited=set()):
+		"""
+		Find the closest identifier neighbor of the given payload construct in the poc constructs
+		@param {dict} pocConstructs: the flattened poc constructs
+		@param {string} payload_construct_identifier: the construct_identifier of the payload construct
+		@return {string} the closest identifier neighbor's code, or None if not found
+		"""
+		currConstructIdent = payload_construct_identifier
+		currConstruct = pocConstructs[currConstructIdent] if currConstructIdent in pocConstructs else None
+		if not currConstruct:
+			return []
+		# find direct childrens that are identifiers
+		names = []
+		maybe_visit = [] # a list of construct identifiers to maybe visit next
+		visited.add(currConstructIdent)
+
+		# visit the current and go down
+		children = []
+		for child in currConstruct.values():
+			# break down the construct values, there could be all kinds of values, we only want the construct identifiers
+			if isinstance(child, str):
+				children += [child]
+			elif isinstance(child, list):				
+				if len(child) > 0 and (isinstance(child[0], list)):
+					children += [ x for sublist in child for x in sublist ] # fix 2d nested list
+				else:
+					children += child
+			else:
+				pass
+		for item in children:
+			# filter out non construct-identifiers value and visited construct-identifiers
+			if (item != payload_construct_identifier) and (item in pocConstructs) and (item not in visited):
+				if isinstance(item, str) and item.startswith("Identifier"):
+					childConstruct = pocConstructs[item]
+					if 'name' in childConstruct and not any([ (childConstruct['name'] in preserved) for preserved in constantsModule.POC_PRESERVED]):
+						names.append(childConstruct['name'])
+				else:
+					maybe_visit.append(item)
+		for visit_ident in maybe_visit:
+			# recursively visit
+			names_ret_rec = findClosestPocNeighborIdentifier(pocConstructs, visit_ident, down=True, visited=visited)
+			if names_ret_rec:
+				names.extend(names_ret_rec)
+		# if found, return
+		if names:
+			return names
+		
+		# if not found, go up to parent
+		if 'next' in currConstruct and not down:
+			for next_construct in currConstruct['next']:
+				parentKey, _ = next_construct[0], next_construct[1]
+				# recursively call				
+				if parentKey not in visited:
+					names_ret_rec = findClosestPocNeighborIdentifier(pocConstructs, parentKey, visited=visited)
+					if names_ret_rec:
+						names.extend(names_ret_rec)
+		return names
+	
+	def ranges_overlap(range1, range2):
+		"""
+		Check if two ranges overlap		
+		@param {list} range1: first range [start, end]
+		@param {list} range2: second range [start, end]
+		@return {bool} True if ranges overlap, False otherwise
+		"""
+		return max(range1[0], range2[0]) < min(range1[1], range2[1])
+
+	def check_overlap(curr, processed_range):
+		"""
+		Check if the current component's range overlaps with any processed range
+		@param {object} curr: current component node
+		@param {list} processed_range: list of processed ranges
+		@return {bool} True if overlaps, False otherwise
+		"""
+		if 'Range' not in curr:
+			return False
+		curr_range = json.loads(curr['Range'])
+		for range in processed_range:
+			if ranges_overlap(curr_range, range):
+				return True
+		return False
+
+	pocFlattenedOriginal = pocPreprocess(vuln_info, LIBOBJ_replacement=False)[0] # will add 'pocFlattened'
+
+	result_set = set()
+
+	# Identify the PAYLOAD construct from flattened poc
+	pocConstructs = pocFlattenedOriginal['constructs']
+	pocPayloads = pocFlattenedOriginal['payloads'] if 'payloads' in pocFlattenedOriginal else None
+	if not pocPayloads:
+		return list(result_set)
+
+	# The PDG top statement itself can be pretty complex, we need to break it down into the same level as poc first
+	# getBasicComponents() will find the leaf nodes that matches the poc type (so the components remains small)
+	poc_components = [top_statement_node]
+	if 'root' in pocFlattenedOriginal: # normal behavior, 
+		poc_components = getBasicPocComponents(tx, pocConstructs[pocFlattenedOriginal['root']]['type'], top_statement_node)  # Preload basic poc components if needed
+	
+	# go through each component
+	processed_range = [] # to avoid processing overlapping components
+	for component in poc_components:
+		ident_set_in_component = getIdentifiers(tx, component)
+		for payload_construct_identifier in pocPayloads:
+			# find the node in the component's subtree that matches is the parent of PAYLOAD node	
+			logger.debug(f"Finding required identifiers for poc_str: {vuln_info['poc_str']}")
+			####
+			# This finds the identifiers that are close to the payload construct in the poc structure, we don't want the set to be too big
+			# if the set is too big, we might end up matching too many identifiers in the component, which could lead to a false 'PAYLOAD' match
+			####
+			requiredIdentifiers = findClosestPocNeighborIdentifier(pocConstructs, payload_construct_identifier, visited=set())	 # this compute the required identifier names that are close to the payload construct
+			logger.debug(f"Required identifiers: {requiredIdentifiers}, current component identifiers: {ident_set_in_component}")
+			intersect = set(requiredIdentifiers).intersection(ident_set_in_component)
+			if not intersect:
+				logger.info(f"Skipping component {component} as required identifiers {requiredIdentifiers} not in component identifiers {ident_set_in_component}")
+				continue
+			
+			logger.info(f"Intersect {intersect} found for component {component}")
+			if check_overlap(component, processed_range):
+				logger.info(f"Skipping overlapping component {component}, overlapped with processed ranges {processed_range}")
+				continue
+			processed_range.append( json.loads(component['Range']) )
+
+
+			# Now process the 'next' relationships to find the parent nodes that link to PAYLOAD
+			# we identify the parent-child edge relationship to guess 'PAYLOAD' node in the component's subtree
+			if 'next' in pocConstructs[payload_construct_identifier]:
+				# poc's next is a list of [parentKey, parentChildRelationship]
+				for next_construct in pocConstructs[payload_construct_identifier]['next']:
+					parentKey, parentChildRelationship = next_construct[0], next_construct[1]
+					parentType = parentKey.split('_')[0]
+					query = ""
+					
+					# A more precise query for 'Property' relationship (Ex: LIBOBJ.ajax({ url: PAYLOAD }))
+					if parentType == 'Property':
+						propertyConstruct = pocConstructs[parentKey]
+						keyIdentifier = propertyConstruct['key'] if 'key' in propertyConstruct else None
+						keyConstruct = pocConstructs[keyIdentifier] if keyIdentifier and keyIdentifier in pocConstructs else None
+						keyValue = keyConstruct['name'] if keyConstruct and 'name' in keyConstruct and keyConstruct['type'] == 'Identifier' else None
+						if(parentChildRelationship != 'value'): # if parentType is Property, we expect the PAYLOAD is under value
+							logger.error("Parent-Child relationship for Property must be 'value'")
+							keyValue = None
+						if keyValue:
+							query = """
+							MATCH (top_node { Id: '%s' })-[:AST_parentOf*0..10]->(n_t {Type: '%s'}),
+							(n_t)-[:AST_parentOf { RelationType: 'value' }]->(payload_node),
+							(n_t)-[:AST_parentOf { RelationType: 'key' }]->(key_node { Type: 'Identifier', Code: '%s' })  
+							RETURN collect(distinct payload_node) AS resultset
+							"""%(component['Id'], parentType, keyValue)
+						
+					# A more precise query for 'arguments' relationship in CallExpression (Ex: LIBOBJ.html(PAYLOAD))
+					if parentType == 'CallExpression':
+						# check if function is called through Member expression function call
+						memberExpressionConstruct = pocConstructs[pocConstructs[parentKey]['callee']] if ('callee' in pocConstructs[parentKey]) and (pocConstructs[parentKey]['callee'] in pocConstructs) and ('type' in  pocConstructs[pocConstructs[parentKey]['callee']]) and (pocConstructs[pocConstructs[parentKey]['callee']]['type'] == 'MemberExpression') else None
+						propertyIdentifierConstruct = pocConstructs[memberExpressionConstruct['property']] if (memberExpressionConstruct) and ('property' in memberExpressionConstruct) and (memberExpressionConstruct['property'] in pocConstructs) and (pocConstructs[memberExpressionConstruct['property']]['type'] == 'Identifier') else None
+						propertyName = propertyIdentifierConstruct['name'] if propertyIdentifierConstruct and 'name' in propertyIdentifierConstruct else None
+						if propertyName and parentChildRelationship == 'arguments':
+							query = """
+							MATCH (top_node { Id: '%s' })-[:AST_parentOf*0..10]->(n_t {Type: '%s'}),
+							(n_t)-[:AST_parentOf { RelationType: 'arguments' }]->(payload_node),
+							(n_t)-[:AST_parentOf { RelationType: 'callee' }]->(callee_node {Type: 'MemberExpression'})-[:AST_parentOf { RelationType: 'property' }]->(property_node { Type: 'Identifier', Code: '%s' })  
+							RETURN collect(distinct payload_node) AS resultset
+							"""%(component['Id'], parentType, propertyName)
+					
+					# Goal: get matching node's varnames, 
+					# we first query the nodes in the top_statement that matches the structure -> (potentially the PAYLOAD node)
+					# then get the identifier varnames under those nodes
+					if not query: # fall back to default query
+						query = """
+						MATCH (top_node { Id: '%s' })-[:AST_parentOf*0..10]->(n_t {Type: '%s'}),
+						(n_t)-[:AST_parentOf { RelationType: '%s' }]->(payload_node)  RETURN collect(distinct payload_node) AS resultset
+						"""%(component['Id'], parentType, parentChildRelationship)
+					print(f"processPayloadStringAndRelationships query: {query}")
+					results = tx.run(query)
+					
+					for item in results: 
+						setNodes = item['resultset'] 
+						for curr in setNodes:
+							varnames = getIdentifiers(tx, curr)
+							result_set.update(varnames)
+					print("Current result_set:", result_set)
+
+	return list(result_set)
 
 # ----------------------------------------------------------------------- #
 #			Main: Detection
@@ -2955,7 +3206,8 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 		try:
 			r1, all_poc_max_levels = getSinkByTagTainting(tx, vuln_info=vuln_info, nodeid_to_matches=nodeid_to_matches, processed_pattern=processed_pattern, call_sites_cache=call_sites_cache, code_matching_cutoff=code_matching_cutoff, call_count_limit=call_count_limit)
 		except Exception as e:
-			logger.error(f"Error in getSinkByTagTainting: {e}")			
+			logger.error(f"Error in getSinkByTagTainting: {e}")	
+			traceback.print_exc()		
 		request_storage = {}   # key: call_expression_id, value: structure of request url for that call expression
 
 		# For cve sink...
@@ -2969,6 +3221,11 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 				# logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
 				ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)
 				top_expression_code = ce[0]
+				varnames = processPayloadStringAndRelationships(tx, vuln_info, top_expression_node)
+				print("poc_str:", request_fn)
+				print("varnames identified for top expression:", varnames)
+				print("top_expression_code:", top_expression_code)
+				
 				# logger.info(f"[debug] top_expression_code: {top_expression_code}")
 
 				if 'function(' in top_expression_code:
@@ -2977,12 +3234,9 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 				nid = request_fn + '__nid=' + top_expression_node['Id'] + '__Loc=' + str(top_expression_node['Location'])
 				# logger.info(f"[debug] nid: {nid}")
 				request_storage[nid] = {'reachability':[], 'endpoint_code': ce[0], 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': top_expression_node['Id'], 'CallExpression': top_expression_node['Id'], 'Argument': top_expression_node['Id']}}
-				for ident, ident_id in ce[2].items():
-					logger.info(f"[debug] ident: {ident}, ident_id: {ident_id}")
-					if ident in ce[0] and (ident not in poc_idents):						
-						vals = DF._get_varname_value_from_context(tx, ident, top_expression_node, call_values_cache=call_values_cache, PDG_on_arguments_only=True)						
-						request_storage[nid]['expected_values'][ident] = vals
-
+				for varname in varnames:
+					vals = DF._get_varname_value_from_context(tx, varname, top_expression_node, call_values_cache=call_values_cache, PDG_on_arguments_only=True)						
+					request_storage[nid]['expected_values'][varname] = vals
 
 
 		# path to store the general template file for WIN.LOC dependencies of all URLs			

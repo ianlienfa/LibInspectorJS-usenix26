@@ -213,28 +213,24 @@ function isCdnScript(script_object){
  * @param {string} options: determines the type of the `script` param (format `{mode: type}` with types being `src` or `content`)
  * @return {boolean} whether or not the input is a library script
 **/
-function isLibraryScript(script, options){
+function isLibraryScript(scriptlink, scriptContent){
 
 	let return_flag = false;
-
-	if(options.mode === 'src'){
-
-		let script_src = script.toLowerCase();
-		for(let h of globalsModule.lib_src_heuristics){
-			if(script_src.includes(h)){ // check script src
-				return_flag = true;
-				break;
-			}
+	let script_src = scriptlink.toLowerCase();
+	for(let h of globalsModule.lib_src_heuristics){
+		if(script_src.includes(h)){ // check script src
+			return_flag = true;
+			break;
 		}
+	}
 
-	}else{ // [options.mode === 'content']
 
-		let script_content = script;
-		for(let h of globalsModule.lib_content_heuristics){
-			if(script_content.includes(h)){ // check script content
-				return_flag = true;
-				break;
-			}
+	let script_content = scriptContent;
+	for(let h of globalsModule.lib_content_heuristics){
+		if(script_content.includes(h)){ // check script content
+			console.log(`[Analyzer] Library heuristic match found for content heuristic: ${h}`);
+			return_flag = true;
+			break;
 		}
 	}
 
@@ -276,8 +272,8 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	
 	var library_scripts = [];
 	let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/^\d+\.js$/i) && !elm.match(/\.min\.js$/i);});
-	for(let i=0; i<scriptFiles.length; i++){
-		let script_short_name = '' + i + '.js';
+	console.log('scriptFiles:', scriptFiles)
+	for(let script_short_name of scriptFiles){
 		DEBUG && console.log(`[Analyzer] Processing ${script_short_name}`)
 		let script_full_name = pathModule.join(webpageFolder, script_short_name);
 		let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
@@ -289,16 +285,19 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 			if(script_object['type'] === 'external'){
 				// Deprecated isLibraryScript removed, this heuristic is too strong for analyzing bundled code, which often skips the library object calls from the bundles
 				// We only filter out the direct resources from cdn sites
-				
+				console.log("[Analyzer] External file, checking for cdn/library at", script_short_name)
 				let is_cdn_script = isCdnScript(script_object);
-				let is_library = isLibraryScript(script_object['src'], {mode: 'src'});
+				// readin the script content for library heuristics
+				let script_content = await readFile(script_full_name);
+				let is_library = isLibraryScript(script_object['src'], script_content);
+				console.log(`[Analyzer] is_cdn_script: ${is_cdn_script}, is_library: ${is_library}`)
 				if((is_cdn_script || is_library) && (!disable_heuristic_skip)){
 					DEBUG && is_cdn_script && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a cdn library object`)
 					DEBUG && is_library && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a library object`)
 					library_scripts.push(script_short_name);
 					continue;
 				}
-			}
+			}			
 		}
 
 		// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
@@ -327,7 +326,7 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 
 		if(script_content !== -1 && has_pattern_in_script){			
 			scripts.push({
-				scriptId: i,
+				scriptId: script_short_name.split('.')[0],
 				source: script_content,
 				name: script_full_name,
 			})

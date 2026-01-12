@@ -217,9 +217,9 @@ def remove_neo4j_container(container_name):
 	command = "docker rm %s"%str(container_name)
 	utilityModule.run_os_command(command, print_stdout=False)
 	logger.warning('Docker container %s is being removed.'%str(container_name))
-	if os.path.exists(container_data_path):
-		shutil.rmtree(container_data_path)
-		logger.warning('Docker container %s data is being removed at %s.'%(str(container_name), str(container_data_path)))
+	# if os.path.exists(container_data_path):
+	# 	shutil.rmtree(container_data_path)
+	# 	logger.warning('Docker container %s data is being removed at %s.'%(str(container_name), str(container_data_path)))
 
 
 def import_data_inside_container_with_cypher(tx, database_name, relative_import_path):
@@ -333,11 +333,14 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 	print(command)
 
 	logger.info(f'Running docker with neo4j-admin import for container {container_name}')
-	ret, output = utilityModule.run_os_command(command, print_stdout=True, prettify=True, return_output=True)
+	ret, output, error = utilityModule.run_os_command(command, print_stdout=True, prettify=True, return_output=True)
 
-	if ret != 0:
+	if ret != 0:		
 		logger.error(f'Failed to import data into container {container_name}')
-		logger.error(f'Output: {output}')
+		logger.error(f'Error: {error}')
+		if('port is already allocated' in output) or ('port is already allocated' in error):
+			logger.warning(f'Port conflict detected for container {container_name}. Skipping import.')
+			return 1
 		raise RuntimeError(f'Neo4j import failed for container {container_name}')
 
 	logger.info(f'Successfully imported data into container {container_name}')

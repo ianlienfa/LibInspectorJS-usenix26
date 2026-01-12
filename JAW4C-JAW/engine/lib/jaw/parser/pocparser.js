@@ -178,6 +178,7 @@ if (require.main === module) {
     }
 
     try {
+        console.log("args[0]:", args[0]);
         const pocArray = JSON.parse(args[0]);  // Expect JSON array of code strings
 
         const result = pocsFlattening(pocArray);

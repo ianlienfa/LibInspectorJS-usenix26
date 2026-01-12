@@ -39,7 +39,9 @@ from functools import lru_cache, wraps
 from utils.logging import logger
 
 debug_new_var_dicts = {}
-LARGE_CALL_SITE_CUTOFF = 2 # Essential, to prevent large call site explosion
+LARGE_CALL_SITE_CUTOFF = 5 # Essential, to prevent large call site explosion (JAW creates IPCG calls from global information, not precise for bundler call tracing)
+LARGE_VARNAME_LEN_CUTOFF = 10  # skip processing further if the number of varnames to process is larger than this (possibly due to large expressions)
+MAX_NODE_RANGE_FOR_DF_ANALYSIS = 10000 # skip nodes with very large range (probably large expression, unanalyzable)
 
 ## ------------------------------------------------------------------------------- ##
 ## Utility Functions
@@ -679,14 +681,21 @@ def _get_varname_value_from_context(tx, varname, context_node, call_values_cache
 
 		return ret
 
-
+	def node_range_toolarge(node):
+		if 'Range' in node:
+			range = json.loads(node['Range'])
+			st, end = int(range[0]), int(range[1])
+			if (end - st) > MAX_NODE_RANGE_FOR_DF_ANALYSIS:
+				logger.info("Skipping data flow analysis for node %s due to large range %s", node['Id'], end - st)
+				return True
+		return False
 
 	## ------------------------------------------------------------------------------- ## 
 	## Main logic 
 	## ------------------------------------------------------------------------------- ## 
 
 	if depth <= 5:
-		# starting from the identifier of the sink variable, trace back its PDG relations
+		# starting from the identifier of the sink variable, trace back its PDG relations		
 		if PDG_on_variable_declarations_only:
 			# for VariableDeclaration PDG relations
 			query = """
@@ -710,6 +719,8 @@ def _get_varname_value_from_context(tx, varname, context_node, call_values_cache
 			currentNodes = item['resultset'] 
 			
 			for iteratorNode in currentNodes:
+				if node_range_toolarge(iteratorNode):
+					continue
 				# print('iteratorNode', iteratorNode)
 				if iteratorNode['Type'] == 'Program': continue
 
@@ -742,7 +753,7 @@ def _get_varname_value_from_context(tx, varname, context_node, call_values_cache
 							varname_vals = [f for f in varname_values_within_call_expressions]
 							if(len(varname_vals) > LARGE_CALL_SITE_CUTOFF):
 								logger.warning(f"Large number of call sites for function def {func_def_node['Id']} and varname {varname}, taking only first {LARGE_CALL_SITE_CUTOFF}")
-								varname_vals = varname_vals[:LARGE_CALL_SITE_CUTOFF] # 3
+								varname_vals = varname_vals[:LARGE_CALL_SITE_CUTOFF] # 5
 							for nid in varname_vals:
 								each_argument = varname_values_within_call_expressions[nid]
 
@@ -991,46 +1002,49 @@ def _get_varname_value_from_context(tx, varname, context_node, call_values_cache
 
 				debug_new_var_dicts[context_node['Id']] = new_varnames
 				logger.debug(f"debug_new_var_dicts: {debug_new_var_dicts}")
-				# main recursion flow				
-				for new_varname in new_varnames:
-					if new_varname == varname or new_varname in constantsModule.JS_DEFINED_VARS: continue
+				# main recursion flow
+				if len(new_varnames) < LARGE_VARNAME_LEN_CUTOFF: # only proceed if the number of varnames is reasonable
+					for new_varname in new_varnames:
+						if new_varname == varname or new_varname in constantsModule.JS_DEFINED_VARS: continue
 
-					# check if new_varname is a function call
-					# i.e., it has a `callee` relation to a parent of type `CallExpression`
-					new_varname_id = idents[new_varname]
-					check_function_call_query="""
-					MATCH (n { Id: '%s' })<-[:AST_parentOf {RelationType: 'callee'}]-(fn_call {Type: 'CallExpression'})-[:CG_parentOf]->(call_definition)
-					RETURN call_definition
-					"""%(new_varname_id)
-					call_definition_result = tx.run(check_function_call_query)
-					is_func_call = False
-					for definition in call_definition_result:
-						item = definition['call_definition']
-						if item is not None:
-							is_func_call = True
-							logger.warning(f"Getting child of function definition for call def: {item}")
-							# wrapper_node_function_definition = QU.getChildsOf(tx, item)
-							# ce_function_definition = QU.get_code_expression(wrapper_node_function_definition)
-							ce_function_definition, _ = QU.getChildsOfAndCodeExpression(tx, item)
-							location_function_definition = item['Location']
-							body = ce_function_definition[0]
-							body = jsbeautifier.beautify(body)
-							out_line = """%s `%s` is %s\n\t\t\t %s"""%(context_scope, new_varname, constantsModule.FUNCTION_CALL_DEFINITION_BODY, body)
-							out = [out_line.strip(),
-								[],
-								[],
-								location_function_definition]
-							if out not in out_values:
-								# avoid returning/printing twice
-								out_values.append(out)
+						# check if new_varname is a function call
+						# i.e., it has a `callee` relation to a parent of type `CallExpression`
+						new_varname_id = idents[new_varname]
+						check_function_call_query="""
+						MATCH (n { Id: '%s' })<-[:AST_parentOf {RelationType: 'callee'}]-(fn_call {Type: 'CallExpression'})-[:CG_parentOf]->(call_definition)
+						RETURN call_definition
+						"""%(new_varname_id)
+						call_definition_result = tx.run(check_function_call_query)
+						is_func_call = False
+						for definition in call_definition_result:
+							item = definition['call_definition']
+							if item is not None:
+								is_func_call = True
+								logger.warning(f"Getting child of function definition for call def: {item}")
+								# wrapper_node_function_definition = QU.getChildsOf(tx, item)
+								# ce_function_definition = QU.get_code_expression(wrapper_node_function_definition)
+								ce_function_definition, _ = QU.getChildsOfAndCodeExpression(tx, item)
+								location_function_definition = item['Location']
+								body = ce_function_definition[0]
+								body = jsbeautifier.beautify(body)
+								out_line = """%s `%s` is %s\n\t\t\t %s"""%(context_scope, new_varname, constantsModule.FUNCTION_CALL_DEFINITION_BODY, body)
+								out = [out_line.strip(),
+									[],
+									[],
+									location_function_definition]
+								if out not in out_values:
+									# avoid returning/printing twice
+									out_values.append(out)
 
-					if is_func_call:
-						continue
-					
-					# logger.info(f"out_values before recursing on {new_varname} at depth {depth}: {out_values}")
-					v = _get_varname_value_from_context(tx, new_varname, contextNode, call_values_cache=call_values_cache, context_scope = context_scope, depth=depth+1, PDG_on_arguments_only=True)
-					out_values.extend(v)	
-	else:
+						if is_func_call:
+							continue
+						
+						# logger.info(f"out_values before recursing on {new_varname} at depth {depth}: {out_values}")
+						v = _get_varname_value_from_context(tx, new_varname, contextNode, call_values_cache=call_values_cache, context_scope = context_scope, depth=depth+1, PDG_on_arguments_only=True)
+						out_values.extend(v)	
+				else:
+					logger.warning(f"Skipping varname expansion due to large number of varnames ({len(new_varnames)}) at context {context_node['Id']}")					
+	else:		
 		logger.debug(f"Max depth reached for varname {varname} at context {context_node}")
 
 	param_stack_pop()

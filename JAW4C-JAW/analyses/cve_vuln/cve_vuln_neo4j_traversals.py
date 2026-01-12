@@ -127,13 +127,14 @@ def build_hpg(container_name, webpage):
 
 	try:
 		logger.info('HPG for: %s'%(webpage))
-
-		# de-compress the hpg
-		IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
-
-		# import
 		nodes_file = os.path.join(webpage, constantsModule.NODE_INPUT_FILE_NAME)
 		rels_file =  os.path.join(webpage, constantsModule.RELS_INPUT_FILE_NAME)
+
+		# de-compress the hpg
+		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
+			IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
+
+		# import
 		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
 			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
 			raise RuntimeError("The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...")

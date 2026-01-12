@@ -238,9 +238,7 @@ const js_builtin = js_builtin_methods.concat(buildint_dom_api);
 
 
 
-var lib_content_heuristics = [
-    // Bundlers
-    "webpackChunk",
+var lib_content_heuristics = [    
     // jquery
     "jQuery requires a window with a document",
     "*! jQuery v",
