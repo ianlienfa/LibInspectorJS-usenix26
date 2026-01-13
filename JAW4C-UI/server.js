@@ -592,11 +592,14 @@ async function getSiteData() {
     // e.g., sites[0-50] = newest 50, sites[50-100] = next newest 50, etc.
     allSitesData.sort((a, b) => b.modifiedTime - a.modifiedTime);
 
+    // Filter out localhost domains for global statistics
+    const nonLocalHostSites = allSitesData.filter(s => !s.domain.toLowerCase().includes('localhost'));
+
     const globalStats = {
-        sites: allSitesData.length,
-        sitesWithFlows: allSitesData.filter(s => s.hasFlows).length,
-        vulnerableLibs: allSitesData.reduce((acc, s) => acc + s.vulnerableLibs, 0),
-        pocMatches: allSitesData.reduce((acc, s) => acc + s.pocMatches, 0),
+        sites: nonLocalHostSites.length,
+        sitesWithFlows: nonLocalHostSites.filter(s => s.hasFlows).length,
+        vulnerableLibs: nonLocalHostSites.reduce((acc, s) => acc + s.vulnerableLibs, 0),
+        pocMatches: nonLocalHostSites.reduce((acc, s) => acc + s.pocMatches, 0),
     };
 
     return { globalStats, sites: allSitesData };
@@ -987,6 +990,22 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
 
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
+
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {
                     const libContent = await fs.readFile(libDetectionFile, 'utf8');
@@ -1107,6 +1126,22 @@ app.get('/api/tag-stats', async (req, res) => {
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
 
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
+
                 const flowsFile = path.join(sitePath, 'sink.flows.out');
                 try {
                     const flowsContent = await fs.readFile(flowsFile, 'utf8');
@@ -1198,6 +1233,22 @@ app.get('/api/vuln-stats', async (req, res) => {
                 const sitePath = path.join(parentPath, hash);
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
+
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
 
                 const vulnFile = path.join(sitePath, 'vuln.out');
                 try {
@@ -1312,6 +1363,22 @@ app.get('/api/detected-libs', async (req, res) => {
                 const sitePath = path.join(parentPath, hash);
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
+
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
 
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {

@@ -1099,12 +1099,12 @@ function createSiteItemHTML(site) {
     `).join('');
 
     const tagCountsHTML = Object.keys(site.tagCounts || {}).length > 0 ? `
-        <div class="tag-counts">
-            <strong>Tags:</strong>
-            ${Object.entries(site.tagCounts).map(([tag, count]) => `
-                <span class="tag-badge">${escapeHtml(tag)}: ${count}</span>
-            `).join('')}
-        </div>
+        <p><strong>Tag Counts:</strong>
+            ${Object.entries(site.tagCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([tag, count]) => `${escapeHtml(tag)}: ${count}`)
+                .join(', ')}
+        </p>
     ` : '';
 
     return `
@@ -1142,6 +1142,9 @@ function createSiteItemHTML(site) {
             </div>
             ${noteHTML}
             <div class="site-details" id="details-${site.hash}">
+                <p><strong>URL:</strong> <a href="${escapeHtml(site.originalUrl)}" target="_blank">${escapeHtml(site.originalUrl)}</a></p>
+                <p><strong>Hash:</strong> ${escapeHtml(site.hash)}</p>
+                ${tagCountsHTML}
                 <div class="review-section">
                     <label class="review-checkbox">
                         <input type="checkbox" ${reviewCheckbox} onchange="updateReview('${site.hash}', 'reviewed', this.checked)">
@@ -1156,7 +1159,6 @@ function createSiteItemHTML(site) {
                         <textarea class="memo-input" placeholder="Add notes..." onblur="updateReview('${site.hash}', 'memo', this.value)">${escapeHtml(site.memo || '')}</textarea>
                     </div>
                 </div>
-                ${tagCountsHTML}
                 ${jsFilesHTML}
                 <div class="file-list">
                     <h4>Available Files:</h4>
