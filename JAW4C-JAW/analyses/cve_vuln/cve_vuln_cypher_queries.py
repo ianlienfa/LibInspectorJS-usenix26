@@ -1699,7 +1699,7 @@ def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
 			stderr=subprocess.PIPE,
 			text=True
 		)
-		pocFlattenedJsonStr = p.stdout		
+		pocFlattenedJsonStr = p.stdout
 		if not pocFlattenedJsonStr:
 			logger.error(f"POC parsing failed, stderr: {p.stderr}")
 			raise RuntimeError("POC parsing failed, no output from parser")			
