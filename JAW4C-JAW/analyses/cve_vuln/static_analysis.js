@@ -219,6 +219,7 @@ function isLibraryScript(scriptlink, scriptContent){
 	let script_src = scriptlink.toLowerCase();
 	for(let h of globalsModule.lib_src_heuristics){
 		if(script_src.includes(h)){ // check script src
+			console.log(`[Analyzer] Library heuristic match found for src: ${h} in ${script_src}`);
 			return_flag = true;
 			break;
 		}

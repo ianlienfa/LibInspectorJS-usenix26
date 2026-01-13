@@ -1,3 +1,18 @@
+// Polyfill for requestIdleCallback
+window.requestIdleCallback = window.requestIdleCallback || function(cb, options) {
+    const start = Date.now();
+    return setTimeout(() => {
+        cb({
+            didTimeout: false,
+            timeRemaining: () => Math.max(0, 50 - (Date.now() - start))
+        });
+    }, 1);
+};
+
+window.cancelIdleCallback = window.cancelIdleCallback || function(id) {
+    clearTimeout(id);
+};
+
 function toggleDetails(hash) {
     const details = document.getElementById(`details-${hash}`);
     const icon = document.getElementById(`icon-${hash}`);
@@ -27,22 +42,97 @@ function toggleJsFiles(hash) {
 // Store current file data for toggling
 const fileCache = {};
 
-// Helper function to detect language from file extension
-function detectLanguage(filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const languageMap = {
-        'js': 'javascript',
-        'json': 'json',
-        'html': 'markup',
-        'htm': 'markup',
-        'css': 'css',
-        'py': 'python',
-        'txt': 'plaintext',
-        'log': 'plaintext',
-        'out': 'plaintext',
-        'csv': 'plaintext'
-    };
-    return languageMap[ext] || 'plaintext';
+// Chunked file loading for large files
+async function loadFileChunked(hash, file) {
+    const contentEl = document.getElementById(`content-${hash}`);
+    const codeEl = document.getElementById(`code-${hash}`);
+    const currentFileEl = document.getElementById(`current-file-${hash}`);
+
+    try {
+        // Show loading state
+        codeEl.textContent = 'Loading large file...';
+
+        // Update current file display
+        currentFileEl.textContent = file;
+
+        const response = await fetch(`/api/file-stream?hash=${encodeURIComponent(hash)}&file=${encodeURIComponent(file)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const fileSize = parseInt(response.headers.get('X-File-Size') || '0', 10);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+
+        let receivedLength = 0;
+        let chunks = [];
+        let pendingText = '';
+
+        // Setup for progressive rendering
+        codeEl.textContent = '';
+
+        // Batch DOM updates with requestAnimationFrame
+        let updateScheduled = false;
+        const scheduleUpdate = () => {
+            if (!updateScheduled) {
+                updateScheduled = true;
+                requestAnimationFrame(() => {
+                    if (pendingText) {
+                        codeEl.textContent += pendingText;
+                        pendingText = '';
+                    }
+                    updateScheduled = false;
+                });
+            }
+        };
+
+        // Read chunks
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            receivedLength += value.length;
+            const chunk = decoder.decode(value, { stream: true });
+            chunks.push(chunk);
+            pendingText += chunk;
+
+            // Update progress in loading text
+            const progress = fileSize > 0 ? Math.round((receivedLength / fileSize) * 100) : 0;
+            scheduleUpdate();
+
+            // Log progress every 10%
+            if (progress % 10 === 0) {
+                console.log(`Loading ${file}: ${progress}%`);
+            }
+        }
+
+        // Final flush
+        if (pendingText) {
+            codeEl.textContent += pendingText;
+        }
+
+        // Complete message
+        const fullContent = chunks.join('');
+        codeEl.textContent = fullContent;
+
+        // Store in cache
+        const cacheKey = `${hash}-${file}`;
+        fileCache[cacheKey] = {
+            formattedContent: fullContent,
+            rawContent: fullContent,
+            type: 'text',
+            file: file,
+            currentView: 'formatted',
+            hasTableView: false
+        };
+
+        console.log(`Loaded ${file}: ${(receivedLength / 1024).toFixed(2)} KB`);
+
+    } catch (error) {
+        codeEl.textContent = `Error loading file: ${error.message || error}`;
+        console.error('Chunked loading error:', error);
+    }
 }
 
 async function loadFile(hash, file) {
@@ -70,15 +160,41 @@ async function loadFile(hash, file) {
         icon.textContent = '-';
     }
 
-    codeEl.textContent = 'Loading...';
+    codeEl.textContent = 'Checking file size...';
     wrapperEl.style.display = 'block';
 
     try {
+        // Check file size first
+        const infoResponse = await fetch(`/api/file-info?hash=${encodeURIComponent(hash)}&file=${encodeURIComponent(file)}`);
+        if (!infoResponse.ok) {
+            throw new Error(`HTTP error! status: ${infoResponse.status}`);
+        }
+        const fileInfo = await infoResponse.json();
+
+        // For large files, use chunked streaming
+        if (fileInfo.shouldChunk) {
+            console.log(`File ${file} is large (${(fileInfo.size / 1024 / 1024).toFixed(2)} MB), using chunked loading`);
+            await loadFileChunked(hash, file);
+            toggleBtn.style.display = 'none';
+            return;
+        }
+
+        // For smaller files, use regular loading
+        codeEl.textContent = 'Loading...';
+
         const response = await fetch(`/api/file-content?hash=${encodeURIComponent(hash)}&file=${encodeURIComponent(file)}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+
+        // Handle large file response
+        if (data.type === 'large-file' && data.shouldStream) {
+            console.log(`File ${file} requires streaming (${(data.size / 1024 / 1024).toFixed(2)} MB)`);
+            await loadFileChunked(hash, file);
+            toggleBtn.style.display = 'none';
+            return;
+        }
 
         // Store in cache
         const cacheKey = `${hash}-${file}`;
@@ -94,22 +210,13 @@ async function loadFile(hash, file) {
         // Update current file display
         currentFileEl.textContent = file;
 
-        // Display content with syntax highlighting
+        // Display content
         if (data.type === 'html' && data.hasTableView) {
             // For HTML table views, use innerHTML
-            contentEl.classList.remove('line-numbers');
             codeEl.innerHTML = data.content;
         } else {
-            // For code files, apply syntax highlighting
-            const language = detectLanguage(file);
-            codeEl.className = `language-${language}`;
-            contentEl.classList.add('line-numbers');
+            // For code files, display as text
             codeEl.textContent = data.content;
-
-            // Apply Prism.js syntax highlighting
-            if (typeof Prism !== 'undefined') {
-                Prism.highlightElement(codeEl);
-            }
         }
 
         // Show/hide toggle button
@@ -143,14 +250,8 @@ async function toggleView(hash) {
             const response = await fetch(`/api/file-content?hash=${encodeURIComponent(hash)}&file=${encodeURIComponent(file)}&view=raw`);
             const data = await response.json();
 
-            // For raw view, use plaintext highlighting
-            contentEl.classList.add('line-numbers');
-            codeEl.className = 'language-plaintext';
+            // For raw view, display as text
             codeEl.textContent = data.content;
-
-            if (typeof Prism !== 'undefined') {
-                Prism.highlightElement(codeEl);
-            }
 
             toggleBtn.textContent = 'Switch to Table View';
             cached.currentView = 'raw';
@@ -160,17 +261,9 @@ async function toggleView(hash) {
     } else {
         // Switch back to formatted view
         if (cached.type === 'html') {
-            contentEl.classList.remove('line-numbers');
             codeEl.innerHTML = cached.formattedContent;
         } else {
-            const language = detectLanguage(file);
-            contentEl.classList.add('line-numbers');
-            codeEl.className = `language-${language}`;
             codeEl.textContent = cached.formattedContent;
-
-            if (typeof Prism !== 'undefined') {
-                Prism.highlightElement(codeEl);
-            }
         }
         toggleBtn.textContent = 'Switch to Raw View';
         cached.currentView = 'formatted';
@@ -479,11 +572,8 @@ async function updateReview(hash, field, value) {
     }
 }
 
-// Initialize visible count and sorting on page load
-document.addEventListener('DOMContentLoaded', () => {
-    applySorting();
-    applyFilters();
-});
+// NOTE: DOMContentLoaded listener moved to bottom of file (dynamic loading section)
+// This duplicate was removed to prevent timing issues with dynamic site loading
 
 // Filter sites with flows when clicking the stat card
 function filterSitesWithFlows() {
@@ -502,6 +592,16 @@ let libDetectionCharts = {};
 async function openLibDetectionModal() {
     const modal = document.getElementById('lib-detection-modal');
     modal.classList.add('show');
+
+    // Show loading state
+    document.getElementById('total-detected-libs').textContent = '...';
+    document.getElementById('unique-detected-libs').textContent = '...';
+    document.getElementById('sites-with-detections').textContent = '...';
+    document.getElementById('avg-libs-per-site').textContent = '...';
+    document.getElementById('total-tags').textContent = '...';
+    document.getElementById('unique-tags').textContent = '...';
+    document.getElementById('sites-with-tags').textContent = '...';
+    document.getElementById('avg-tags-per-site').textContent = '...';
 
     try {
         const response = await fetch('/api/lib-detection-stats');
@@ -727,6 +827,12 @@ async function openVulnLibModal() {
     const modal = document.getElementById('vuln-lib-modal');
     modal.classList.add('show');
 
+    // Show loading state
+    document.getElementById('total-vuln-libs').textContent = '...';
+    document.getElementById('unique-libs').textContent = '...';
+    document.getElementById('sites-with-vulns').textContent = '...';
+    document.getElementById('avg-vulns-per-site').textContent = '...';
+
     try {
         // Fetch both vulnerability stats and detected libraries in parallel
         const [vulnResponse, detectedLibsResponse] = await Promise.all([
@@ -945,3 +1051,225 @@ function createLibrariesRanking(libraries) {
     html += '</div>';
     container.innerHTML = html;
 }
+
+// ===== Dynamic Site Loading with Infinite Scroll =====
+
+let allLoadedSites = []; // Store all loaded sites for filtering/sorting
+let currentOffset = 0;
+const SITES_PER_PAGE = 50;
+let isLoadingSites = false;
+let hasMoreSites = true;
+
+// Function to create site item HTML from site data
+function createSiteItemHTML(site) {
+    const urlPathHTML = site.urlPath ? `<div class="site-path">${escapeHtml(site.urlPath)}</div>` : '';
+    const noteHTML = (site.memo && site.memo.trim()) ? `
+        <div class="site-note-inline" style="display: none;">
+            <div class="note-label">📝 Note:</div>
+            <div class="note-content">${escapeHtml(site.memo)}</div>
+        </div>
+    ` : '';
+
+    const badges = [];
+    if (site.hasLibDetection) badges.push('<span class="badge badge-lib">LIB</span>');
+    if (site.hasSinkFlows) badges.push('<span class="badge badge-flows">FLOWS</span>');
+    if (site.hasVulnOut) badges.push('<span class="badge badge-vuln">VULN</span>');
+    if (site.hasErrorLog) badges.push('<span class="badge badge-error">ERR</span>');
+    if (site.hasWarningLog) badges.push('<span class="badge badge-warn">WARN</span>');
+
+    const jsFilesHTML = site.jsFiles && site.jsFiles.length > 0 ? `
+        <div class="js-files-section">
+            <button class="toggle-js-files" onclick="toggleJsFiles('${site.hash}')">
+                <span id="js-icon-${site.hash}">▶</span> JavaScript Files (${site.jsFiles.length})
+            </button>
+            <div id="js-files-${site.hash}" class="js-files-list" style="display: none;">
+                ${site.jsFiles.map(file => `
+                    <button class="js-file-btn" onclick="loadFile('${site.hash}', '${file}')">${file}</button>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    const reviewCheckbox = site.reviewed ? 'checked' : '';
+    const vulnerableCheckbox = site.vulnerable ? 'checked' : '';
+
+    const availableFiles = site.files.filter(f => !site.jsFiles.includes(f) && !/^\d+\.js$/.test(f));
+    const filesHTML = availableFiles.map(file => `
+        <button class="file-btn" onclick="loadFile('${site.hash}', '${file}')">${file}</button>
+    `).join('');
+
+    const tagCountsHTML = Object.keys(site.tagCounts || {}).length > 0 ? `
+        <div class="tag-counts">
+            <strong>Tags:</strong>
+            ${Object.entries(site.tagCounts).map(([tag, count]) => `
+                <span class="tag-badge">${escapeHtml(tag)}: ${count}</span>
+            `).join('')}
+        </div>
+    ` : '';
+
+    return `
+        <div class="site-item"
+             data-modified-time="${site.modifiedTime}"
+             data-reviewed="${site.reviewed}"
+             data-vulnerable="${site.vulnerable}"
+             data-has-lib-detection="${site.hasLibDetection}"
+             data-has-sink-flows="${site.hasSinkFlows}"
+             data-has-vuln-out="${site.hasVulnOut}"
+             data-has-error-log="${site.hasErrorLog}"
+             data-has-warning-log="${site.hasWarningLog}"
+             data-has-notes="${site.memo && site.memo.trim() ? 'true' : 'false'}"
+             data-search-text="${(site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase()}"
+             data-hash="${site.hash}"
+             data-name="${site.domain}"
+             data-flows="${site.hasFlows ? 1 : 0}"
+             data-vulns="${site.vulnerableLibs}"
+             data-pocs="${site.pocMatches}"
+             data-js-count="${site.jsFiles ? site.jsFiles.length : 0}">
+            <div class="site-header" onclick="toggleDetails('${site.hash}')">
+                <div class="site-name-wrapper">
+                    <div class="site-domain" title="${escapeHtml(site.originalUrl)}">${escapeHtml(site.domain)}</div>
+                    ${urlPathHTML}
+                    <div class="file-badges">
+                        ${badges.join('')}
+                    </div>
+                </div>
+                <div class="site-summary">
+                    <span>Flows: <span class="indicator ${site.hasFlows ? 'yes' : 'no'}">${site.hasFlows ? 'Yes' : 'No'}</span></span>
+                    <span>Vuln Libs: ${site.vulnerableLibs}</span>
+                    <span>POCs: ${site.pocMatches}</span>
+                </div>
+                <span class="expand-icon" id="icon-${site.hash}">+</span>
+            </div>
+            ${noteHTML}
+            <div class="site-details" id="details-${site.hash}">
+                <div class="review-section">
+                    <label class="review-checkbox">
+                        <input type="checkbox" ${reviewCheckbox} onchange="updateReview('${site.hash}', 'reviewed', this.checked)">
+                        <span>Reviewed</span>
+                    </label>
+                    <label class="review-checkbox">
+                        <input type="checkbox" ${vulnerableCheckbox} onchange="updateReview('${site.hash}', 'vulnerable', this.checked)">
+                        <span>Vulnerable</span>
+                    </label>
+                    <div class="memo-section">
+                        <label>Notes:</label>
+                        <textarea class="memo-input" placeholder="Add notes..." onblur="updateReview('${site.hash}', 'memo', this.value)">${escapeHtml(site.memo || '')}</textarea>
+                    </div>
+                </div>
+                ${tagCountsHTML}
+                ${jsFilesHTML}
+                <div class="file-list">
+                    <h4>Available Files:</h4>
+                    ${filesHTML}
+                </div>
+                <div class="file-content-wrapper" id="wrapper-${site.hash}" style="display: none;">
+                    <div class="file-header">
+                        <div>
+                            <strong>File:</strong> <span id="current-file-${site.hash}"></span>
+                        </div>
+                        <div>
+                            <button class="toggle-view-btn" id="toggle-${site.hash}" onclick="toggleView('${site.hash}')" style="display: none;">Switch to Raw View</button>
+                        </div>
+                    </div>
+                    <pre class="file-content line-numbers" id="content-${site.hash}"><code class="language-javascript" id="code-${site.hash}"></code></pre>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+// Load more sites from API
+async function loadMoreSites() {
+    if (isLoadingSites || !hasMoreSites) return;
+
+    isLoadingSites = true;
+    const loadingIndicator = document.getElementById('loading-indicator');
+    loadingIndicator.style.display = 'flex';
+
+    try {
+        const response = await fetch(`/api/sites?offset=${currentOffset}&limit=${SITES_PER_PAGE}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+
+        // Store sites in our array
+        allLoadedSites.push(...data.sites);
+
+        // Render the sites
+        const siteList = document.getElementById('site-list');
+        data.sites.forEach(site => {
+            const siteHTML = createSiteItemHTML(site);
+            siteList.insertAdjacentHTML('beforeend', siteHTML);
+        });
+
+        // Update pagination state
+        currentOffset += data.sites.length;
+        hasMoreSites = data.hasMore;
+
+        // Apply sorting after each batch to maintain sort order
+        // This ensures all sites (including newly loaded ones) are properly sorted
+        applySorting();
+
+        // Update visible count through applyFilters (which updates the count)
+        applyFilters();
+
+        // If no more sites, disconnect observer
+        if (!hasMoreSites) {
+            if (window.siteObserver) {
+                window.siteObserver.disconnect();
+            }
+        }
+    } catch (error) {
+        console.error('Error loading sites:', error);
+    } finally {
+        isLoadingSites = false;
+        loadingIndicator.style.display = 'none';
+    }
+}
+
+// Set up Intersection Observer for infinite scroll
+function setupInfiniteScroll() {
+    const sentinel = document.getElementById('load-more-sentinel');
+
+    if (!sentinel) {
+        console.error('Sentinel element not found');
+        return;
+    }
+
+    const options = {
+        root: null,
+        rootMargin: '200px', // Start loading 200px before reaching the sentinel
+        threshold: 0
+    };
+
+    window.siteObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && hasMoreSites && !isLoadingSites) {
+                loadMoreSites();
+            }
+        });
+    }, options);
+
+    window.siteObserver.observe(sentinel);
+}
+
+// Initialize dynamic loading on page load
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Dynamic Loading] Initializing...');
+
+    // Load initial batch of sites
+    // Note: applySorting() and applyFilters() are now called inside loadMoreSites()
+    // after each batch loads, ensuring consistent sort order
+    loadMoreSites().then(() => {
+        // Set up infinite scroll after initial load
+        setupInfiniteScroll();
+    });
+});
