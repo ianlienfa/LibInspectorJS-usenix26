@@ -1,3 +1,4 @@
 Library-Detector-GTV
-vuld_db_llm/pgdata
+vuln_db_llm/pgdata
 JAW4C-DEBUN/node_modules/
+JAW4C-JAW/docker/neo4j/plugins/apoc.jar
