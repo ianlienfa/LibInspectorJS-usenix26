@@ -10,7 +10,7 @@ services:
     volumes:
       # Mount data to nms
       - /home/rafael/JAW4C:/JAW4C
-      - /home/rafael/nms/archives/to_share/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan5_rank0_18100_norep_0/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
       - /home/rafael/nms/bundler_crawl:/JAW4C/JAW4C-JAW/data
       # Foxhound
       - /home/rafael/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
@@ -51,10 +51,6 @@ services:
     depends_on:
       - db
       - proxy
-    deploy:
-      resources:
-        limits:
-          memory: 8g
     command: >
       sh -c "while [ 1 ]; do echo '' > /dev/null; done"
 
@@ -100,9 +96,9 @@ services:
     networks:
       - jaw-network
     volumes:
-      - /home/rafael/nms/archives/to_share:/proxy/archive-70:ro      
+      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan5_rank0_18100_norep_0:/proxy/archive_2026_jan5_rank0_18100_norep_0:ro      
     # ports:
     #   - "8002:8002"
     environment:
       - PROXY_VOLUME_PATH=/proxy
-      - PROXY_ARCHIVE=archive-70
+      - PROXY_ARCHIVE=archive_2026_jan5_rank0_18100_norep_0

@@ -378,21 +378,12 @@ async function getSiteData() {
         throw err;
     }
 
-<<<<<<< HEAD
-    const allSitesData = [];
-    for (const parentDir of parentDirs) {
-        // Skip JAW native directories
-        if(parentDir.startsWith('libraries')){
-            continue;
-        }
 
-=======
     // Load review data
     const reviewData = await loadReviewData();
 
     // First pass: collect all site paths in parallel
     const sitePathsPromises = parentDirs.map(async (parentDir) => {
->>>>>>> master
         const parentPath = path.join(DATA_DIR, parentDir);
         try {
             const parentStats = await fs.stat(parentPath);

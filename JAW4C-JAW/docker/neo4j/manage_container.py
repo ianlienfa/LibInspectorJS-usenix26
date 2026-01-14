@@ -75,7 +75,6 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     --name {0} \
 	--network jaw4c-network \
 	--network-alias neo4j \
-	--memory=8g \
     -p{5}:7474 -p{6}:7687 \
     -d \
     -v {9}{1}/{0}/neo4j/data:/data \
@@ -87,7 +86,7 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
-    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     neo4j:4.4
@@ -147,7 +146,6 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     --name {0} \
 	--network jaw4c-network \
 	--network-alias neo4j \
-	--memory=8g \
     -p{5}:7474 -p{6}:7687 \
     -d \
     -v {8}{1}/{0}/neo4j/data:/data \
@@ -159,7 +157,7 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
-    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
     --env NEO4J_AUTH={2}/{3} \
     neo4j:4.4
@@ -315,7 +313,6 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 		"--name", container_name,
 		"--network", "jaw4c-network",
 		"--network-alias", "neo4j",
-		"--memory=8g",
 		f"-p{constants.NEO4J_HTTP_PORT}:7474",
 		f"-p{constants.NEO4J_BOLT_PORT}:7687",
 		"-v", f"{base_path}{volume_home}/{container_name}/neo4j/data:/data",

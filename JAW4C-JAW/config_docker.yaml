@@ -7,8 +7,8 @@ testbed:
   archive: 
     enable: true
     mappinglist: /JAW4C/JAW4C-WebArchive/archive/name_mapping.json
-  from_row: 1414
-  to_row: 1414 # row number or 'end'
+  from_row: 153
+  to_row: 153 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -87,6 +87,10 @@ staticpass:
   neo4j_bolt_port: '7476'
   neo4j_use_docker: true
   keep_docker_alive: false
+  # Maximum number of matching nodes to process per code pattern (prevents performance issues)
+  code_matching_cutoff: 50
+  # Maximum recursion depth for taint propagation (prevents stack overflow)
+  call_count_limit: 5
 
 # 4. dynamic analysis configuration
 dynamicpass:
