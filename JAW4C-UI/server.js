@@ -13,7 +13,7 @@ app.use(express.json());
 // --- Constants ---
 const JAW4C_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
-const REVIEW_FILE = path.join(DATA_DIR, 'review.json');
+const REVIEW_FILE = path.join(DATA_DIR, 'review', 'review.json');
 
 // --- Cache Management ---
 const CACHE_TTL = 30000; // 30 seconds cache
@@ -196,13 +196,22 @@ async function loadReviewData() {
 
         // Check if file is empty or only contains whitespace
         if (!content || content.trim() === '') {
-            console.log('Review file is empty, initializing with empty object');
-            // Initialize the file with an empty JSON object
-            await saveReviewData({});
+            console.warn('⚠️ WARNING: Review file is empty! Returning empty object without overwriting file.');
+            // DO NOT overwrite the file - just return empty object
+            // This prevents data loss from temporary file corruption or race conditions
             return {};
         }
 
-        return JSON.parse(content);
+        try {
+            return JSON.parse(content);
+        } catch (parseError) {
+            console.error('❌ ERROR: Failed to parse review.json. File may be corrupted.');
+            console.error('Parse error:', parseError);
+            console.error('File content:', content.substring(0, 500));
+            // Return empty object but DO NOT overwrite the corrupted file
+            // This allows manual recovery of the file
+            return {};
+        }
     } catch (error) {
         if (error.code === 'ENOENT') {
             // File doesn't exist yet, create it with empty object
@@ -217,7 +226,69 @@ async function loadReviewData() {
 
 async function saveReviewData(reviewData) {
     try {
-        await fs.writeFile(REVIEW_FILE, JSON.stringify(reviewData, null, 2), 'utf8');
+        // CRITICAL SAFEGUARD: Never save empty data if existing file has data
+        let existingData = {};
+        try {
+            const existingContent = await fs.readFile(REVIEW_FILE, 'utf8');
+            if (existingContent && existingContent.trim()) {
+                existingData = JSON.parse(existingContent);
+            }
+        } catch (e) {
+            // File doesn't exist or is unreadable - OK to proceed
+        }
+
+        // Check if we're trying to save empty data when existing file has data
+        const newDataIsEmpty = !reviewData || Object.keys(reviewData).length === 0;
+        const existingDataHasContent = Object.keys(existingData).length > 0;
+
+        if (newDataIsEmpty && existingDataHasContent) {
+            console.error('❌ CRITICAL ERROR: Attempted to overwrite review.json with empty data!');
+            console.error('Existing data has', Object.keys(existingData).length, 'entries.');
+            console.error('This operation has been BLOCKED to prevent data loss.');
+            return false;
+        }
+
+        // Create backup before writing (keep last 3 backups)
+        try {
+            const backupFile = `${REVIEW_FILE}.backup.${Date.now()}`;
+            if (existingDataHasContent) {
+                await fs.copyFile(REVIEW_FILE, backupFile);
+                console.log('Created backup:', backupFile);
+
+                // Clean up old backups (keep only last 3)
+                const backupDir = path.dirname(REVIEW_FILE);
+                const files = await fs.readdir(backupDir);
+                const backups = files
+                    .filter(f => f.startsWith('review.json.backup.'))
+                    .map(f => ({ name: f, path: path.join(backupDir, f), time: parseInt(f.split('.').pop()) }))
+                    .sort((a, b) => b.time - a.time);
+
+                // Delete backups beyond the 3 most recent
+                for (let i = 3; i < backups.length; i++) {
+                    await fs.unlink(backups[i].path);
+                    console.log('Deleted old backup:', backups[i].name);
+                }
+            }
+        } catch (backupError) {
+            console.warn('Warning: Failed to create backup:', backupError.message);
+            // Continue anyway - backup failure shouldn't block the save
+        }
+
+        // Use atomic write: write to temp file first, then rename
+        const tempFile = `${REVIEW_FILE}.tmp`;
+        const jsonContent = JSON.stringify(reviewData, null, 2);
+
+        // Validate JSON before writing
+        if (!jsonContent || jsonContent.trim() === '' || jsonContent === '{}') {
+            console.warn('Warning: Attempting to save empty or minimal JSON content');
+        }
+
+        await fs.writeFile(tempFile, jsonContent, 'utf8');
+
+        // Atomic rename
+        await fs.rename(tempFile, REVIEW_FILE);
+
+        console.log('✅ Successfully saved review data with', Object.keys(reviewData).length, 'entries');
         return true;
     } catch (error) {
         console.error('Error saving review data:', error);
@@ -526,11 +597,19 @@ async function getSiteData() {
         })
     );
 
+    // Sort sites by modified time (newest first) BEFORE returning
+    // This ensures paginated batches are in the correct order
+    // e.g., sites[0-50] = newest 50, sites[50-100] = next newest 50, etc.
+    allSitesData.sort((a, b) => b.modifiedTime - a.modifiedTime);
+
+    // Filter out localhost domains for global statistics
+    const nonLocalHostSites = allSitesData.filter(s => !s.domain.toLowerCase().includes('localhost'));
+
     const globalStats = {
-        sites: allSitesData.length,
-        sitesWithFlows: allSitesData.filter(s => s.hasFlows).length,
-        vulnerableLibs: allSitesData.reduce((acc, s) => acc + s.vulnerableLibs, 0),
-        pocMatches: allSitesData.reduce((acc, s) => acc + s.pocMatches, 0),
+        sites: nonLocalHostSites.length,
+        sitesWithFlows: nonLocalHostSites.filter(s => s.hasFlows).length,
+        vulnerableLibs: nonLocalHostSites.reduce((acc, s) => acc + s.vulnerableLibs, 0),
+        pocMatches: nonLocalHostSites.reduce((acc, s) => acc + s.pocMatches, 0),
     };
 
     return { globalStats, sites: allSitesData };
@@ -588,9 +667,10 @@ async function getCachedSiteData() {
 
 app.get('/', async (req, res) => {
     try {
-        const { globalStats, sites } = await getCachedSiteData();
+        const { globalStats } = await getCachedSiteData();
         const neo4jUrl = 'http://localhost:7474/browser/';
-        res.render('index', { globalStats, sites, neo4jUrl });
+        // Don't pass sites to template - they'll be loaded dynamically
+        res.render('index', { globalStats, sites: [], neo4jUrl, totalSites: globalStats.sites });
     } catch (error) {
         console.error('Failed to load site data:', error);
         res.status(500).render('error', { message: 'Failed to load site data.', error });
@@ -607,6 +687,92 @@ app.post('/api/refresh-cache', async (req, res) => {
     }
 });
 
+// API endpoint for paginated sites
+app.get('/api/sites', async (req, res) => {
+    try {
+        const { offset = 0, limit = 50 } = req.query;
+        const offsetNum = parseInt(offset, 10);
+        const limitNum = parseInt(limit, 10);
+
+        if (isNaN(offsetNum) || isNaN(limitNum) || offsetNum < 0 || limitNum <= 0 || limitNum > 200) {
+            return res.status(400).json({ error: 'Invalid pagination parameters' });
+        }
+
+        const { sites } = await getCachedSiteData();
+
+        // Apply pagination
+        const paginatedSites = sites.slice(offsetNum, offsetNum + limitNum);
+
+        res.json({
+            sites: paginatedSites,
+            total: sites.length,
+            offset: offsetNum,
+            limit: limitNum,
+            hasMore: offsetNum + limitNum < sites.length
+        });
+    } catch (error) {
+        console.error('Error fetching paginated sites:', error);
+        res.status(500).json({ error: 'Failed to fetch sites' });
+    }
+});
+
+// File size threshold for chunked loading (1MB)
+const CHUNK_SIZE_THRESHOLD = 1024 * 1024;
+
+// Get file info (size, etc.) before loading
+app.get('/api/file-info', async (req, res) => {
+    const { hash, file } = req.query;
+    if (!hash || !file || file.includes('..') || hash.includes('..')) {
+        return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    const filePath = path.join(DATA_DIR, hash, file);
+    try {
+        const stats = await fs.stat(filePath);
+        res.json({
+            size: stats.size,
+            shouldChunk: stats.size > CHUNK_SIZE_THRESHOLD,
+            chunkSize: 64 * 1024, // 64KB chunks for streaming
+        });
+    } catch (error) {
+        res.status(404).json({ error: 'File not found.' });
+    }
+});
+
+// Chunked file streaming for large files
+app.get('/api/file-stream', async (req, res) => {
+    const { hash, file } = req.query;
+    if (!hash || !file || file.includes('..') || hash.includes('..')) {
+        return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    const filePath = path.join(DATA_DIR, hash, file);
+    try {
+        const stats = await fs.stat(filePath);
+
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Length', stats.size);
+        res.setHeader('X-File-Size', stats.size);
+
+        // Stream file in chunks
+        const readableStream = require('fs').createReadStream(filePath, {
+            encoding: 'utf8',
+            highWaterMark: 64 * 1024 // 64KB chunks
+        });
+
+        readableStream.pipe(res);
+
+        readableStream.on('error', (error) => {
+            console.error('Stream error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Error streaming file.' });
+            }
+        });
+    } catch (error) {
+        res.status(404).json({ error: 'File not found.' });
+    }
+});
+
 app.get('/api/file-content', async (req, res) => {
     const { hash, file, view } = req.query;
     if (!hash || !file || file.includes('..') || hash.includes('..')) {
@@ -615,6 +781,19 @@ app.get('/api/file-content', async (req, res) => {
 
     const filePath = path.join(DATA_DIR, hash, file);
     try {
+        // Check file size first
+        const stats = await fs.stat(filePath);
+
+        // For very large files, suggest using streaming endpoint
+        if (stats.size > CHUNK_SIZE_THRESHOLD && !view) {
+            return res.json({
+                type: 'large-file',
+                size: stats.size,
+                shouldStream: true,
+                message: 'File is too large, use streaming endpoint'
+            });
+        }
+
         const content = await fs.readFile(filePath, 'utf8');
 
         // If raw view is requested, return plain text
@@ -821,6 +1000,22 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
 
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
+
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {
                     const libContent = await fs.readFile(libDetectionFile, 'utf8');
@@ -941,6 +1136,22 @@ app.get('/api/tag-stats', async (req, res) => {
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
 
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
+
                 const flowsFile = path.join(sitePath, 'sink.flows.out');
                 try {
                     const flowsContent = await fs.readFile(flowsFile, 'utf8');
@@ -1032,6 +1243,22 @@ app.get('/api/vuln-stats', async (req, res) => {
                 const sitePath = path.join(parentPath, hash);
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
+
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
 
                 const vulnFile = path.join(sitePath, 'vuln.out');
                 try {
@@ -1146,6 +1373,22 @@ app.get('/api/detected-libs', async (req, res) => {
                 const sitePath = path.join(parentPath, hash);
                 const siteStats = await fs.stat(sitePath);
                 if (!siteStats.isDirectory()) continue;
+
+                // Check domain and skip localhost
+                let siteDomain = '';
+                const urlFile = path.join(sitePath, 'url.out');
+                try {
+                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const rawUrl = urlContent.trim();
+                    const formatted = formatUrlForDisplay(rawUrl);
+                    siteDomain = formatted.domain;
+                    if (siteDomain.toLowerCase().includes('localhost')) {
+                        continue; // Skip localhost domains
+                    }
+                } catch (e) {
+                    // If can't read url.out, skip this site
+                    continue;
+                }
 
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {
