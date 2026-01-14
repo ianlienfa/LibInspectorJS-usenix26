@@ -6,8 +6,8 @@ services:
       - "3001:3001"
     volumes:
       # Mount the JAW4C-JAW data directory for read-only access
-      - ../JAW4C-JAW/data:/app/../JAW4C-JAW/data:ro
-      - ../JAW4C-JAW/data/review.json:/app/../JAW4C-JAW/data/review.json
+      - /home/rafael/nms/bundler_crawl:/app/../JAW4C-JAW/data:ro
+      - /home/rafael/nms/bundler_crawl/review.json:/app/../JAW4C-JAW/data/review.json
       # Mount source code for live updates (no rebuild needed for code changes)
       - ./server.js:/app/server.js:ro
       - ./public:/app/public:ro
