@@ -7,8 +7,8 @@ testbed:
   archive: 
     enable: true
     mappinglist: /JAW4C/JAW4C-WebArchive/archive/name_mapping.json
-  from_row: 153
-  to_row: 153 # row number or 'end'
+  from_row: 0
+  to_row: 250 # row number or 'end'
 
 
 # 2. crawler configuration
