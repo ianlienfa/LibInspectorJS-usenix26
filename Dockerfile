@@ -119,7 +119,7 @@ RUN groupadd -f docker && \
     usermod -aG docker root
 
 # Set Docker API version for compatibility
-ENV DOCKER_API_VERSION=1.43
+ENV DOCKER_API_VERSION=1.41
 
 # Post-clean up
 RUN apt-get clean && \
