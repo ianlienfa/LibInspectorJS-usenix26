@@ -43,6 +43,10 @@ PLUGINS_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docke
 PROCESS_USER_ID = os.getuid()
 PROCESS_GROUP_ID = os.getgid()
 
+# get network info
+WORKER_NAME = os.environ.get("WORKER_NAME")
+NETWORK_NAME = f"{WORKER_NAME}_jaw-network" if WORKER_NAME else "jaw-network"
+
 
 def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_home=VOLUME_HOME):
 	"""
@@ -71,27 +75,27 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
 	# other options:
 	# 	-e NEO4J_dbms_security_procedures_whitelist=apoc.coll.\\\*,apoc.load.\\\* \
-	command="""docker run \
-    --name {0} \
-	--network jaw4c-network \
+	command=f"""docker run \
+    --name {container_name} \
+	--network {NETWORK_NAME} \
 	--network-alias neo4j \
 	--memory=3g \
-    -p{5}:7474 -p{6}:7687 \
+    -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
     -d \
-    -v {9}{1}/{0}/neo4j/data:/data \
-    -v {9}{1}/{0}/neo4j/logs:/logs \
-    -v {10}/{7}:/var/lib/neo4j/import/{8} \
-    -v {9}{1}/{0}/neo4j/plugins:/plugins \
-	-v {9}{1}/{0}/neo4j/conf:/conf \
+    -v {base_path}{volume_home}/{container_name}/neo4j/data:/data \
+    -v {base_path}{volume_home}/{container_name}/neo4j/logs:/logs \
+    -v {data_path}/{weburl_suffix}:/var/lib/neo4j/import/{webapp_name} \
+    -v {base_path}{volume_home}/{container_name}/neo4j/plugins:/plugins \
+	-v {base_path}{volume_home}/{container_name}/neo4j/conf:/conf \
     -u neo4j:neo4j \
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
-    --env NEO4J_AUTH={2}/{3} \
+    --env NEO4J_AUTH={constants.NEO4J_USER}/{constants.NEO4J_PASS} \
     neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, constants.DATA_DIR, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, weburl_suffix, webapp_name, base_path, data_path)
+	"""
 	# Note: pass the analyzer outputs folder as the import directory of neo4j
 
 	utilityModule.run_os_command(command, print_stdout=False)
@@ -143,27 +147,27 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 	#      https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/451
 	# other options:
 	# 	-e NEO4J_dbms_security_procedures_whitelist=apoc.coll.\\\*,apoc.load.\\\* \
-	command="""docker run \
-    --name {0} \
-	--network jaw4c-network \
+	command=f"""docker run \
+    --name {container_name} \
+	--network {NETWORK_NAME} \
 	--network-alias neo4j \
 	--memory=3g \
-    -p{5}:7474 -p{6}:7687 \
+    -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
     -d \
-    -v {8}{1}/{0}/neo4j/data:/data \
-    -v {8}{1}/{0}/neo4j/logs:/logs \
-    -v {9}:/var/lib/neo4j/import/{7} \
-    -v {8}{1}/{0}/neo4j/plugins:/plugins \
-	-v {8}{1}/{0}/neo4j/conf:/conf \
+    -v {base_path}{volume_home}/{container_name}/neo4j/data:/data \
+    -v {base_path}{volume_home}/{container_name}/neo4j/logs:/logs \
+    -v {data_path}:/var/lib/neo4j/import/{webapp_name} \
+    -v {base_path}{volume_home}/{container_name}/neo4j/plugins:/plugins \
+	-v {base_path}{volume_home}/{container_name}/neo4j/conf:/conf \
     -u neo4j:neo4j \
     -e NEO4J_apoc_export_file_enabled=true \
     -e NEO4J_apoc_import_file_enabled=true \
     -e NEO4J_apoc_import_file_use__neo4j__config=true \
     -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\\\\* \
     -e PYTHONUNBUFFERED=1 \
-    --env NEO4J_AUTH={2}/{3} \
+    --env NEO4J_AUTH={constants.NEO4J_USER}/{constants.NEO4J_PASS} \
     neo4j:4.4
-	""".format(container_name, volume_home, constants.NEO4J_USER, constants.NEO4J_PASS, data_import_path, constants.NEO4J_HTTP_PORT, constants.NEO4J_BOLT_PORT, webapp_name, base_path, data_path)
+	"""
 	# Note: For unit tests, data_import_path is the full path to the test directory
 
 	utilityModule.run_os_command(command, print_stdout=False)
@@ -313,7 +317,7 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 	command = " ".join([
 		"docker", "run", "--rm",
 		"--name", container_name,
-		"--network", "jaw4c-network",
+		"--network", NETWORK_NAME,
 		"--network-alias", "neo4j",
 		"--memory=3g",
 		f"-p{constants.NEO4J_HTTP_PORT}:7474",

@@ -9,8 +9,8 @@ services:
     volumes:
       # Mount data to nms
       - /home/rafael/JAW4C:/JAW4C
-      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1/name_mapping.json.run:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
-      - /home/rafael/nms/jan20-jaw4c-crawl/worker15:/JAW4C/JAW4C-JAW/data
+      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0/name_mapping.json.run:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - /home/rafael/nms/jan20-jaw4c-crawl/worker25:/JAW4C/JAW4C-JAW/data
       # Foxhound
       - /home/rafael/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
       # Docker socket for Docker-in-Docker (DinD)
@@ -46,7 +46,7 @@ services:
     #   HTTP_PROXY: http://proxy:8002
     #   HTTPS_PROXY: http://proxy:8002
     environment:
-      - WORKER_NAME=worker15
+      - WORKER_NAME=worker25
     networks:
       - jaw-network
     depends_on:
@@ -57,9 +57,9 @@ services:
         limits:
           memory: 6g
     command: >
-      sh -c "python3 -m run_pipeline --conf=config_docker_01_5.yaml"
+      sh -c "python3 -m run_pipeline --conf=config_docker_10_5.yaml"
 
-# sh -c "python3 -m run_pipeline --conf=config_docker_01_1.yaml"
+# sh -c "python3 -m run_pipeline --conf=config_docker_10_1.yaml"
 # sh -c "while [ 1 ]; do echo '' > /dev/null; done"
 
   # neo4j:
@@ -93,7 +93,7 @@ services:
       POSTGRES_PASSWORD: vulndb_pwd
       POSTGRES_DB: vulndb_annotated
     volumes:
-      - ./vuln_db_llm/pgdata/worker15:/var/lib/postgresql/data
+      - ./vuln_db_llm/pgdata/worker25:/var/lib/postgresql/data
       - ./vuln_db_llm/advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
 
   proxy:
@@ -102,10 +102,10 @@ services:
     networks:
       - jaw-network
     volumes:
-      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1:/proxy/archive_2026_jan12_distribution_0_1:ro
-      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1/name_mapping.json.run:/proxy/archive_2026_jan12_distribution_0_1/name_mapping.json:ro   
+      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0:/proxy/archive_2026_jan12_distribution_1_0:ro
+      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0/name_mapping.json.run:/proxy/archive_2026_jan12_distribution_1_0/name_mapping.json:ro   
     # ports:
     #   - "8002:8002"
     environment:
       - PROXY_VOLUME_PATH=/proxy
-      - PROXY_ARCHIVE=archive_2026_jan12_distribution_0_1
+      - PROXY_ARCHIVE=archive_2026_jan12_distribution_1_0

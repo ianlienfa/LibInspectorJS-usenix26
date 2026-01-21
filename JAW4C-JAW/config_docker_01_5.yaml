@@ -84,7 +84,7 @@ staticpass:
   neo4j_http_port: '7474'
   # bolt port will default to http port + 2 with ineo
   # otherwise, specify another port here
-  neo4j_bolt_port: '7476'
+  neo4j_bolt_port: '7484'
   neo4j_use_docker: true
   keep_docker_alive: false
   # Maximum number of matching nodes to process per code pattern (prevents performance issues)
