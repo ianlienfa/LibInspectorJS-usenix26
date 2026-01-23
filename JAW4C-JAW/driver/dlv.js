@@ -494,9 +494,8 @@ if (require.main === module) {
         res[url] = {}
 
         // Run DEBUN detection first (works on static files, no browser needed)
-        // TODO: how to use this in container?
-        // res[url]['DEBUN'] = await DEBUN(hashdirPath)
-        // if(res[url]['DEBUN']?.['detection'])LOGGER(JSON.stringify(res[url]['DEBUN']['detection']))
+        res[url]['DEBUN'] = await DEBUN(hashdirPath)
+        if(res[url]['DEBUN']?.['detection'])LOGGER(JSON.stringify(res[url]['DEBUN']['detection']))
 
         res[url]['PTV-Original'] = await PTVOriginal(url, PTVOriginalLaunchConfig, hashdirPath)
         if(res[url]['PTV-Original']?.['detection'])LOGGER(JSON.stringify(res[url]['PTV-Original']['detection']))

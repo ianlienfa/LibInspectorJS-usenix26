@@ -31,7 +31,7 @@ const intraduplibCache: Record<
 > = {};
 
 export const evaluate = (
-  uniqueHashes: Record<string, string[]> | Record<number, string[]>,
+  uniqueHashes: Record<string, string[]>,
   options: { threshold: number },
   method: string = '',
   url: string = ''
@@ -66,15 +66,8 @@ export const evaluate = (
     )
   );
 
-  // Handle null/undefined uniqueHashes or empty object
-  if (!uniqueHashes || Object.keys(uniqueHashes).length === 0) {
-    uniqueHashes = allWebHashes[url] || {};
-  }
-
-  // If still no valid data, return empty results
-  if (!uniqueHashes || Object.keys(uniqueHashes).length === 0) {
-    console.warn(`No unique hashes found for URL: ${url}`);
-    return [];
+  if (Object.keys(uniqueHashes).length === 0) {
+    uniqueHashes = allWebHashes[url];
   }
   const blacklist = (blacklistcache[WEB_BLACKLIST_THRESHOLD] = JSON.parse(
     fs.readFileSync(
@@ -116,18 +109,7 @@ export const evaluate = (
   let type3Matches: Record<string, Record<number, number>> = {};
   let type2Matches: Record<string, Record<number, number>> = {};
 
-  // Ensure uniqueHashes is valid before processing
-  if (!uniqueHashes || typeof uniqueHashes !== 'object') {
-    console.error('Invalid uniqueHashes object:', uniqueHashes);
-    return [];
-  }
-
   Object.entries(uniqueHashes).forEach(([nodes, hashes]) => {
-    // Validate that hashes is an array
-    if (!Array.isArray(hashes)) {
-      console.warn(`Invalid hashes for nodes ${nodes}:`, hashes);
-      return;
-    }
     hashes.forEach((hash) => {
       if (!libHashes[nodes]?.[hash]) return;
       if (blacklist[nodes]?.includes(hash)) return;
