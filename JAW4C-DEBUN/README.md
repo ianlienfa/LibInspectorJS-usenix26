@@ -97,10 +97,16 @@ This will extract function-level fingerprints using POGs from the example JavaSc
 
 ### Detect Libraries in Real Websites
 
-Detect libraries in a directory:
+Detect libraries in a live website:
 
-```bash 
-$ ./debun.sh detect --dir 240_240_240_240-303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8/303ecedde750d6b3dcff2efc52f66a4baf7ad24f47cba950e45d00592d11d2b8
+```bash
+$ ./debun.sh detect <url>
+```
+
+Example:
+
+```bash
+$ ./debun.sh detect https://example.com
 ```
 
 **Note**: Some websites may block crawling attempts, which could prevent successful detection.

@@ -66,6 +66,9 @@ COPY JAW4C-JAW/engine/lib/jaw/aliasing/ ./engine/lib/jaw/aliasing/
 # Build the aliasing component
 RUN (cd engine/lib/jaw/aliasing && make)
 
+# Set up DEBUN
+RUN (cd /JAW4C/JAW4C-DEBUN && npm install)
+
 # Copy essential runtime files
 # COPY JAW4C-JAW/analyses/ ./analyses/
 # COPY JAW4C-JAW/config.yaml ./
