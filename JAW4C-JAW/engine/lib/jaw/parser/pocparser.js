@@ -31,6 +31,8 @@ function pocFlattenedTreeGen(poc, blackList = undefined, options = undefined, ty
         'LIBOBJ_IDENTIFIER_STR': "LIBOBJ",
         'PAYLOAD_IDENTIFIER_STR': "PAYLOAD",
         'WILDCARD_IDENTIFIER_STR': "WILDCARD",
+        'ARG_IDENTIFIER_STR': "ARG",
+        'LIBJQ_IDENTIFIER_STR': "LIBJQ",
     }
 
     blackList = blackList || ['Program', 'ExpressionStatement']
