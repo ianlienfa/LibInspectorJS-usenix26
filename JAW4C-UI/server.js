@@ -708,23 +708,25 @@ async function getSiteData() {
             }
             timings.vuln = Date.now() - vulnStart;
 
-            // Check file existence in parallel
+            // Read directory once and reuse for all file checks (optimization)
+            const readdirStart = Date.now();
+            let allFiles = [];
+            try {
+                allFiles = await fs.readdir(sitePath);
+            } catch (e) {
+                // Directory read error
+                allFiles = [];
+            }
+            timings.readdir = Date.now() - readdirStart;
+
+            // Check file existence using the directory listing (no extra I/O needed)
             const fileCheckStart = Date.now();
             const importantFiles = [
                 'sink.flows.out', 'vuln.out', 'lib.detection.json', 'urls.out',
                 'errors.log', 'warnings.log', 'info.log'
             ];
-
-            const fileExistenceChecks = await Promise.all(
-                importantFiles.map(async (file) => {
-                    try {
-                        await fs.access(path.join(sitePath, file));
-                        return file;
-                    } catch (e) {
-                        return null;
-                    }
-                })
-            );
+            const fileSet = new Set(allFiles);
+            const fileExistenceChecks = importantFiles.filter(file => fileSet.has(file));
             timings.fileExistence = Date.now() - fileCheckStart;
 
             // Check errors.log file size to only show non-empty files
@@ -740,25 +742,18 @@ async function getSiteData() {
             }
             timings.errorLog = Date.now() - errorLogStart;
 
-            // Collect numbered JS files (e.g., 0.js, 1.js, etc., but not *.min.js)
+            // Collect numbered JS files using the same directory listing
             const jsFilesStart = Date.now();
-            let jsFiles = [];
-            try {
-                const allFiles = await fs.readdir(sitePath);
-                jsFiles = allFiles
-                    .filter(file => /^\d+\.js$/.test(file)) // Only [num].js files
-                    .sort((a, b) => {
-                        const numA = parseInt(a.match(/^(\d+)\.js$/)[1]);
-                        const numB = parseInt(b.match(/^(\d+)\.js$/)[1]);
-                        return numA - numB;
-                    });
-            } catch (e) {
-                // Directory read error
-                jsFiles = [];
-            }
+            const jsFiles = allFiles
+                .filter(file => /^\d+\.js$/.test(file)) // Only [num].js files
+                .sort((a, b) => {
+                    const numA = parseInt(a.match(/^(\d+)\.js$/)[1]);
+                    const numB = parseInt(b.match(/^(\d+)\.js$/)[1]);
+                    return numA - numB;
+                });
             timings.jsFiles = Date.now() - jsFilesStart;
 
-            const availableFiles = fileExistenceChecks.filter(f => f !== null);
+            const availableFiles = fileExistenceChecks; // Already filtered by Set lookup
             const hasLibDetection = availableFiles.includes('lib.detection.json');
             const hasSinkFlows = availableFiles.includes('sink.flows.out');
             const hasWarningLog = availableFiles.includes('warnings.log');
@@ -767,7 +762,7 @@ async function getSiteData() {
 
             const totalSiteTime = Date.now() - siteStart;
             if (totalSiteTime > 10) { // Only log if processing took more than 10ms
-                console.log(`[Site ${compositeHash}] ${totalSiteTime}ms total - url:${timings.url}ms flows:${timings.flows}ms vuln:${timings.vuln}ms fileCheck:${timings.fileExistence}ms errorLog:${timings.errorLog}ms jsFiles:${timings.jsFiles}ms`);
+                console.log(`[Site ${compositeHash}] ${totalSiteTime}ms total - url:${timings.url}ms flows:${timings.flows}ms vuln:${timings.vuln}ms readdir:${timings.readdir}ms fileCheck:${timings.fileExistence}ms errorLog:${timings.errorLog}ms jsFiles:${timings.jsFiles}ms`);
             }
 
             return {
