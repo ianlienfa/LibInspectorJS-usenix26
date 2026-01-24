@@ -615,9 +615,12 @@ async function getSiteData() {
     console.log(`[getSiteData] Processing ${sitePaths.length} sites...`);
     const allSitesData = await Promise.all(
         sitePaths.map(async ({ parentDir, hash, sitePath, modifiedTime }) => {
+            const siteStart = Date.now();
             const compositeHash = `${parentDir}/${hash}`;
+            const timings = {};
 
             // Process URL
+            const urlStart = Date.now();
             let siteDomain = compositeHash;
             let siteUrlPath = '';
             let originalUrl = '';
@@ -635,8 +638,10 @@ async function getSiteData() {
                 siteDomain = formatted.domain;
                 siteUrlPath = formatted.path;
             }
+            timings.url = Date.now() - urlStart;
 
             // Process flows
+            const flowsStart = Date.now();
             let hasFlows = false;
             let pocMatches = 0;
             const tagCounts = {};
@@ -678,8 +683,10 @@ async function getSiteData() {
                     hasFlows = true;
                 }
             }
+            timings.flows = Date.now() - flowsStart;
 
             // Process vulnerabilities
+            const vulnStart = Date.now();
             let vulnerableLibs = 0;
             let hasValidVulnData = false;
             const vulnContent = fileContents.get(`${compositeHash}:vuln`);
@@ -700,8 +707,10 @@ async function getSiteData() {
                     });
                 } catch (e) { /* Ignore errors */ }
             }
+            timings.vuln = Date.now() - vulnStart;
 
             // Check file existence in parallel
+            const fileCheckStart = Date.now();
             const importantFiles = [
                 'sink.flows.out', 'vuln.out', 'lib.detection.json', 'urls.out',
                 'errors.log', 'warnings.log', 'info.log'
@@ -717,8 +726,10 @@ async function getSiteData() {
                     }
                 })
             );
+            timings.fileExistence = Date.now() - fileCheckStart;
 
             // Check errors.log file size to only show non-empty files
+            const errorLogStart = Date.now();
             let hasErrorLog = false;
             try {
                 const errorLogPath = path.join(sitePath, 'errors.log');
@@ -728,8 +739,10 @@ async function getSiteData() {
                 // File doesn't exist or can't be accessed
                 hasErrorLog = false;
             }
+            timings.errorLog = Date.now() - errorLogStart;
 
             // Collect numbered JS files (e.g., 0.js, 1.js, etc., but not *.min.js)
+            const jsFilesStart = Date.now();
             let jsFiles = [];
             try {
                 const allFiles = await fs.readdir(sitePath);
@@ -744,6 +757,7 @@ async function getSiteData() {
                 // Directory read error
                 jsFiles = [];
             }
+            timings.jsFiles = Date.now() - jsFilesStart;
 
             const availableFiles = fileExistenceChecks.filter(f => f !== null);
             const hasLibDetection = availableFiles.includes('lib.detection.json');
@@ -751,6 +765,11 @@ async function getSiteData() {
             const hasWarningLog = availableFiles.includes('warnings.log');
 
             const review = reviewData[compositeHash] || { reviewed: false, vulnerable: false, memo: '' };
+
+            const totalSiteTime = Date.now() - siteStart;
+            if (totalSiteTime > 10) { // Only log if processing took more than 10ms
+                console.log(`[Site ${compositeHash}] ${totalSiteTime}ms total - url:${timings.url}ms flows:${timings.flows}ms vuln:${timings.vuln}ms fileCheck:${timings.fileExistence}ms errorLog:${timings.errorLog}ms jsFiles:${timings.jsFiles}ms`);
+            }
 
             return {
                 hash: compositeHash,
@@ -775,7 +794,8 @@ async function getSiteData() {
             };
         })
     );
-    console.log(`[getSiteData] Site processing complete (${Date.now() - processStartTime}ms)`);
+    const processingDuration = Date.now() - processStartTime;
+    console.log(`[getSiteData] Site processing complete (${processingDuration}ms, avg: ${(processingDuration / sitePaths.length).toFixed(2)}ms per site)`);
 
     // Sort sites by modified time (newest first) BEFORE returning
     // This ensures paginated batches are in the correct order
@@ -801,18 +821,23 @@ async function getSiteData() {
 
 // Background cache update function
 async function updateCacheInBackground() {
-    if (isUpdatingCache) return;
+    if (isUpdatingCache) {
+        console.log('[Cache] Update already in progress, skipping');
+        return;
+    }
 
     isUpdatingCache = true;
-    console.log('[Cache] Updating site data cache in background...');
+    const startTime = Date.now();
+    console.log('[Cache] 🔄 Starting background cache update...');
 
     try {
         const data = await getSiteData();
         siteDataCache = data;
         cacheTimestamp = Date.now();
-        console.log(`[Cache] Updated with ${data.sites.length} sites`);
+        const duration = Date.now() - startTime;
+        console.log(`[Cache] ✅ Cache ready! ${data.sites.length} sites loaded in ${(duration / 1000).toFixed(2)}s`);
     } catch (error) {
-        console.error('[Cache] Error updating cache:', error);
+        console.error('[Cache] ❌ Error updating cache:', error);
     } finally {
         isUpdatingCache = false;
     }
@@ -820,19 +845,29 @@ async function updateCacheInBackground() {
 
 // Get cached or fresh data
 async function getCachedSiteData() {
-    const now = Date.now();
-
-    // If cache exists, return it (ignore TTL - only refresh on startup or manual request)
+    // If cache exists, return it immediately
     if (siteDataCache) {
         return siteDataCache;
     }
 
-    // No cache exists, wait for fresh data
-    console.log('[Cache] No cache exists, fetching fresh data');
-    const data = await getSiteData();
-    siteDataCache = data;
-    cacheTimestamp = now;
-    return data;
+    // If cache is being built, return empty data (don't block the UI)
+    if (isUpdatingCache) {
+        console.log('[Cache] Cache still building, returning empty data');
+        return {
+            globalStats: { sites: 0, sitesWithFlows: 0, vulnerableLibs: 0, pocMatches: 0 },
+            sites: [],
+            loading: true
+        };
+    }
+
+    // No cache and not updating - trigger background update and return empty data
+    console.log('[Cache] No cache exists, triggering background update');
+    updateCacheInBackground(); // Don't await - let it run in background
+    return {
+        globalStats: { sites: 0, sitesWithFlows: 0, vulnerableLibs: 0, pocMatches: 0 },
+        sites: [],
+        loading: true
+    };
 }
 
 // --- Routes ---
@@ -847,6 +882,16 @@ app.get('/', async (req, res) => {
         console.error('Failed to load site data:', error);
         res.status(500).render('error', { message: 'Failed to load site data.', error });
     }
+});
+
+// API endpoint to check cache status
+app.get('/api/cache-status', (req, res) => {
+    res.json({
+        ready: siteDataCache !== null,
+        loading: isUpdatingCache,
+        timestamp: cacheTimestamp,
+        siteCount: siteDataCache ? siteDataCache.sites.length : 0
+    });
 });
 
 // API endpoint to manually trigger cache refresh
@@ -902,7 +947,8 @@ app.get('/api/sites', async (req, res) => {
             return res.status(400).json({ error: 'Invalid pagination parameters' });
         }
 
-        const { sites } = await getCachedSiteData();
+        const data = await getCachedSiteData();
+        const { sites, loading } = data;
 
         // Apply pagination
         const paginatedSites = sites.slice(offsetNum, offsetNum + limitNum);
@@ -912,7 +958,8 @@ app.get('/api/sites', async (req, res) => {
             total: sites.length,
             offset: offsetNum,
             limit: limitNum,
-            hasMore: offsetNum + limitNum < sites.length
+            hasMore: offsetNum + limitNum < sites.length,
+            loading: loading || false
         });
     } catch (error) {
         console.error('Error fetching paginated sites:', error);
@@ -1672,11 +1719,31 @@ app.get('/api/detected-libs', async (req, res) => {
 
 app.listen(port, async () => {
     console.log(`JAW4C Read-Only UI listening at http://localhost:${port}`);
+    console.log('UI is ready - cache will load in the background');
 
     // Initialize file cache directory
     await ensureCacheDir();
 
-    // Initialize site data cache in background on startup
-    console.log('[Cache] Initializing site data cache on startup...');
+    // Initialize site data cache in background (non-blocking)
+    // UI will show empty data until cache is ready
+    // Use GET /api/cache-status to check when cache is loaded
     updateCacheInBackground();
 });
+
+// Periodic cache refresh (every 1 hour)
+setInterval(() => {
+    if (!isUpdatingCache) {
+        console.log('[Cache] Hourly cache refresh triggered');
+        updateCacheInBackground();
+    }
+}, 60 * 60 * 1000); // 1 hour = 3600000 ms
+
+// Periodic file cache statistics logging (every 30 seconds)
+setInterval(() => {
+    const total = cacheStats.hits + cacheStats.misses;
+    if (total > 0) {
+        logCacheStats();
+        // Reset stats after logging to keep them fresh
+        resetCacheStats();
+    }
+}, 60 * 10 * 1000);
