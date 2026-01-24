@@ -94,7 +94,7 @@ echo "WebArchive session ID: $WEBARCHIVE_SESSION"
 
 # Start the docker container in the WebArchive session
 echo "Starting mitmproxy container..."
-ARCHIVE_DIR="archive_2026_jan5_rank0_18100_norep_0"
+ARCHIVE_DIR="archive_2026_0101_run2"
 tmux send-keys -t $WEBARCHIVE_SESSION "docker build -t mitmproxy . && docker run --name mitmproxy_container --rm -d -i -t -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316  --entrypoint=bash -v \"\$(pwd)/archive/$ARCHIVE_DIR:/proxy/$ARCHIVE_DIR\" mitmproxy" Enter
 
 # Wait a moment for container to start

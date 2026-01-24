@@ -7,12 +7,12 @@ testbed:
   # sitelist: /input/tranco_Z2QWG_unique.csv
   archive: 
     enable: true
-    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_jan5_rank0_18100_norep_0/name_mapping.json
+    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_jan5_rank0_18100_norep_0/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
-    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
-  from_row: 189  #2981 # 2070 has problem
-  to_row: 189 # 1973 # row number or 'end'
+    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
+  from_row: 0  #2981 # 2070 has problem
+  to_row: end # 1973 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -123,10 +123,10 @@ cve_vuln:
   enabled: true
   passes:
     crawling: false
-    lib_detection: false  
-    vulndb: true
-    static: true
-    static_neo4j: true  
+    lib_detection: true   
+    vulndb: false
+    static: false
+    static_neo4j: false  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation
     # verification: false
