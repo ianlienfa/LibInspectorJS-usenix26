@@ -18,8 +18,27 @@ function toggleDetails(hash) {
     const icon = document.getElementById(`icon-${hash}`);
 
     if (details.classList.contains('open')) {
+        // Collapsing - clear DOM content to free memory
         details.classList.remove('open');
         icon.textContent = '+';
+
+        // Clear file content from DOM
+        const codeEl = document.getElementById(`code-${hash}`);
+        const wrapperEl = document.getElementById(`wrapper-${hash}`);
+        if (codeEl) {
+            codeEl.textContent = ''; // Clear content
+        }
+        if (wrapperEl) {
+            wrapperEl.style.display = 'none'; // Hide wrapper
+        }
+
+        // Clear current file indicator
+        const currentFileEl = document.getElementById(`current-file-${hash}`);
+        if (currentFileEl) {
+            currentFileEl.textContent = '';
+        }
+
+        console.log(`[Memory] Cleared content for ${hash}`);
     } else {
         details.classList.add('open');
         icon.textContent = '-';
@@ -34,8 +53,21 @@ function toggleJsFiles(hash) {
         dropdown.style.display = 'block';
         icon.textContent = '▼';
     } else {
+        // Collapsing JS files dropdown - clear file content if displayed
         dropdown.style.display = 'none';
         icon.textContent = '▶';
+
+        // Clear file content from DOM to save memory
+        const codeEl = document.getElementById(`code-${hash}`);
+        const wrapperEl = document.getElementById(`wrapper-${hash}`);
+        if (codeEl) {
+            codeEl.textContent = ''; // Clear content
+        }
+        if (wrapperEl) {
+            wrapperEl.style.display = 'none'; // Hide wrapper
+        }
+
+        console.log(`[Memory] Cleared JS file content for ${hash}`);
     }
 }
 
@@ -149,8 +181,11 @@ async function loadFile(hash, file) {
     const isSameFile = currentFileEl.textContent === file;
 
     if (isWrapperVisible && isSameFile) {
-        // Hide the file content wrapper
+        // Hide the file content wrapper and clear content to free memory
         wrapperEl.style.display = 'none';
+        codeEl.textContent = ''; // Clear content from DOM
+        currentFileEl.textContent = '';
+        console.log(`[Memory] Cleared content for ${file} in ${hash}`);
         return;
     }
 
