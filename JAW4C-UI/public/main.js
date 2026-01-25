@@ -357,7 +357,7 @@ function applyFilters() {
                     (filterReviewed && item.dataset.reviewed !== 'true') ||
                     (filterUnreviewed && item.dataset.reviewed === 'true') ||
                     (filterVulnerable && item.dataset.vulnerable !== 'true') ||
-                    (filterHasNotes && item.dataset.hasNotes !== 'true') ||
+                    (filterHasNotes && item.dataset.hasNotes !== 'true' && !(item.dataset.memo && item.dataset.memo.trim())) ||
                     (searchTerm && !item.dataset.searchText.includes(searchTerm))
                 );
             }
@@ -595,6 +595,10 @@ async function updateReview(hash, field, value) {
             const siteItem = document.querySelector(`[data-search-text*="${hash.toLowerCase()}"]`);
             if (siteItem) {
                 siteItem.dataset[field] = value;
+                // Update hasNotes attribute when memo field changes
+                if (field === 'memo') {
+                    siteItem.dataset.hasNotes = value && value.trim() ? 'true' : 'false';
+                }
                 // Re-apply filters to update visibility
                 applyFilters();
             }

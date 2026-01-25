@@ -1702,7 +1702,7 @@ def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
 		)
 		pocFlattenedJsonStr = p.stdout
 		if not pocFlattenedJsonStr:
-			logger.error(f"POC parsing failed, stderr: {p.stderr}")
+			logger.warning(f"POC parsing failed, stderr: {p.stderr}")
 			raise RuntimeError("POC parsing failed, no output from parser")			
 		flatPoc = json.loads(pocFlattenedJsonStr)
 		flatPoc[0]['poc_str'] = vuln_info['poc_str']	
@@ -2676,8 +2676,8 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 		flatPoc = pocPreprocess(vuln_info)
 		# libObjectList = getLibObjList(tx, vuln_info)		
 	except Exception as e:
-		# logger.error(f"getSinkByTagTainting preprocessing fails, vuln_info: {vuln_info}, error: {e}")
-		raise e
+		logger.error(f"getSinkByTagTainting preprocessing fails, vuln_info: {vuln_info}, error: {e}, moving to the next vuln")
+		return [], []
 	
 	# Should just be one, for loop is only for unwrapping
 	for poc in flatPoc:
