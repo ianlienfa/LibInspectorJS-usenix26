@@ -41,7 +41,10 @@ const SourceSinkAnalyzer = SourceSinkAnalyzerModule.CVESourceSinkAnalyzer;
 
 
 const GraphExporter = require('./../../engine/core/io/graphexporter');
-const logger = require('../../engine/core/io/logging.js');
+
+// For smarter chunk heuristics
+const acorn = require('acorn');
+const walk = require('acorn-walk');
 const { has } = require('core-js/core/dict');
 
 /**
@@ -70,6 +73,61 @@ var all_patterns = [];
  * ------------------------------------------------
 **/
 
+function acron_parse(code){
+	const acron_config_obj = {ecmaVersion: 2022}    
+	try {
+		return acorn.parse(code, acron_config_obj);
+	} catch (error) {
+		;    
+	}
+	try {
+		config = acron_config_obj
+		config.sourceType = "module"
+		return acorn.parse(code, config);
+	} catch (error) {
+		console.log("Error parsing.")
+		return undefined;
+	}
+}
+
+function is_webpack_identifier(node){
+	// Check if the assignment target contains webpack-related keywords
+	if(!node) return false;
+	if(node.type === 'MemberExpression' && node.property){
+		const propName = (node.property.name || node.property.value || '').toLowerCase();
+		return /webpack|chunk|loadable/.test(propName);
+	}
+	return false;
+}
+
+function is_bundle_chunk(ast){
+	try{
+		walk.simple(ast, {
+			CallExpression(callexpr){
+				if(
+					callexpr.start < 200 // must appear near the beginning of the file (allows for "use strict" or license comments)
+					&& callexpr.callee
+					&& callexpr.callee.type === 'MemberExpression'
+					&& callexpr.callee.property.name && callexpr.callee.property.name === "push" // pushing chunks to WEBPACK_CHUNKS
+					&& callexpr.callee.object && callexpr.callee.object.type === "AssignmentExpression" // fingerprint: self.__LOADABLE_LOADED_CHUNKS__ = self.__LOADABLE_LOADED_CHUNKS__ || []
+					&& is_webpack_identifier(callexpr.callee.object.left) // check for webpack-related identifier
+					&& callexpr.callee.object.right && callexpr.callee.object.right.type === "LogicalExpression" // self.__LOADABLE_LOADED_CHUNKS__ || []
+					&& callexpr.callee.object.right.operator && callexpr.callee.object.right.operator == "||" // ||
+					&& callexpr.callee.object.right.right && callexpr.callee.object.right.right.type == "ArrayExpression" // []
+				){
+					throw { found: true }; // Early exit
+				}
+			}
+		})
+	}
+	catch(err){
+		if(err.found){
+			return true;
+		}
+		return false;
+	}
+	return false;
+}
 
 const withTimeout = (millis, promise) => {
     const timeout = new Promise((resolve, reject) =>
@@ -201,7 +259,9 @@ function isCdnScript(script_object){
 	}
 	else{
 		if(script_object['src'] !== undefined){
-			return isFromLibraryCDN(script_object['src'])
+			const has_version_str = /\d+\.\d+\.\d+/.test(script_object['src']); 
+			const is_cdn_script = isFromLibraryCDN(script_object['src']) && has_version_str;
+			return (is_cdn_script || has_version_str);
 		}	
 	}	
 }
@@ -216,10 +276,12 @@ function isCdnScript(script_object){
 function isLibraryScript(scriptlink, scriptContent){
 
 	let return_flag = false;
+	let result_str = "";
 	let script_src = scriptlink.toLowerCase();
 	for(let h of globalsModule.lib_src_heuristics){
 		if(script_src.includes(h)){ // check script src
-			console.log(`[Analyzer] Library heuristic match found for src: ${h} in ${script_src}`);
+			// console.log(`[Analyzer] Library heuristic match found for src: ${h} in ${script_src}`);
+			result_str += `src heuristic: ${h}`;
 			return_flag = true;
 			break;
 		}
@@ -229,13 +291,22 @@ function isLibraryScript(scriptlink, scriptContent){
 	let script_content = scriptContent;
 	for(let h of globalsModule.lib_content_heuristics){
 		if(script_content.includes(h)){ // check script content
-			console.log(`[Analyzer] Library heuristic match found for content heuristic: ${h}`);
+			// console.log(`[Analyzer] Library heuristic match found for content heuristic: ${h}`);
+			result_str += `content heuristic: ${h}`;
 			return_flag = true;
 			break;
 		}
 	}
 
-	return return_flag;
+	// check for webpack bundle chunks
+	let ast = acron_parse(scriptContent);
+	if(ast && is_bundle_chunk(ast)){
+		// console.log(`[Analyzer] Library heuristic match found for webpack bundle chunk at src: ${script_src}`);
+		result_str += `webpack bundle chunk`;
+		return_flag = true;
+	}
+
+	return [return_flag, result_str];
 }
 
 
@@ -273,59 +344,76 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 	
 	var library_scripts = [];
 	let scriptFiles = dirContent.filter(function( elm ) {return elm.match(/^\d+\.js$/i) && !elm.match(/\.min\.js$/i);});
+	// sort scriptFiles based on the shortname
+	scriptFiles.sort((a, b) => {
+		const numA = parseInt(a.split('.')[0]);
+		const numB = parseInt(b.split('.')[0]);
+		return numA - numB;
+	});
 	console.log('scriptFiles:', scriptFiles)
 	for(let script_short_name of scriptFiles){
-		DEBUG && console.log(`[Analyzer] Processing ${script_short_name}`)
 		let script_full_name = pathModule.join(webpageFolder, script_short_name);
 		let source_map_name = pathModule.join(webpageFolder, script_short_name + '.map');
 
-		// if possible, filter out libraries based on their src in the rendered DOM tree
+		// read script content
+		let script_content = await readFile(script_full_name);
+		let result_str = []
+
+		// Library based heuristics to see if we need to skip this script
 		if(script_short_name in scripts_mapping){
 
 			let script_object = scripts_mapping[script_short_name];
 			if(script_object['type'] === 'external'){
 				// Deprecated isLibraryScript removed, this heuristic is too strong for analyzing bundled code, which often skips the library object calls from the bundles
 				// We only filter out the direct resources from cdn sites
-				console.log("[Analyzer] External file, checking for cdn/library at", script_short_name)
 				let is_cdn_script = isCdnScript(script_object);
-				// readin the script content for library heuristics
-				let script_content = await readFile(script_full_name);
-				let is_library = isLibraryScript(script_object['src'], script_content);
-				console.log(`[Analyzer] is_cdn_script: ${is_cdn_script}, is_library: ${is_library}`)
+				// readin the script content for library heuristics				
+				let [is_library, library_result_str] = isLibraryScript(script_object['src'], script_content);
 				if((is_cdn_script || is_library) && (!disable_heuristic_skip)){
-					DEBUG && is_cdn_script && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a cdn library object`)
-					DEBUG && is_library && console.log(`[Analyzer] Skipping ${script_object['src']}: identified as a library object`)
+					DEBUG && is_cdn_script && result_str.push(`cdn library object`)
+					DEBUG && is_library && result_str.push(library_result_str)
+					DEBUG && console.log(`[Heuristic Filter] Skipping ${script_short_name} (${script_object['src']}): ${result_str.join(' | ')}`)
 					library_scripts.push(script_short_name);
 					continue;
 				}
+			}
+			else{
+				// inline script, always process
+				result_str.push(`inline script`);			
 			}			
 		}
-
-		// console.log(`[staticallyAnalyzeWebpage]: reading file ${script_full_name}`)
-		let script_content = await readFile(script_full_name);
 		
-		// search for existence of all_pattern elements in script
-		
+		// Pattern matching to see if we need to process this script
 		let has_pattern_in_script = false;		
 		if(script_content !== -1){
 			for(let pattern of all_patterns){
-				if((!globalsModule.overly_common_patterns.includes(pattern)) && (!globalsModule.js_builtin.includes(pattern)) && script_content.includes(pattern)){ 
+				// Escape special regex chars and use word boundary for identifier matching
+			const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const identifierRegex = new RegExp(`\\b${escapedPattern}\\b`);
+			if((!globalsModule.overly_common_patterns.includes(pattern)) && (!globalsModule.js_builtin.includes(pattern)) && identifierRegex.test(script_content)){
 					// balance between overly common patterns, ex: lodash '_', 
 					// skip builtin js objects too, for poc with those patterns, the existance of libobj itself will do its work 
 					// ex: $.extend(), extend is a js builtin function, we don't look for files with extend pattern, but the existence of libObj $ will do its work
-					has_pattern_in_script = true;
-					console.log(`[Analyzer] Pattern match found in ${script_short_name} for pattern: ${pattern}`)
+					has_pattern_in_script = true;					
+					result_str.push(`pattern match: "${pattern}"`);
 					break;
 				}
 			}
-		}
-		
+		}		
 		if(!has_pattern_in_script){
-			console.log(`[Analyzer] Skipping ${script_short_name}: no pattern match found`)
+			console.log(`[Heuristic Filter] Skipping ${script_short_name}: no pattern match found`)
 			continue;
 		}
+		
+		// [Test feature] Finally, skip code having more than 30000 lines, as they are mostly minified libraries
+		// let num_lines = script_content.split('\n').length;
+		// if(num_lines > 30000){
+		// 	console.log(`[Heuristic Filter] Skipping ${script_short_name}: too many lines (${num_lines})`)
+		// 	continue;
+		// }
 
-		if(script_content !== -1 && has_pattern_in_script){			
+		if(script_content !== -1 && has_pattern_in_script){		
+			console.log(`[Heuristic Filter] Processing ${script_short_name}: ${result_str.join(' | ')}`)	
 			scripts.push({
 				scriptId: script_short_name.split('.')[0],
 				source: script_content,
@@ -337,13 +425,12 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 		if(sourcemap_content != -1){
 			sourcemaps[script_short_name] = JSON.parse(sourcemap_content);
 		}
-
-		// DEBUG && console.log(`[Analyzer] scripts ${script_short_name}: has_pattern_in_script: ${has_pattern_in_script}`)
 	}
 
 	let library_scripts_path_name = pathModule.join(webpageFolder, 'library_scripts.json');
 	fs.writeFileSync(library_scripts_path_name, JSON.stringify(library_scripts));
 	DEBUG && console.log(`[Analyzer] scripts ${scripts.length}`)
+	DEBUG && console.log(`Final scripts to be analyzed:`, scripts.map(s => `${s.scriptId}.js`))
 	/*
 	*  ----------------------------------------------
 	*  [START] 
@@ -379,7 +466,12 @@ async function staticallyAnalyzeWebpage(url, webpageFolder){
 
 	DEBUG && console.log('[StaticAnalysis] HPG construction.');
 	let timeoutPDG = await SourceSinkAnalyzerInstance.api.buildInitializedModels();
-	DEBUG && console.log('[StaticAnalysis] AST/CFG/PDG done.')
+	if(timeoutPDG){
+		DEBUG && console.log('[StaticAnalysis] PDG construction timed out');
+	}
+	else{
+		DEBUG && console.log('[StaticAnalysis] AST/CFG/PDG done.')
+	}
 
 	const basicHpgConstructionTime = hpgConstructionTimer.get(); // AST, CFG, PDG
 	hpgConstructionTimer.end();

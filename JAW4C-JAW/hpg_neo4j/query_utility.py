@@ -93,32 +93,48 @@ def get_node_by_id(tx, node_id):
 	return None
 
 
+# -------------------------------------------------------------------------- #
+#		Caching for get_ast_topmost
+# -------------------------------------------------------------------------- #
+# Cache mapping node ID -> topmost CFG-level ancestor node
+_ast_topmost_cache = {}
+
+def ast_topmost_cache_clear():
+	"""Clear the get_ast_topmost cache. Call between analysis runs or when graph changes."""
+	global _ast_topmost_cache
+	_ast_topmost_cache = {}
+
+def ast_topmost_cache_size():
+	"""Return current cache size for debugging."""
+	return len(_ast_topmost_cache)
+
+# Module-level constant: computed once at import time, using frozenset for O(1) lookup
+_CFG_LEVEL_STATEMENTS_SET = frozenset([
+	"EmptyStatement",
+	"DebuggerStatement",
+	"ExpressionStatement",
+	"VariableDeclaration",
+	"ReturnStatement",
+	"LabeledStatement",
+	"BreakStatement",
+	"ContinueStatement",
+	"IfStatement",
+	"SwitchStatement",
+	"WhileStatement",
+	"DoWhileStatement",
+	"ForStatement",
+	"ForInStatement",
+	"ThrowStatement",
+	"TryStatement",
+	"WithStatement",
+	"FunctionDeclaration",
+	"FunctionExpression",
+	"ArrowFunctionExpression",
+])
+
 def get_cfg_level_nodes_for_statements():
-
-	esprimaCFGLevelNodeTypes= [
-		"EmptyStatement",
-		"DebuggerStatement",
-		"ExpressionStatement",
-		"VariableDeclaration",
-		"ReturnStatement",
-		"LabeledStatement",
-	    "BreakStatement",
-	    "ContinueStatement",
-	    "IfStatement",
-	    "SwitchStatement",
-	    "WhileStatement",
-	    "DoWhileStatement",
-	    "ForStatement",
-	    "ForInStatement",
-	    "ThrowStatement",
-	    "TryStatement",
-	    "WithStatement",
-	    "FunctionDeclaration", # I need this to get the initial declaration
-		'FunctionExpression', # I need this to get the initial declaration
-		'ArrowFunctionExpression', # I need this to get the initial declaration
-	]
-
-	return esprimaCFGLevelNodeTypes
+	"""Returns list for backward compatibility with existing code."""
+	return list(_CFG_LEVEL_STATEMENTS_SET)
 
 
 def get_ast_parent(tx, node):
@@ -182,33 +198,42 @@ def get_ast_topmost(tx, node):
 	@param {neo4j-node} node
 	@return topmost parent of an AST node
 	"""
-	CFG_LEVEL_STATEMENTS = get_cfg_level_nodes_for_statements()
+	node_id = node["Id"]
 
+	# Check cache first
+	if node_id in _ast_topmost_cache:
+		return _ast_topmost_cache[node_id]
+
+	# Use module-level frozenset for O(1) lookup instead of creating list each call
 	if "Type" in node:
 		node_type = node["Type"]
 	else:
-		node = get_node_by_id(tx, node["Id"]) # re-assign the input parameter here
+		node = get_node_by_id(tx, node_id) # re-assign the input parameter here
 		node_type = node["Type"]
 
-	if node_type in CFG_LEVEL_STATEMENTS:
+	if node_type in _CFG_LEVEL_STATEMENTS_SET:
+		_ast_topmost_cache[node_id] = node
 		return node
 
-	
+
 	done = False
 	iterator = node
+	parent = None  # fix unbound variable warning
 	while not done:
-	
+
 		parent = get_ast_parent(tx, iterator)
 		if parent is None:
 			done = True
+			_ast_topmost_cache[node_id] = iterator
 			return iterator
 
-		if parent['Type'] in CFG_LEVEL_STATEMENTS:
+		if parent['Type'] in _CFG_LEVEL_STATEMENTS_SET:
 			done = True
 			break
 		else:
 			iterator = parent # loop
 
+	_ast_topmost_cache[node_id] = parent
 	return parent
 
 

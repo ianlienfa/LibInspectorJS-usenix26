@@ -55,7 +55,7 @@ def start_model_construction(website_url, iterative_output='false', memory=None,
 	cve_vuln_static_analysis_driver_program = os.path.join(cve_vuln_analyses_command_cwd, "static_analysis.js")
 
 	if debug:
-		debug_flag = "--inspect"
+		debug_flag = "--inspect-wait"
 		# disable_heuristic_skip = "--disable_heuristic_skip=True"
 		disable_heuristic_skip = ""
 	else:
