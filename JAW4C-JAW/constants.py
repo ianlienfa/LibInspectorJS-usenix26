@@ -762,7 +762,7 @@ JS_DEFINED_VARS = list(set([
 
 
 # Reserved words for POC parsing
-POC_PRESERVED = ['WILDCARD', 'LIBOBJ', 'PAYLOAD']
+POC_PRESERVED = ['WILDCARD', 'LIBOBJ', 'PAYLOAD', 'ARG', 'LIBJQ']
 
 class PreservedKeys(StrEnum):
     """

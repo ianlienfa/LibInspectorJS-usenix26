@@ -1681,7 +1681,8 @@ def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
 		@param {object} vuln_info: vulnerability information containing 'poc_str', 'mod', and 'location'
 		@return {object} parsed JSON object from the flattened POC
 		"""
-		if 'LIBOBJ' not in vuln_info['poc_str']:
+
+		if 'LIBOBJ' not in vuln_info['poc_str'] and vuln_info['jq'] != True:
 			raise RuntimeError("poc_str format error")
 		
 		

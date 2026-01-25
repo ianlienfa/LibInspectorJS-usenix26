@@ -345,6 +345,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 
 			# Detection result and DB querying
 			vuln_list = [] # we often time only do query once
+			mod_lib_mapping = {}
 			all_patterns = set()
 			vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
 			
@@ -364,12 +365,13 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 					os.remove(ground_truth_pathname)
 
 				
-				for affiliatedurl, _ in lib_det_res.items():					
+				if(len(lib_det_res.keys()) > 1):
+					LOGGER.error(f"Multiple affiliated URLs found in detection result for {url}, unresolving some of them...")
+				for affiliatedurl, _ in lib_det_res.items():						
 					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
 					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
 
-					# Build vulnerability list
-					
+					# Build vulnerability list					
 					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
 						for detection_info in matching_obj_lst:
 							vuln = None
