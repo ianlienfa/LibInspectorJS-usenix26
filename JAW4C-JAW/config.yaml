@@ -68,9 +68,9 @@ vuln_db:
 # 3. static analysis configuration
 staticpass:
   # timeout per vulnerability (analyze_hpg / run_traversals) in seconds
-  poc_analysis_timeout: 10 # 10 s
-  # timeout for full analysis of one webpage in seconds
-  analysis_timeout: 30 # 30 s
+  poc_analysis_timeout: 1500 # 25 min
+  # timeout for graph-based querying (analysis) of each site in seconds
+  analysis_timeout: 3600 # 1 hr
   # enforce a max per webpage timeout for graph generation (in seconds)
   pagetimeout: 1200 # 20 min
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
