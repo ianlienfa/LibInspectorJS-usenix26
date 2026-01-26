@@ -11,8 +11,8 @@ testbed:
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
-  from_row: 2500  #2936 the debugging site
-  to_row: 2936 # 2936 # row number or 'end'
+  from_row: 2959  #2936 the debugging site
+  to_row: 2960 # 2936 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -67,9 +67,11 @@ vuln_db:
 
 # 3. static analysis configuration
 staticpass:
-  # time budget for static analysis of each page running taint static analysis (in seconds)
-  sitetimeout: 3000 # 50 min
-  # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
+  # timeout per vulnerability (analyze_hpg / run_traversals) in seconds
+  poc_analysis_timeout: 600 # 10 min
+  # timeout for full analysis of one webpage in seconds
+  analysis_timeout: 10
+  # enforce a max per webpage timeout for graph generation (in seconds)
   pagetimeout: 1200 # 20 min
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false

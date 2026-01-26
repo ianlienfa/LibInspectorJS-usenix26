@@ -2598,8 +2598,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			logger.info(f"Early halt due to none matching for construct: {str(e)}")
 			logger.info(f"poc['constructs']: {poc['constructs']}")
 		except Exception as e:
-			# logger.error(f"Exception in processPocMatch: {e}")
-			# breakpoint()
+			logger.error(f"Exception in processPocMatch: {e}")
 			raise e
 					
 		item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]

@@ -461,6 +461,15 @@ function clearSelections() {
     document.getElementById('search-input').value = '';
     document.getElementById('time-start').value = '';
     document.getElementById('time-end').value = '';
+    const hashStartEl = document.getElementById('hash-start');
+    const hashEndEl = document.getElementById('hash-end');
+    if (hashStartEl) hashStartEl.value = '';
+    if (hashEndEl) hashEndEl.value = '';
+    const rangeError = document.getElementById('hash-range-error');
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
     currentSearchQuery = '';
     fileContentSearchResults.clear();
     loadPage(1); // Reload from page 1 with no selections
@@ -477,20 +486,102 @@ function clearTimeSelection() {
     loadPage(1); // Reload without time filter
 }
 
-// Set time from clicking a site's timestamp
-function setTimeEnd(timestamp) {
+function formatForDatetimeLocal(timestamp) {
+    if (!timestamp) return '';
     const date = new Date(timestamp);
-    // Format for datetime-local input: YYYY-MM-DDTHH:MM
-    const formatted = date.getFullYear() + '-' +
+    return date.getFullYear() + '-' +
         String(date.getMonth() + 1).padStart(2, '0') + '-' +
         String(date.getDate()).padStart(2, '0') + 'T' +
         String(date.getHours()).padStart(2, '0') + ':' +
         String(date.getMinutes()).padStart(2, '0');
-    document.getElementById('time-end').value = formatted;
+}
+
+function swapTimeRange() {
+    const startEl = document.getElementById('time-start');
+    const endEl = document.getElementById('time-end');
+    if (!startEl || !endEl) {
+        return;
+    }
+    const tmp = startEl.value;
+    startEl.value = endEl.value;
+    endEl.value = tmp;
+    loadPage(1);
+}
+
+// Set time from clicking a site's timestamp
+function setTimeEnd(timestamp) {
+    document.getElementById('time-end').value = formatForDatetimeLocal(timestamp);
+}
+
+function switchRangeMode(mode) {
+    const timePanel = document.getElementById('time-range-panel');
+    const hashPanel = document.getElementById('hash-range-panel');
+    const timeBtn = document.getElementById('range-time-btn');
+    const hashBtn = document.getElementById('range-hash-btn');
+    const rangeError = document.getElementById('hash-range-error');
+    if (!timePanel || !hashPanel || !timeBtn || !hashBtn) {
+        return;
+    }
+    const isTime = mode === 'time';
+    currentRangeMode = isTime ? 'time' : 'hash';
+    timePanel.classList.toggle('hidden', !isTime);
+    hashPanel.classList.toggle('hidden', isTime);
+    timeBtn.classList.toggle('active', isTime);
+    hashBtn.classList.toggle('active', !isTime);
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+}
+
+function applyHashRange() {
+    const startInput = document.getElementById('hash-start');
+    const endInput = document.getElementById('hash-end');
+    const rangeError = document.getElementById('hash-range-error');
+    if (!startInput || !endInput) {
+        return;
+    }
+
+    const startHash = startInput.value.trim();
+    const endHash = endInput.value.trim();
+    if (!startHash || !endHash) {
+        if (rangeError) {
+            rangeError.textContent = 'Please enter both start and end hashes.';
+            rangeError.style.display = 'block';
+        }
+        return;
+    }
+
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+    loadPage(1);
+}
+
+function clearHashRange() {
+    const startInput = document.getElementById('hash-start');
+    const endInput = document.getElementById('hash-end');
+    const rangeError = document.getElementById('hash-range-error');
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+    loadPage(1);
 }
 
 // View mode switching
 let currentView = 'normal';
+let currentRangeMode = 'time';
+
+function updateNotesVisibility(view) {
+    const noteElements = document.querySelectorAll('.site-note-inline');
+    noteElements.forEach(note => {
+        note.style.display = view === 'notes' ? 'block' : 'none';
+    });
+}
 
 function switchView(view) {
     currentView = view;
@@ -500,10 +591,7 @@ function switchView(view) {
     document.getElementById('view-notes-btn').classList.toggle('active', view === 'notes');
 
     // Toggle inline notes visibility
-    const noteElements = document.querySelectorAll('.site-note-inline');
-    noteElements.forEach(note => {
-        note.style.display = view === 'notes' ? 'block' : 'none';
-    });
+    updateNotesVisibility(view);
 
     // In notes view, auto-enable the "Has Notes" filter and reload
     if (view === 'notes') {
@@ -1103,8 +1191,9 @@ function formatDateTime(timestamp) {
 // Function to create site item HTML from site data
 function createSiteItemHTML(site) {
     const urlPathHTML = site.urlPath ? `<div class="site-path">${escapeHtml(site.urlPath)}</div>` : '';
+    const noteDisplay = currentView === 'notes' ? 'block' : 'none';
     const noteHTML = (site.memo && site.memo.trim()) ? `
-        <div class="site-note-inline" style="display: none;">
+        <div class="site-note-inline" style="display: ${noteDisplay};">
             <div class="note-label">📝 Note:</div>
             <div class="note-content">${escapeHtml(site.memo)}</div>
         </div>
@@ -1273,14 +1362,25 @@ function buildQueryParams() {
         params.set('hasNotes', 'true');
     }
 
-    // Add time range parameters
-    const timeStart = document.getElementById('time-start')?.value;
-    const timeEnd = document.getElementById('time-end')?.value;
-    if (timeStart) {
-        params.set('timeStart', new Date(timeStart).getTime().toString());
-    }
-    if (timeEnd) {
-        params.set('timeEnd', new Date(timeEnd).getTime().toString());
+    if (currentRangeMode === 'hash') {
+        const hashStart = document.getElementById('hash-start')?.value?.trim();
+        const hashEnd = document.getElementById('hash-end')?.value?.trim();
+        if (hashStart) {
+            params.set('hashStart', hashStart);
+        }
+        if (hashEnd) {
+            params.set('hashEnd', hashEnd);
+        }
+    } else {
+        // Add time range parameters
+        const timeStart = document.getElementById('time-start')?.value;
+        const timeEnd = document.getElementById('time-end')?.value;
+        if (timeStart) {
+            params.set('timeStart', new Date(timeStart).getTime().toString());
+        }
+        if (timeEnd) {
+            params.set('timeEnd', new Date(timeEnd).getTime().toString());
+        }
     }
 
     return params.toString();
@@ -1304,7 +1404,23 @@ async function loadPage(page) {
         const queryParams = buildQueryParams();
         const url = `/api/search?page=${page}&limit=${SITES_PER_PAGE}${queryParams ? '&' + queryParams : ''}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData && errorData.error) {
+                    errorMessage = errorData.error;
+                }
+            } catch (parseError) {
+                // Ignore JSON parsing errors
+            }
+            const rangeError = document.getElementById('hash-range-error');
+            if (rangeError && currentRangeMode === 'hash') {
+                rangeError.textContent = errorMessage;
+                rangeError.style.display = 'block';
+            }
+            throw new Error(errorMessage);
+        }
 
         const data = await response.json();
 
@@ -1315,6 +1431,13 @@ async function loadPage(page) {
 
         // Store sites
         allLoadedSites = data.sites;
+
+        // Clear any hash range error on success
+        const rangeError = document.getElementById('hash-range-error');
+        if (rangeError) {
+            rangeError.style.display = 'none';
+            rangeError.textContent = '';
+        }
 
         // Clear and render the sites
         const siteList = document.getElementById('site-list');
@@ -1329,6 +1452,9 @@ async function loadPage(page) {
 
         // Update visible count
         updateVisibleCount();
+
+        // Ensure notes visibility matches current view after re-render
+        updateNotesVisibility(currentView);
 
     } catch (error) {
         console.error('Error loading sites:', error);
@@ -1457,6 +1583,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load first page
     loadPage(1);
+
+    // Default range mode
+    switchRangeMode('time');
 
     // Add keyboard navigation for page input
     const pageInput = document.getElementById('page-input');

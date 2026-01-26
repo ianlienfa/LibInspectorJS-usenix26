@@ -981,7 +981,10 @@ app.get('/api/search', async (req, res) => {
             hasNotes,
             // Time range parameters (milliseconds)
             timeStart,
-            timeEnd
+            timeEnd,
+            // Hash range parameters
+            hashStart,
+            hashEnd
         } = req.query;
 
         const pageNum = parseInt(page, 10);
@@ -993,7 +996,8 @@ app.get('/api/search', async (req, res) => {
         }
 
         const data = await getCachedSiteData();
-        let { sites } = data;
+        const allSites = data.sites;
+        let sites = allSites;
 
         // Filter by search term
         if (searchTerm) {
@@ -1035,18 +1039,52 @@ app.get('/api/search', async (req, res) => {
             sites = sites.filter(site => site.memo && site.memo.trim());
         }
 
-        // Apply time range filter
-        if (timeStart) {
-            const startMs = parseInt(timeStart, 10);
-            if (!isNaN(startMs)) {
-                sites = sites.filter(site => site.modifiedTime >= startMs);
+        // Resolve hash range to a time range (server-side)
+        let resolvedTimeStart = null;
+        let resolvedTimeEnd = null;
+        if (hashStart || hashEnd) {
+            if (!hashStart || !hashEnd) {
+                return res.status(400).json({ error: 'Both hashStart and hashEnd are required' });
             }
+            const resolveHashPrefix = (prefix) => {
+                const normalized = String(prefix).toLowerCase();
+                const matches = allSites.filter(site => String(site.hash).toLowerCase().startsWith(normalized));
+                if (matches.length === 0) {
+                    return { error: `No match for hash prefix: ${prefix}` };
+                }
+                if (matches.length > 1) {
+                    return { error: `Hash prefix is not unique: ${prefix}` };
+                }
+                return { site: matches[0] };
+            };
+
+            const startResult = resolveHashPrefix(hashStart);
+            if (startResult.error) {
+                return res.status(400).json({ error: startResult.error });
+            }
+            const endResult = resolveHashPrefix(hashEnd);
+            if (endResult.error) {
+                return res.status(400).json({ error: endResult.error });
+            }
+            const startSite = startResult.site;
+            const endSite = endResult.site;
+            const startMs = startSite.modifiedTime;
+            const endMs = endSite.modifiedTime;
+            if (!startMs || !endMs) {
+                return res.status(400).json({ error: 'hashStart/hashEnd missing modified time' });
+            }
+            resolvedTimeStart = Math.min(startMs, endMs);
+            resolvedTimeEnd = Math.max(startMs, endMs);
         }
-        if (timeEnd) {
-            const endMs = parseInt(timeEnd, 10);
-            if (!isNaN(endMs)) {
-                sites = sites.filter(site => site.modifiedTime <= endMs);
-            }
+
+        // Apply time range filter (explicit or resolved from hashes)
+        const startMsValue = resolvedTimeStart ?? (timeStart ? parseInt(timeStart, 10) : null);
+        const endMsValue = resolvedTimeEnd ?? (timeEnd ? parseInt(timeEnd, 10) : null);
+        if (startMsValue && !isNaN(startMsValue)) {
+            sites = sites.filter(site => site.modifiedTime >= startMsValue);
+        }
+        if (endMsValue && !isNaN(endMsValue)) {
+            sites = sites.filter(site => site.modifiedTime <= endMsValue);
         }
 
         // Sites are already sorted by modifiedTime (newest first) from getSiteData()

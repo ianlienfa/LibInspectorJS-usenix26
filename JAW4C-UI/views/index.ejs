@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAW4C Analysis Dashboard</title>
-    <link rel="stylesheet" href="/style.css?v=3">
+    <link rel="stylesheet" href="/style.css?v=7">
 </head>
 <body>
     <div class="container">
@@ -43,21 +43,29 @@
 
         <!-- Filter Controls -->
         <section class="filter-section">
-            <h3>Filters & Search</h3>
-            <div class="search-container">
-                <div class="search-mode-selector">
-                    <label class="search-mode-option">
-                        <input type="radio" name="search-mode" value="url" checked onchange="switchSearchMode()">
-                        <span>URL/Hash</span>
-                    </label>
-                    <label class="search-mode-option">
-                        <input type="radio" name="search-mode" value="content" onchange="switchSearchMode()">
-                        <span>File Content (Regex)</span>
-                    </label>
+            <div class="filter-header">
+                <h3>Filters & Search</h3>
+                <div class="results-count">
+                    Showing <span id="visible-count">0</span> of <span id="total-count"><%= totalSites %></span> sites
                 </div>
-                <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeydown="handleSearchKeydown(event)">
-                    <button id="search-btn" class="search-execute-btn" onclick="executeSearch()">Search</button>
+            </div>
+
+            <div class="search-container">
+                <div class="search-top-row">
+                    <div class="search-mode-selector">
+                        <label class="search-mode-option">
+                            <input type="radio" name="search-mode" value="url" checked onchange="switchSearchMode()">
+                            <span>URL/Hash</span>
+                        </label>
+                        <label class="search-mode-option">
+                            <input type="radio" name="search-mode" value="content" onchange="switchSearchMode()">
+                            <span>File Content (Regex)</span>
+                        </label>
+                    </div>
+                    <div class="search-box">
+                        <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeydown="handleSearchKeydown(event)">
+                        <button id="search-btn" class="search-execute-btn" onclick="executeSearch()">Search</button>
+                    </div>
                 </div>
                 <div id="search-options" class="search-options" style="display: none;">
                     <input type="text" id="file-pattern" placeholder="File pattern (e.g., *.js or 0.js)" value="*.js">
@@ -71,98 +79,136 @@
                     </label>
                 </div>
             </div>
-            <div class="filter-controls">
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-flows" onchange="reloadWithFilters()">
-                    <span>Has Flows</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-lib-detection" onchange="reloadWithFilters()">
-                    <span>Has lib.detection.json</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-sink-flows" onchange="reloadWithFilters()">
-                    <span>Has sink.flows.out</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-vuln-out" onchange="reloadWithFilters()">
-                    <span>Has Vulnerabilities</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-error-log" onchange="reloadWithFilters()">
-                    <span>Has errors.log</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-warning-log" onchange="reloadWithFilters()">
-                    <span>Has warnings.log</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-reviewed" onchange="reloadWithFilters()">
-                    <span>Reviewed</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-unreviewed" onchange="reloadWithFilters()">
-                    <span>Not Reviewed</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-vulnerable" onchange="reloadWithFilters()">
-                    <span>Marked Vulnerable</span>
-                </label>
-                <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-has-notes" onchange="reloadWithFilters()">
-                    <span>Has Notes</span>
-                </label>
-                <button onclick="clearSelections()" class="clear-filters-btn">Clear All Selections</button>
-            </div>
-            <div class="time-selection-controls">
-                <label>Time Range:</label>
-                <div class="time-inputs">
-                    <input type="datetime-local" id="time-start" placeholder="Start time (optional)">
-                    <span class="time-separator">to</span>
-                    <input type="datetime-local" id="time-end" placeholder="End time (optional)">
+
+            <div class="filters-wrapper">
+                <h4>Filter Criteria</h4>
+                <div class="filters-grid">
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-flows" onchange="reloadWithFilters()">
+                        <span>Has Flows</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-sink-flows" onchange="reloadWithFilters()">
+                        <span>Has sink.flows.out</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-vuln-out" onchange="reloadWithFilters()">
+                        <span>Has Vulnerabilities</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-lib-detection" onchange="reloadWithFilters()">
+                        <span>Has lib.detection.json</span>
+                    </label>
+                    
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-error-log" onchange="reloadWithFilters()">
+                        <span>Has errors.log</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-warning-log" onchange="reloadWithFilters()">
+                        <span>Has warnings.log</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-has-notes" onchange="reloadWithFilters()">
+                        <span>Has Notes</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-vulnerable" onchange="reloadWithFilters()">
+                        <span>Marked Vulnerable</span>
+                    </label>
+                    
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-reviewed" onchange="reloadWithFilters()">
+                        <span>Reviewed</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-unreviewed" onchange="reloadWithFilters()">
+                        <span>Not Reviewed</span>
+                    </label>
                 </div>
-                <button onclick="applyTimeSelection()" class="apply-time-btn">Apply Time</button>
-                <button onclick="clearTimeSelection()" class="clear-time-btn">Clear</button>
-                <span class="time-hint">(Click a site's timestamp to set as end time)</span>
+                <div class="filter-actions">
+                    <button onclick="clearSelections()" class="clear-filters-btn">Clear All Filters</button>
+                </div>
             </div>
-            <div class="view-controls">
-                <label>View Mode:</label>
-                <button id="view-normal-btn" class="view-btn active" onclick="switchView('normal')">Normal</button>
-                <button id="view-notes-btn" class="view-btn" onclick="switchView('notes')">Notes View</button>
+
+            <div class="controls-row">
+                <div class="time-selection-controls">
+                    <label>Time Range:</label>
+                    <div class="range-toggle">
+                        <button class="range-toggle-btn active" id="range-time-btn" onclick="switchRangeMode('time')">Time</button>
+                        <button class="range-toggle-btn" id="range-hash-btn" onclick="switchRangeMode('hash')">Hash</button>
+                    </div>
+                    <div class="range-panel" id="time-range-panel">
+                        <div class="time-inputs">
+                            <input type="datetime-local" id="time-start" placeholder="Start time">
+                            <span class="time-separator">to</span>
+                            <input type="datetime-local" id="time-end" placeholder="End time">
+                        </div>
+                        <div class="time-actions">
+                            <button onclick="swapTimeRange()" class="swap-time-btn" title="Swap start and end">Swap</button>
+                            <button onclick="applyTimeSelection()" class="apply-time-btn">Apply</button>
+                            <button onclick="clearTimeSelection()" class="clear-time-btn">Clear</button>
+                        </div>
+                        <span class="time-hint">(Click site timestamp to set end time)</span>
+                    </div>
+                    <div class="range-panel hidden" id="hash-range-panel">
+                        <div class="hash-inputs">
+                            <input type="text" id="hash-start" placeholder="Start hash">
+                            <span class="time-separator">to</span>
+                            <input type="text" id="hash-end" placeholder="End hash">
+                        </div>
+                        <div class="range-error" id="hash-range-error" style="display: none;"></div>
+                        <div class="time-actions">
+                            <button onclick="applyHashRange()" class="apply-time-btn">Apply</button>
+                            <button onclick="clearHashRange()" class="clear-time-btn">Clear</button>
+                        </div>
+                        <span class="time-hint">Selects by modified time of the two hashes.</span>
+                    </div>
+                </div>
+
+                <div class="display-controls">
+                    <div class="view-controls">
+                        <label>View:</label>
+                        <div class="btn-group">
+                            <button id="view-normal-btn" class="view-btn active" onclick="switchView('normal')">Normal</button>
+                            <button id="view-notes-btn" class="view-btn" onclick="switchView('notes')">Notes</button>
+                        </div>
+                    </div>
+                    <div class="sort-controls">
+                        <label>Sort:</label>
+                        <div class="select-wrapper">
+                            <select id="sort-select" onchange="applySorting()">
+                                <option value="default">Default</option>
+                                <optgroup label="Last Modified">
+                                    <option value="modified-desc" selected>Newest First</option>
+                                    <option value="modified-asc">Oldest First</option>
+                                </optgroup>
+                                <optgroup label="Name">
+                                    <option value="name-asc">A-Z</option>
+                                    <option value="name-desc">Z-A</option>
+                                </optgroup>
+                                <optgroup label="Flows">
+                                    <option value="flows-desc">High to Low</option>
+                                    <option value="flows-asc">Low to High</option>
+                                </optgroup>
+                                <optgroup label="Vulnerable Libraries">
+                                    <option value="vulns-desc">High to Low</option>
+                                    <option value="vulns-asc">Low to High</option>
+                                </optgroup>
+                                <optgroup label="POC Matches">
+                                    <option value="pocs-desc">High to Low</option>
+                                    <option value="pocs-asc">Low to High</option>
+                                </optgroup>
+                                <optgroup label="JS Files">
+                                    <option value="js-count-desc">High to Low</option>
+                                    <option value="js-count-asc">Low to High</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="sort-controls">
-                <label>Sort by:</label>
-                <select id="sort-select" onchange="applySorting()">
-                    <option value="default">Default</option>
-                    <optgroup label="Last Modified">
-                        <option value="modified-desc" selected>Newest First</option>
-                        <option value="modified-asc">Oldest First</option>
-                    </optgroup>
-                    <optgroup label="Name">
-                        <option value="name-asc">A-Z</option>
-                        <option value="name-desc">Z-A</option>
-                    </optgroup>
-                    <optgroup label="Flows">
-                        <option value="flows-desc">High to Low</option>
-                        <option value="flows-asc">Low to High</option>
-                    </optgroup>
-                    <optgroup label="Vulnerable Libraries">
-                        <option value="vulns-desc">High to Low</option>
-                        <option value="vulns-asc">Low to High</option>
-                    </optgroup>
-                    <optgroup label="POC Matches">
-                        <option value="pocs-desc">High to Low</option>
-                        <option value="pocs-asc">Low to High</option>
-                    </optgroup>
-                    <optgroup label="JS Files">
-                        <option value="js-count-desc">High to Low</option>
-                        <option value="js-count-asc">Low to High</option>
-                    </optgroup>
-                </select>
-            </div>
-            <div class="results-count">
-                Showing <span id="visible-count">0</span> of <span id="total-count"><%= totalSites %></span> sites
-            </div>
+
             <div class="pagination-controls">
                 <button id="prev-page-btn" onclick="prevPage()" disabled>← Prev</button>
                 <div class="page-numbers" id="page-numbers-top">

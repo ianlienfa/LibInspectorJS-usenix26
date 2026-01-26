@@ -107,6 +107,7 @@ NEO4J_DB_PATH = "/Users/ian/cmu/Cylab-JSBundle/neo4j-community-4.4.44/data/datab
 
 # settings for state scripts
 STATES_SCRIPT_FILE_NAME = "Auth"
+CRAWL_LOG_FOLDER_SUFFIX = "_crawl"
 
 
 # ------------------------------------------------------------------------------------------ #
