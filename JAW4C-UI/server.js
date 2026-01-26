@@ -961,6 +961,114 @@ app.get('/api/sites', async (req, res) => {
     }
 });
 
+// API endpoint for server-side search and filtering
+app.get('/api/search', async (req, res) => {
+    try {
+        const {
+            q = '',
+            page = 1,
+            limit = 50,
+            // Filter parameters
+            hasFlows,
+            hasLibDetection,
+            hasSinkFlows,
+            hasVulnOut,
+            hasErrorLog,
+            hasWarningLog,
+            reviewed,
+            unreviewed,
+            vulnerable,
+            hasNotes,
+            // Time range parameters (milliseconds)
+            timeStart,
+            timeEnd
+        } = req.query;
+
+        const pageNum = parseInt(page, 10);
+        const limitNum = parseInt(limit, 10);
+        const searchTerm = q.toLowerCase().trim();
+
+        if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum <= 0 || limitNum > 200) {
+            return res.status(400).json({ error: 'Invalid pagination parameters' });
+        }
+
+        const data = await getCachedSiteData();
+        let { sites } = data;
+
+        // Filter by search term
+        if (searchTerm) {
+            sites = sites.filter(site => {
+                const searchText = (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase();
+                return searchText.includes(searchTerm);
+            });
+        }
+
+        // Apply checkbox filters
+        if (hasFlows === 'true') {
+            sites = sites.filter(site => site.hasFlows);
+        }
+        if (hasLibDetection === 'true') {
+            sites = sites.filter(site => site.hasLibDetection);
+        }
+        if (hasSinkFlows === 'true') {
+            sites = sites.filter(site => site.hasSinkFlows);
+        }
+        if (hasVulnOut === 'true') {
+            sites = sites.filter(site => site.hasVulnOut);
+        }
+        if (hasErrorLog === 'true') {
+            sites = sites.filter(site => site.hasErrorLog);
+        }
+        if (hasWarningLog === 'true') {
+            sites = sites.filter(site => site.hasWarningLog);
+        }
+        if (reviewed === 'true') {
+            sites = sites.filter(site => site.reviewed);
+        }
+        if (unreviewed === 'true') {
+            sites = sites.filter(site => !site.reviewed);
+        }
+        if (vulnerable === 'true') {
+            sites = sites.filter(site => site.vulnerable);
+        }
+        if (hasNotes === 'true') {
+            sites = sites.filter(site => site.memo && site.memo.trim());
+        }
+
+        // Apply time range filter
+        if (timeStart) {
+            const startMs = parseInt(timeStart, 10);
+            if (!isNaN(startMs)) {
+                sites = sites.filter(site => site.modifiedTime >= startMs);
+            }
+        }
+        if (timeEnd) {
+            const endMs = parseInt(timeEnd, 10);
+            if (!isNaN(endMs)) {
+                sites = sites.filter(site => site.modifiedTime <= endMs);
+            }
+        }
+
+        // Sites are already sorted by modifiedTime (newest first) from getSiteData()
+        const total = sites.length;
+        const totalPages = Math.ceil(total / limitNum) || 1;
+        const offset = (pageNum - 1) * limitNum;
+        const paginatedSites = sites.slice(offset, offset + limitNum);
+
+        res.json({
+            sites: paginatedSites,
+            total,
+            page: pageNum,
+            limit: limitNum,
+            totalPages,
+            hasMore: pageNum < totalPages
+        });
+    } catch (error) {
+        console.error('Error searching sites:', error);
+        res.status(500).json({ error: 'Failed to search sites' });
+    }
+});
+
 // File size threshold for chunked loading (1MB)
 const CHUNK_SIZE_THRESHOLD = 1024 * 1024;
 

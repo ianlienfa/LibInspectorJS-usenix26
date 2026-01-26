@@ -56,8 +56,8 @@
                     </label>
                 </div>
                 <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeyup="handleSearchInput()">
-                    <button id="search-btn" class="search-execute-btn" style="display: none;" onclick="executeFileContentSearch()">Search</button>
+                    <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeydown="handleSearchKeydown(event)">
+                    <button id="search-btn" class="search-execute-btn" onclick="executeSearch()">Search</button>
                 </div>
                 <div id="search-options" class="search-options" style="display: none;">
                     <input type="text" id="file-pattern" placeholder="File pattern (e.g., *.js or 0.js)" value="*.js">
@@ -73,46 +73,57 @@
             </div>
             <div class="filter-controls">
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-flows" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-flows" onchange="reloadWithFilters()">
                     <span>Has Flows</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-lib-detection" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-lib-detection" onchange="reloadWithFilters()">
                     <span>Has lib.detection.json</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-sink-flows" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-sink-flows" onchange="reloadWithFilters()">
                     <span>Has sink.flows.out</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-vuln-out" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-vuln-out" onchange="reloadWithFilters()">
                     <span>Has Vulnerabilities</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-error-log" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-error-log" onchange="reloadWithFilters()">
                     <span>Has errors.log</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-warning-log" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-warning-log" onchange="reloadWithFilters()">
                     <span>Has warnings.log</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-reviewed" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-reviewed" onchange="reloadWithFilters()">
                     <span>Reviewed</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-unreviewed" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-unreviewed" onchange="reloadWithFilters()">
                     <span>Not Reviewed</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-vulnerable" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-vulnerable" onchange="reloadWithFilters()">
                     <span>Marked Vulnerable</span>
                 </label>
                 <label class="filter-checkbox">
-                    <input type="checkbox" id="filter-has-notes" onchange="applyFilters()">
+                    <input type="checkbox" id="filter-has-notes" onchange="reloadWithFilters()">
                     <span>Has Notes</span>
                 </label>
-                <button onclick="clearFilters()" class="clear-filters-btn">Clear All Filters</button>
+                <button onclick="clearSelections()" class="clear-filters-btn">Clear All Selections</button>
+            </div>
+            <div class="time-selection-controls">
+                <label>Time Range:</label>
+                <div class="time-inputs">
+                    <input type="datetime-local" id="time-start" placeholder="Start time (optional)">
+                    <span class="time-separator">to</span>
+                    <input type="datetime-local" id="time-end" placeholder="End time (optional)">
+                </div>
+                <button onclick="applyTimeSelection()" class="apply-time-btn">Apply Time</button>
+                <button onclick="clearTimeSelection()" class="clear-time-btn">Clear</button>
+                <span class="time-hint">(Click a site's timestamp to set as end time)</span>
             </div>
             <div class="view-controls">
                 <label>View Mode:</label>
@@ -152,6 +163,17 @@
             <div class="results-count">
                 Showing <span id="visible-count">0</span> of <span id="total-count"><%= totalSites %></span> sites
             </div>
+            <div class="pagination-controls">
+                <button id="prev-page-btn" onclick="prevPage()" disabled>← Prev</button>
+                <div class="page-numbers" id="page-numbers-top">
+                    <!-- Page numbers will be generated by JavaScript -->
+                </div>
+                <button id="next-page-btn" onclick="nextPage()">Next →</button>
+                <div class="page-jump">
+                    Go to: <input type="number" id="page-input" value="1" min="1" onchange="goToPageInput()">
+                </div>
+                <span class="page-range" id="page-range"></span>
+            </div>
         </section>
 
         <div id="loading-indicator" class="loading-indicator" style="display: none;">
@@ -160,129 +182,17 @@
         </div>
 
         <section class="site-list" id="site-list">
-            <% sites.forEach(site => { %>
-                <div class="site-item"
-                     data-modified-time="<%= site.modifiedTime %>"
-                     data-reviewed="<%= site.reviewed %>"
-                     data-vulnerable="<%= site.vulnerable %>"
-                     data-has-lib-detection="<%= site.hasLibDetection %>"
-                     data-has-sink-flows="<%= site.hasSinkFlows %>"
-                     data-has-vuln-out="<%= site.hasVulnOut %>"
-                     data-has-error-log="<%= site.hasErrorLog %>"
-                     data-has-warning-log="<%= site.hasWarningLog %>"
-                     data-has-notes="<%= site.memo && site.memo.trim() ? 'true' : 'false' %>"
-                     data-search-text="<%= (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase() %>"
-                     data-hash="<%= site.hash %>"
-                     data-name="<%= site.domain %>"
-                     data-flows="<%= site.hasFlows ? 1 : 0 %>"
-                     data-vulns="<%= site.vulnerableLibs %>"
-                     data-pocs="<%= site.pocMatches %>"
-                     data-js-count="<%= site.jsFiles ? site.jsFiles.length : 0 %>">
-                    <div class="site-header" onclick="toggleDetails('<%= site.hash %>')">
-                        <div class="site-name-wrapper">
-                            <div class="site-domain" title="<%= site.originalUrl %>"><%= site.domain %></div>
-                            <% if (site.urlPath) { %><div class="site-path"><%= site.urlPath %></div><% } %>
-                            <div class="file-badges">
-                                <% if (site.hasLibDetection) { %><span class="badge badge-lib">LIB</span><% } %>
-                                <% if (site.hasSinkFlows) { %><span class="badge badge-flows">FLOWS</span><% } %>
-                                <% if (site.hasVulnOut) { %><span class="badge badge-vuln">VULN</span><% } %>
-                                <% if (site.hasErrorLog) { %><span class="badge badge-error">ERR</span><% } %>
-                                <% if (site.hasWarningLog) { %><span class="badge badge-warn">WARN</span><% } %>
-                            </div>
-                        </div>
-                        <div class="site-summary">
-                            <span>Flows: <span class="indicator <%= site.hasFlows ? 'yes' : 'no' %>"><%= site.hasFlows ? 'Yes' : 'No' %></span></span>
-                            <span>Vuln Libs: <%= site.vulnerableLibs %></span>
-                            <span>POCs: <%= site.pocMatches %></span>
-                        </div>
-                        <span class="expand-icon" id="icon-<%= site.hash %>">+</span>
-                    </div>
-                    <% if (site.memo && site.memo.trim()) { %>
-                    <div class="site-note-inline" style="display: none;">
-                        <div class="note-label">📝 Note:</div>
-                        <div class="note-content"><%= site.memo %></div>
-                    </div>
-                    <% } %>
-                    <div class="site-details" id="details-<%= site.hash %>">
-                        <p><strong>URL:</strong> <a href="<%= site.originalUrl %>" target="_blank"><%= site.originalUrl %></a></p>
-                        <p><strong>Hash:</strong> <%= site.hash %></p>
-                        <% if (site.tagCounts && Object.keys(site.tagCounts).length > 0) { %>
-                        <p><strong>Tag Counts:</strong>
-                            <%
-                            const tagEntries = Object.entries(site.tagCounts).sort((a, b) => b[1] - a[1]);
-                            const tagList = tagEntries.map(([tag, count]) => `${tag}: ${count}`).join(', ');
-                            %>
-                            <%= tagList %>
-                        </p>
-                        <% } %>
-
-                        <div class="review-section">
-                            <h4>Review Status</h4>
-                            <div class="review-controls-inline">
-                                <div class="review-checkboxes">
-                                    <label class="review-checkbox">
-                                        <input type="checkbox"
-                                               id="reviewed-<%= site.hash %>"
-                                               <%= site.reviewed ? 'checked' : '' %>
-                                               onchange="updateReview('<%= site.hash %>', 'reviewed', this.checked)">
-                                        <span>Reviewed</span>
-                                    </label>
-                                    <label class="review-checkbox vulnerable-checkbox">
-                                        <input type="checkbox"
-                                               id="vulnerable-<%= site.hash %>"
-                                               <%= site.vulnerable ? 'checked' : '' %>
-                                               onchange="updateReview('<%= site.hash %>', 'vulnerable', this.checked)">
-                                        <span>Vulnerable</span>
-                                    </label>
-                                </div>
-                                <div class="memo-section-inline">
-                                    <label for="memo-<%= site.hash %>"><strong>Notes:</strong></label>
-                                    <textarea id="memo-<%= site.hash %>"
-                                              class="memo-textarea"
-                                              placeholder="Add notes..."
-                                              onchange="updateReview('<%= site.hash %>', 'memo', this.value)"><%= site.memo %></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <% if (site.jsFiles && site.jsFiles.length > 0) { %>
-                        <div class="js-files-section">
-                            <h4 class="js-files-header" onclick="toggleJsFiles('<%= site.hash %>')">
-                                <span class="expand-icon-small" id="js-icon-<%= site.hash %>">▶</span>
-                                JavaScript Files (<%= site.jsFiles.length %>)
-                            </h4>
-                            <div class="js-files-dropdown" id="js-files-<%= site.hash %>" style="display: none;">
-                                <div class="js-files-grid">
-                                    <% site.jsFiles.forEach(file => { %>
-                                        <a href="#" class="js-file-link" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a>
-                                    <% }); %>
-                                </div>
-                            </div>
-                        </div>
-                        <% } %>
-
-                        <h4>Analysis Files</h4>
-                        <ul class="file-list">
-                            <% site.files.forEach(file => { %>
-                                <li><a href="#" onclick="loadFile('<%= site.hash %>', '<%= file %>'); return false;"><%= file %></a></li>
-                            <% }); %>
-                        </ul>
-                        <div class="file-content-wrapper" id="wrapper-<%= site.hash %>" style="display: none;">
-                            <div class="file-header">
-                                <span class="current-file" id="current-file-<%= site.hash %>"></span>
-                                <button class="view-toggle-btn" id="toggle-<%= site.hash %>" onclick="toggleView('<%= site.hash %>'); return false;" style="display: none;">
-                                    Switch to Raw View
-                                </button>
-                            </div>
-                            <pre class="file-content line-numbers" id="content-<%= site.hash %>"><code class="language-javascript" id="code-<%= site.hash %>"></code></pre>
-                        </div>
-                    </div>
-                </div>
-            <% }); %>
+            <!-- Sites will be loaded dynamically via JavaScript pagination -->
         </section>
 
-        <!-- Sentinel for infinite scroll -->
-        <div id="load-more-sentinel"></div>
+        <!-- Bottom pagination controls -->
+        <div class="pagination-controls pagination-bottom" id="pagination-bottom">
+            <button id="prev-page-btn-bottom" onclick="prevPage()" disabled>← Prev</button>
+            <div class="page-numbers" id="page-numbers-bottom">
+                <!-- Page numbers will be generated by JavaScript -->
+            </div>
+            <button id="next-page-btn-bottom" onclick="nextPage()">Next →</button>
+        </div>
     </div>
 
     <!-- Library Detection Modal -->

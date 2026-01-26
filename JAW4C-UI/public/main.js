@@ -318,62 +318,34 @@ function debounce(func, wait) {
     };
 }
 
-function applyFilters() {
-    const filterFlows = document.getElementById('filter-flows').checked;
-    const filterLibDetection = document.getElementById('filter-lib-detection').checked;
-    const filterSinkFlows = document.getElementById('filter-sink-flows').checked;
-    const filterVulnOut = document.getElementById('filter-vuln-out').checked;
-    const filterErrorLog = document.getElementById('filter-error-log').checked;
-    const filterWarningLog = document.getElementById('filter-warning-log').checked;
-    const filterReviewed = document.getElementById('filter-reviewed').checked;
-    const filterUnreviewed = document.getElementById('filter-unreviewed').checked;
-    const filterVulnerable = document.getElementById('filter-vulnerable').checked;
-    const filterHasNotes = document.getElementById('filter-has-notes').checked;
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
-
+// Apply file content search results (client-side filtering for file content search only)
+function applyFileContentFilter() {
     const siteItems = document.querySelectorAll('.site-item');
     let visibleCount = 0;
 
-    // Use requestAnimationFrame for better performance
-    requestAnimationFrame(() => {
-        // Batch DOM updates
-        const fragment = document.createDocumentFragment();
-
-        siteItems.forEach(item => {
-            let shouldShow = true;
-
-            // For file content search mode, only show matching results
-            if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
-                shouldShow = fileContentSearchResults.has(item.dataset.hash);
-            } else {
-                // Early exit optimization - combine all checks
-                shouldShow = !(
-                    (filterFlows && item.dataset.flows !== '1') ||
-                    (filterLibDetection && item.dataset.hasLibDetection !== 'true') ||
-                    (filterSinkFlows && item.dataset.hasSinkFlows !== 'true') ||
-                    (filterVulnOut && item.dataset.hasVulnOut !== 'true') ||
-                    (filterErrorLog && item.dataset.hasErrorLog !== 'true') ||
-                    (filterWarningLog && item.dataset.hasWarningLog !== 'true') ||
-                    (filterReviewed && item.dataset.reviewed !== 'true') ||
-                    (filterUnreviewed && item.dataset.reviewed === 'true') ||
-                    (filterVulnerable && item.dataset.vulnerable !== 'true') ||
-                    (filterHasNotes && item.dataset.hasNotes !== 'true' && !(item.dataset.memo && item.dataset.memo.trim())) ||
-                    (searchTerm && !item.dataset.searchText.includes(searchTerm))
-                );
-            }
-
-            // Toggle visibility with class instead of inline style for better performance
-            if (shouldShow) {
+    siteItems.forEach(item => {
+        // For file content search mode, only show matching results
+        if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
+            if (fileContentSearchResults.has(item.dataset.hash)) {
                 item.classList.remove('hidden');
                 visibleCount++;
             } else {
                 item.classList.add('hidden');
             }
-        });
-
-        // Update visible count
-        document.getElementById('visible-count').textContent = visibleCount;
+        } else {
+            item.classList.remove('hidden');
+            visibleCount++;
+        }
     });
+
+    // Update visible count
+    document.getElementById('visible-count').textContent = visibleCount;
+}
+
+// Update visible count (used after loading)
+function updateVisibleCount() {
+    const siteItems = document.querySelectorAll('.site-item:not(.hidden)');
+    document.getElementById('visible-count').textContent = siteItems.length;
 }
 
 // Search mode handling
@@ -385,39 +357,38 @@ function switchSearchMode() {
     currentSearchMode = mode;
 
     const searchInput = document.getElementById('search-input');
-    const searchBtn = document.getElementById('search-btn');
     const searchOptions = document.getElementById('search-options');
 
     if (mode === 'content') {
         // Switch to file content search mode
         searchInput.placeholder = 'Enter regex pattern to search in files...';
-        searchBtn.style.display = 'inline-block';
         searchOptions.style.display = 'flex';
-        searchInput.onkeyup = null; // Disable auto-search
-
-        // Add enter key handler
-        searchInput.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                executeFileContentSearch();
-            }
-        };
     } else {
         // Switch to URL/hash search mode
         searchInput.placeholder = 'Search by URL or hash...';
-        searchBtn.style.display = 'none';
         searchOptions.style.display = 'none';
-        searchInput.onkeydown = null;
-        searchInput.onkeyup = handleSearchInput;
 
         // Clear file content search results
         fileContentSearchResults.clear();
-        applyFilters();
     }
 }
 
-function handleSearchInput() {
-    if (currentSearchMode === 'url') {
-        debouncedApplyFilters();
+// Handle Enter key in search input
+function handleSearchKeydown(event) {
+    if (event.key === 'Enter') {
+        executeSearch();
+    }
+}
+
+// Execute search based on current mode
+function executeSearch() {
+    if (currentSearchMode === 'content') {
+        executeFileContentSearch();
+    } else {
+        // URL/Hash search - update query and reload from page 1
+        const searchInput = document.getElementById('search-input');
+        currentSearchQuery = searchInput.value.trim();
+        loadPage(1);
     }
 }
 
@@ -461,8 +432,8 @@ async function executeFileContentSearch() {
         // Store matching hashes
         fileContentSearchResults = new Set(data.matches.map(m => m.hash));
 
-        // Apply filters to show only matching sites
-        applyFilters();
+        // Apply file content filter to show only matching sites
+        applyFileContentFilter();
 
         // Show results count
         alert(`Found ${data.matches.length} site(s) with matching content`);
@@ -476,10 +447,7 @@ async function executeFileContentSearch() {
     }
 }
 
-// Debounced version for search input
-const debouncedApplyFilters = debounce(applyFilters, 300);
-
-function clearFilters() {
+function clearSelections() {
     document.getElementById('filter-flows').checked = false;
     document.getElementById('filter-lib-detection').checked = false;
     document.getElementById('filter-sink-flows').checked = false;
@@ -491,7 +459,34 @@ function clearFilters() {
     document.getElementById('filter-vulnerable').checked = false;
     document.getElementById('filter-has-notes').checked = false;
     document.getElementById('search-input').value = '';
-    applyFilters();
+    document.getElementById('time-start').value = '';
+    document.getElementById('time-end').value = '';
+    currentSearchQuery = '';
+    fileContentSearchResults.clear();
+    loadPage(1); // Reload from page 1 with no selections
+}
+
+// Time-based selection functions
+function applyTimeSelection() {
+    loadPage(1); // Reload from page 1 with time selection applied
+}
+
+function clearTimeSelection() {
+    document.getElementById('time-start').value = '';
+    document.getElementById('time-end').value = '';
+    loadPage(1); // Reload without time filter
+}
+
+// Set time from clicking a site's timestamp
+function setTimeEnd(timestamp) {
+    const date = new Date(timestamp);
+    // Format for datetime-local input: YYYY-MM-DDTHH:MM
+    const formatted = date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0') + 'T' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0');
+    document.getElementById('time-end').value = formatted;
 }
 
 // View mode switching
@@ -510,15 +505,14 @@ function switchView(view) {
         note.style.display = view === 'notes' ? 'block' : 'none';
     });
 
-    // In notes view, auto-enable the "Has Notes" filter
+    // In notes view, auto-enable the "Has Notes" filter and reload
     if (view === 'notes') {
         document.getElementById('filter-has-notes').checked = true;
-        applyFilters();
+        reloadWithFilters();
     } else if (document.getElementById('filter-has-notes').checked) {
-        // When switching back to normal, keep the filter if it was manually set
-        // Otherwise, turn it off
+        // When switching back to normal, turn off the filter
         document.getElementById('filter-has-notes').checked = false;
-        applyFilters();
+        reloadWithFilters();
     }
 }
 
@@ -599,8 +593,6 @@ async function updateReview(hash, field, value) {
                 if (field === 'memo') {
                     siteItem.dataset.hasNotes = value && value.trim() ? 'true' : 'false';
                 }
-                // Re-apply filters to update visibility
-                applyFilters();
             }
         } else {
             console.error('Failed to update review');
@@ -618,7 +610,7 @@ async function updateReview(hash, field, value) {
 function filterSitesWithFlows() {
     const filterFlowsCheckbox = document.getElementById('filter-flows');
     filterFlowsCheckbox.checked = true;
-    applyFilters();
+    reloadWithFilters();
 
     // Smooth scroll to the filter section
     const filterSection = document.querySelector('.filter-section');
@@ -1091,13 +1083,22 @@ function createLibrariesRanking(libraries) {
     container.innerHTML = html;
 }
 
-// ===== Dynamic Site Loading with Infinite Scroll =====
+// ===== Pagination-based Site Loading =====
 
 let allLoadedSites = []; // Store all loaded sites for filtering/sorting
-let currentOffset = 0;
+let currentPage = 1;
+let totalPages = 1;
+let totalSites = 0;
 const SITES_PER_PAGE = 50;
 let isLoadingSites = false;
-let hasMoreSites = true;
+let currentSearchQuery = '';
+
+// Format date/time for display
+function formatDateTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+}
 
 // Function to create site item HTML from site data
 function createSiteItemHTML(site) {
@@ -1165,17 +1166,22 @@ function createSiteItemHTML(site) {
              data-pocs="${site.pocMatches}"
              data-js-count="${site.jsFiles ? site.jsFiles.length : 0}">
             <div class="site-header" onclick="toggleDetails('${site.hash}')">
-                <div class="site-name-wrapper">
+                <div class="site-header-left">
                     <div class="site-domain" title="${escapeHtml(site.originalUrl)}">${escapeHtml(site.domain)}</div>
                     ${urlPathHTML}
                     <div class="file-badges">
                         ${badges.join('')}
                     </div>
                 </div>
-                <div class="site-summary">
-                    <span>Flows: <span class="indicator ${site.hasFlows ? 'yes' : 'no'}">${site.hasFlows ? 'Yes' : 'No'}</span></span>
-                    <span>Vuln Libs: ${site.vulnerableLibs}</span>
-                    <span>POCs: ${site.pocMatches}</span>
+                <div class="site-header-right">
+                    <span class="modified-time" title="Click to set as end time" onclick="event.stopPropagation(); setTimeEnd(${site.modifiedTime})">${formatDateTime(site.modifiedTime)}</span>
+                    <div class="site-stats">
+                        <span>Flows: <span class="indicator ${site.hasFlows ? 'yes' : 'no'}">${site.hasFlows ? 'Yes' : 'No'}</span></span>
+                        <span class="stat-divider">|</span>
+                        <span>Vuln Libs: ${site.vulnerableLibs}</span>
+                        <span class="stat-divider">|</span>
+                        <span>POCs: ${site.pocMatches}</span>
+                    </div>
                 </div>
                 <span class="expand-icon" id="icon-${site.hash}">+</span>
             </div>
@@ -1227,47 +1233,103 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Load more sites from API
-async function loadMoreSites() {
-    if (isLoadingSites || !hasMoreSites) return;
+// Build query string with current search and filters
+function buildQueryParams() {
+    const params = new URLSearchParams();
+
+    if (currentSearchQuery) {
+        params.set('q', currentSearchQuery);
+    }
+
+    // Add filter parameters
+    if (document.getElementById('filter-flows')?.checked) {
+        params.set('hasFlows', 'true');
+    }
+    if (document.getElementById('filter-lib-detection')?.checked) {
+        params.set('hasLibDetection', 'true');
+    }
+    if (document.getElementById('filter-sink-flows')?.checked) {
+        params.set('hasSinkFlows', 'true');
+    }
+    if (document.getElementById('filter-vuln-out')?.checked) {
+        params.set('hasVulnOut', 'true');
+    }
+    if (document.getElementById('filter-error-log')?.checked) {
+        params.set('hasErrorLog', 'true');
+    }
+    if (document.getElementById('filter-warning-log')?.checked) {
+        params.set('hasWarningLog', 'true');
+    }
+    if (document.getElementById('filter-reviewed')?.checked) {
+        params.set('reviewed', 'true');
+    }
+    if (document.getElementById('filter-unreviewed')?.checked) {
+        params.set('unreviewed', 'true');
+    }
+    if (document.getElementById('filter-vulnerable')?.checked) {
+        params.set('vulnerable', 'true');
+    }
+    if (document.getElementById('filter-has-notes')?.checked) {
+        params.set('hasNotes', 'true');
+    }
+
+    // Add time range parameters
+    const timeStart = document.getElementById('time-start')?.value;
+    const timeEnd = document.getElementById('time-end')?.value;
+    if (timeStart) {
+        params.set('timeStart', new Date(timeStart).getTime().toString());
+    }
+    if (timeEnd) {
+        params.set('timeEnd', new Date(timeEnd).getTime().toString());
+    }
+
+    return params.toString();
+}
+
+// Reload from page 1 when filters change
+function reloadWithFilters() {
+    loadPage(1);
+}
+
+// Load sites for a specific page
+async function loadPage(page) {
+    if (isLoadingSites) return;
 
     isLoadingSites = true;
     const loadingIndicator = document.getElementById('loading-indicator');
     loadingIndicator.style.display = 'flex';
 
     try {
-        const response = await fetch(`/api/sites?offset=${currentOffset}&limit=${SITES_PER_PAGE}`);
+        // Build URL with pagination, search, and filter parameters
+        const queryParams = buildQueryParams();
+        const url = `/api/search?page=${page}&limit=${SITES_PER_PAGE}${queryParams ? '&' + queryParams : ''}`;
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
         const data = await response.json();
 
-        // Store sites in our array
-        allLoadedSites.push(...data.sites);
+        // Update pagination state
+        currentPage = data.page;
+        totalPages = data.totalPages;
+        totalSites = data.total;
 
-        // Render the sites
+        // Store sites
+        allLoadedSites = data.sites;
+
+        // Clear and render the sites
         const siteList = document.getElementById('site-list');
+        siteList.innerHTML = '';
         data.sites.forEach(site => {
             const siteHTML = createSiteItemHTML(site);
             siteList.insertAdjacentHTML('beforeend', siteHTML);
         });
 
-        // Update pagination state
-        currentOffset += data.sites.length;
-        hasMoreSites = data.hasMore;
+        // Update pagination UI
+        updatePaginationUI();
 
-        // Apply sorting after each batch to maintain sort order
-        // This ensures all sites (including newly loaded ones) are properly sorted
-        applySorting();
+        // Update visible count
+        updateVisibleCount();
 
-        // Update visible count through applyFilters (which updates the count)
-        applyFilters();
-
-        // If no more sites, disconnect observer
-        if (!hasMoreSites) {
-            if (window.siteObserver) {
-                window.siteObserver.disconnect();
-            }
-        }
     } catch (error) {
         console.error('Error loading sites:', error);
     } finally {
@@ -1276,41 +1338,133 @@ async function loadMoreSites() {
     }
 }
 
-// Set up Intersection Observer for infinite scroll
-function setupInfiniteScroll() {
-    const sentinel = document.getElementById('load-more-sentinel');
+// Generate page number buttons HTML
+function generatePageNumbers(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-    if (!sentinel) {
-        console.error('Sentinel element not found');
-        return;
+    let html = '';
+    const maxVisible = 7; // Max number of page buttons to show
+
+    if (totalPages <= maxVisible) {
+        // Show all pages
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-num ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+    } else {
+        // Show first, last, current and nearby pages with ellipsis
+        const pages = new Set();
+
+        // Always include first and last
+        pages.add(1);
+        pages.add(totalPages);
+
+        // Include current and neighbors
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            pages.add(i);
+        }
+
+        const sortedPages = Array.from(pages).sort((a, b) => a - b);
+        let prev = 0;
+
+        for (const page of sortedPages) {
+            if (page - prev > 1) {
+                html += '<span class="page-ellipsis">...</span>';
+            }
+            html += `<button class="page-num ${page === currentPage ? 'active' : ''}" onclick="goToPage(${page})">${page}</button>`;
+            prev = page;
+        }
     }
 
-    const options = {
-        root: null,
-        rootMargin: '200px', // Start loading 200px before reaching the sentinel
-        threshold: 0
-    };
-
-    window.siteObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && hasMoreSites && !isLoadingSites) {
-                loadMoreSites();
-            }
-        });
-    }, options);
-
-    window.siteObserver.observe(sentinel);
+    container.innerHTML = html;
 }
 
-// Initialize dynamic loading on page load
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Dynamic Loading] Initializing...');
+// Update pagination UI elements
+function updatePaginationUI() {
+    // Top pagination
+    const pageInput = document.getElementById('page-input');
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    const pageRange = document.getElementById('page-range');
 
-    // Load initial batch of sites
-    // Note: applySorting() and applyFilters() are now called inside loadMoreSites()
-    // after each batch loads, ensuring consistent sort order
-    loadMoreSites().then(() => {
-        // Set up infinite scroll after initial load
-        setupInfiniteScroll();
-    });
+    // Bottom pagination
+    const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
+    const nextBtnBottom = document.getElementById('next-page-btn-bottom');
+
+    if (pageInput) {
+        pageInput.value = currentPage;
+        pageInput.max = totalPages;
+    }
+
+    // Generate page number buttons
+    generatePageNumbers('page-numbers-top');
+    generatePageNumbers('page-numbers-bottom');
+
+    // Enable/disable prev buttons
+    const hasPrev = currentPage > 1;
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (prevBtnBottom) prevBtnBottom.disabled = !hasPrev;
+
+    // Enable/disable next buttons
+    const hasNext = currentPage < totalPages;
+    if (nextBtn) nextBtn.disabled = !hasNext;
+    if (nextBtnBottom) nextBtnBottom.disabled = !hasNext;
+
+    // Show page range info
+    const startSite = (currentPage - 1) * SITES_PER_PAGE + 1;
+    const endSite = Math.min(currentPage * SITES_PER_PAGE, totalSites);
+    if (pageRange) {
+        pageRange.textContent = `(Sites ${startSite}-${endSite} of ${totalSites})`;
+    }
+
+    // Update total count
+    document.getElementById('total-count').textContent = totalSites;
+}
+
+// Navigation functions
+function nextPage() {
+    if (currentPage < totalPages) {
+        loadPage(currentPage + 1);
+    }
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        loadPage(currentPage - 1);
+    }
+}
+
+function goToPage(page) {
+    const pageNum = parseInt(page, 10);
+    if (pageNum >= 1 && pageNum <= totalPages) {
+        loadPage(pageNum);
+    }
+}
+
+function goToPageInput() {
+    const pageInput = document.getElementById('page-input');
+    const page = parseInt(pageInput.value, 10);
+    if (page >= 1 && page <= totalPages) {
+        loadPage(page);
+    } else {
+        pageInput.value = currentPage; // Reset to current page if invalid
+    }
+}
+
+// Initialize pagination on page load
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Pagination] Initializing...');
+
+    // Load first page
+    loadPage(1);
+
+    // Add keyboard navigation for page input
+    const pageInput = document.getElementById('page-input');
+    if (pageInput) {
+        pageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                goToPageInput();
+            }
+        });
+    }
 });
