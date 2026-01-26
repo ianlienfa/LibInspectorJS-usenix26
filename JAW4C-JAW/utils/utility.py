@@ -228,9 +228,11 @@ class TimeoutManager:
 	def _timeout_handler(self, signum, frame):
 		"""Signal handler for SIGALRM"""
 		if self.in_operation and self.operation_timeout:
+			logger.error(f"Operation timeout exceeded ({self.operation_timeout}s) exceeded")
 			raise TimeoutError(f"Operation timeout ({self.operation_timeout}s) exceeded")
 
 		if self.deadline and time.monotonic() >= self.deadline:
+			logger.error(f"Total analysis timeout exceeded ({self.total_timeout}s) exceeded")
 			raise TimeoutError(f"Total analysis timeout ({self.total_timeout}s) exceeded")
 
 		raise TimeoutError("Analysis timeout exceeded")
@@ -257,6 +259,7 @@ class TimeoutManager:
 
 		remaining = self.get_remaining_time()
 		if remaining is not None and remaining <= 0:
+			logger.error(f"Total analysis timeout exceeded ({self.total_timeout}s) exceeded")
 			raise TimeoutError(f"Total analysis timeout ({self.total_timeout}s) exceeded")
 
 		# Set timer to minimum of operation timeout and remaining total time

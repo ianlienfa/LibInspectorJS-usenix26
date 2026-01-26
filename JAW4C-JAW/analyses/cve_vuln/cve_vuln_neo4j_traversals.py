@@ -31,6 +31,7 @@ import sys
 import time
 import uuid
 import signal
+from contextlib import nullcontext
 import constants as constantsModule
 import utils.io as IOModule
 import docker.neo4j.manage_container as dockerModule
@@ -167,12 +168,13 @@ def build_hpg(container_name, webpage):
 	return container_name
 
 
-def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300, code_matching_cutoff=100, call_count_limit=30):
+def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300, code_matching_cutoff=100, call_count_limit=30, timeout_manager=None):
 	"""
 	@param {string} seed_url
 	@param {int} container_transaction_timeout: timeout in seconds for each transaction (default: 300)
 	@param {int} code_matching_cutoff: maximum number of matching nodes to process per code pattern (default: 100)
 	@param {int} call_count_limit: maximum recursion depth for taint propagation (default: 30)
+	@param {TimeoutManager} timeout_manager: optional timeout manager for per-POC timeouts (default: None)
 	@description: imports an HPG inside a neo4j docker instance and runs traversals over it.
 
 	"""
@@ -306,10 +308,11 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f"{vuln_info}")
 							logger.info("=======================================================================================================")
 							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
-									vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,
-									code_matching_cutoff, call_count_limit,
-									conn_timeout=container_transaction_timeout)
+							with timeout_manager.operation() if timeout_manager else nullcontext():
+								out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
+										vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,
+										code_matching_cutoff, call_count_limit,
+										conn_timeout=container_transaction_timeout)
 						except Exception as e:
 							logger.error(traceback.format_exc())
 							logger.error(f"Error executing query, {e}, moving to the next vulnerability...")							

@@ -354,147 +354,141 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 		webpage_folder_name = utilityModule.sha256(url)
 		webpage_folder = os.path.join(webapp_data_directory, webpage_folder_name)
 		if os.path.exists(webpage_folder):
-			with TimeoutManager(total_timeout=analysis_timeout, operation_timeout=poc_analysis_timeout) as tm:
+			# Add URL-specific logging handlers to capture all logs for this URL
+			add_url_logging_handlers(url, webpage_folder)
+
+			# Library detection
+			if lib_detector_enable and lib_detector_lift:
 				try:
-					# Add URL-specific logging handlers to capture all logs for this URL
-					add_url_logging_handlers(url, webpage_folder)
+					lib_detection_api.lib_detection_single_url(webapp_folder_name, url)
+				except Exception as e:
+					LOGGER.error(f"Library detection failed for {url}: {e}")
+					continue
+			LOGGER.info("successfully detected libraries on %s."%(url))
 
-					# Library detection
-					if lib_detector_enable and lib_detector_lift:
-						try:
-							lib_detection_api.lib_detection_single_url(webapp_folder_name, url)
-						except Exception as e:
-							LOGGER.error(f"Library detection failed for {url}: {e}")
-							continue
-					LOGGER.info("successfully detected libraries on %s."%(url))
+			# Detection result and DB querying
+			vuln_list = [] # we often time only do query once
+			mod_lib_mapping = {}
+			all_patterns = set()
+			vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
 
-					# Detection result and DB querying
-					vuln_list = [] # we often time only do query once
-					mod_lib_mapping = {}
-					all_patterns = set()
-					vuln_info_pathname = os.path.join(webpage_folder, 'vuln.out')
+			if config['cve_vuln']["passes"]["vulndb"]:
+				LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
+				try:
+					lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
+				except Exception as e:
+					LOGGER.error(e)
+					continue
 
-					if config['cve_vuln']["passes"]["vulndb"]:
-						LOGGER.info("HPG construction and analysis over neo4j for site %s."%(url))
-						try:
-							lib_det_res = DetectorReader.read_raw_result_with_url(webapp_folder_name, url)
-						except Exception as e:
-							LOGGER.error(e)
-							continue
-
-						# Clean up vuln.out from previous runs
-						ground_truth_pathname = os.path.join(webpage_folder, 'groundtruth.json')
-						if os.path.exists(vuln_info_pathname):
-							os.remove(vuln_info_pathname)
-						if os.path.exists(ground_truth_pathname):
-							os.remove(ground_truth_pathname)
+				# Clean up vuln.out from previous runs
+				ground_truth_pathname = os.path.join(webpage_folder, 'groundtruth.json')
+				if os.path.exists(vuln_info_pathname):
+					os.remove(vuln_info_pathname)
+				if os.path.exists(ground_truth_pathname):
+					os.remove(ground_truth_pathname)
 
 
-						if(len(lib_det_res.keys()) > 1):
-							LOGGER.error(f"Multiple affiliated URLs found in detection result for {url}, unresolving some of them...")
-						for affiliatedurl, _ in lib_det_res.items():
-							mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
-							LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
+				if(len(lib_det_res.keys()) > 1):
+					LOGGER.error(f"Multiple affiliated URLs found in detection result for {url}, unresolving some of them...")
+				for affiliatedurl, _ in lib_det_res.items():
+					mod_lib_mapping = DetectorReader.get_mod_lib_mapping(lib_det_res, affiliatedurl)
+					LOGGER.info(f"mod_lib_mapping: {mod_lib_mapping}")
 
-							# Build vulnerability list
-							for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
-								for detection_info in matching_obj_lst:
-									vuln = None
-									vuln = None
-									if detection_info['accurate']:
-										version = detection_info['version'].split(', ')
-										vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
-									# else:
-									# 	vuln = vuln_db.package_vuln_search(lib) # type: ignore
+					# Build vulnerability list
+					for lib, matching_obj_lst in (mod_lib_mapping or {}).items():
+						for detection_info in matching_obj_lst:
+							vuln = None
+							vuln = None
+							if detection_info['accurate']:
+								version = detection_info['version'].split(', ')
+								vuln = vuln_db.package_vuln_search(lib, version=version) # type: ignore
+							# else:
+							# 	vuln = vuln_db.package_vuln_search(lib) # type: ignore
 
-									if not vuln:
-										LOGGER.info(f"No vulnerability matched for {lib}, continue...")
-										continue
-									else:
-										LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
-										all_patterns.add(detection_info['location'])
-
-										# Setup ground truth for this particular site
-										for poc in vuln:
-											try:
-												poc_str = poc['poc']
-												# grep for the poc fragments existence in the files
-												grep_found = cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
-												all_patterns.update(cve_stat_model_construction_api.get_patterns_from_poc_str(poc_str))
-												poc['grep_found'] = True if grep_found else False
-
-											except Exception as e:
-												print('poc formatting problem from database', poc)
-										LOGGER.debug(f"all_patterns: {all_patterns}")
-										vuln_list.append({
-											"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
-										})
-
-							# Some vulnerabilities is similar, leading to duplicate vuln_info, remove them for better performance
-							vuln_list = utilityModule.get_unique_nested_list(vuln_list)
-							if not vuln_list:
-								LOGGER.warning("No vuln found, early quitting")
-							LOGGER.info(f"vuln_list for {affiliatedurl}: {json.dumps(vuln_list)}")
-							with open(vuln_info_pathname, 'a') as vuln_fd:
-								LOGGER.info(f"Wring vuln to: {vuln_info_pathname}")
-								json.dump({affiliatedurl: vuln_list}, vuln_fd)
-								vuln_fd.write('\n')
-
-
-					if config['cve_vuln']["passes"]["static"] and vuln_list:
-						try:
-							cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg, debug=static_analysis_debug_mode, all_patterns=all_patterns)
-						except Exception as e:
-							LOGGER.error("Error building node/edges for %s."%(url))
-							continue
-						LOGGER.info("static analysis for site %s."%(url))
-						LOGGER.info("successfully finished static analysis for site %s."%(url))
-
-					# Start static analysis over neo4j, skip if no match on vulnerability
-					if (config['cve_vuln']["passes"]["static_neo4j"]):
-						if not vuln_list:
-							with open(vuln_info_pathname, 'r') as vuln_fd:
-								# TODO: the vuln.out format is not friendly
-								for line in vuln_fd.readlines():
-									vuln_json = json.loads(line)
-									if url in vuln_json:
-										vuln_list = vuln_json[url]
-							if not vuln_list:
+							if not vuln:
+								LOGGER.info(f"No vulnerability matched for {lib}, continue...")
 								continue
-						database_name = 'neo4j'
-						graphid = uuid.uuid4().hex
-						container_name = 'neo4j_container_' + graphid
+							else:
+								LOGGER.info(f"vuln found at library obj {detection_info['location']}: {vuln}")
+								all_patterns.add(detection_info['location'])
+
+								# Setup ground truth for this particular site
+								for poc in vuln:
+									try:
+										poc_str = poc['poc']
+										# grep for the poc fragments existence in the files
+										grep_found = cve_stat_model_construction_api.grep_matching_pattern(website_url, poc_str)
+										all_patterns.update(cve_stat_model_construction_api.get_patterns_from_poc_str(poc_str))
+										poc['grep_found'] = True if grep_found else False
+
+									except Exception as e:
+										print('poc formatting problem from database', poc)
+								LOGGER.debug(f"all_patterns: {all_patterns}")
+								vuln_list.append({
+									"mod": detection_info['mod'], "libname": lib, "location": detection_info['location'], "version": detection_info['version'], "vuln": vuln
+								})
+
+					# Some vulnerabilities is similar, leading to duplicate vuln_info, remove them for better performance
+					vuln_list = utilityModule.get_unique_nested_list(vuln_list)
+					if not vuln_list:
+						LOGGER.warning("No vuln found, early quitting")
+					LOGGER.info(f"vuln_list for {affiliatedurl}: {json.dumps(vuln_list)}")
+					with open(vuln_info_pathname, 'a') as vuln_fd:
+						LOGGER.info(f"Wring vuln to: {vuln_info_pathname}")
+						json.dump({affiliatedurl: vuln_list}, vuln_fd)
+						vuln_fd.write('\n')
+
+
+			if config['cve_vuln']["passes"]["static"] and vuln_list:
+				try:
+					cve_stat_model_construction_api.start_model_construction(url, specific_webpage=webpage_folder, iterative_output=iterative_output, memory=static_analysis_memory, timeout=static_analysis_per_webpage_timeout, compress_hpg=static_analysis_compress_hpg, overwrite_hpg=static_analysis_overwrite_hpg, debug=static_analysis_debug_mode, all_patterns=all_patterns)
+				except Exception as e:
+					LOGGER.error("Error building node/edges for %s."%(url))
+					continue
+				LOGGER.info("static analysis for site %s."%(url))
+				LOGGER.info("successfully finished static analysis for site %s."%(url))
+
+			# Start static analysis over neo4j, skip if no match on vulnerability
+			if (config['cve_vuln']["passes"]["static_neo4j"]):
+				if not vuln_list:
+					with open(vuln_info_pathname, 'r') as vuln_fd:
+						# TODO: the vuln.out format is not friendly
+						for line in vuln_fd.readlines():
+							vuln_json = json.loads(line)
+							if url in vuln_json:
+								vuln_list = vuln_json[url]
+					if not vuln_list:
+						continue
+				database_name = 'neo4j'
+				graphid = uuid.uuid4().hex
+				container_name = 'neo4j_container_' + graphid
+				try:
+					container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
+					LOGGER.info("successfully built hpg for %s."%(url))
+				except Exception as e:
+					LOGGER.error(f"Error building hpg for {url}, Error: " + str(e))
+					continue
+
+				# Query on vulnerabilities with timeout
+				if container_name:
+					with TimeoutManager(total_timeout=analysis_timeout, operation_timeout=poc_analysis_timeout) as tm:
 						try:
-							container_name = CVETraversalsModule.build_hpg(container_name, webpage_folder)
-							LOGGER.info("successfully built hpg for %s."%(url))
+							CVETraversalsModule.analyze_hpg(url, container_name, vuln_list, container_transaction_timeout, code_matching_cutoff, call_count_limit, timeout_manager=tm)
+						except TimeoutError as e:
+							LOGGER.error(f"Graph analysis timeout: {e}")
 						except Exception as e:
-							LOGGER.error(f"Error building hpg for {url}, Error: " + str(e))
-							continue
+							LOGGER.error(f"neo4j exception {e}")
+					LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
 
-						# Query on vulnerabilities
-						if container_name:
-							try:
-								with tm.operation():
-									# vuln_list element: {"http://localhost:3000/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656": [{"mod": true, "libname": "jquery", "location": "692", "version": "3.4.0", "vuln": [{"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<options>alert('XSS')</options>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": false, "payload": "<img src=x onerror=alert(1)>", "exported": true, "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": 0.8, "vulnerability_type": "xss", "grep_found": true}, {"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)", "gadget": "false", "payload": "<option><style></style><script>alert('XSS')</script></option>", "exported": "true", "sink_type": "javascript", "validated": false, "payload_type": "string", "additional_info": {}, "confidence_score": "0.8", "vulnerability_type": "xss", "grep_found": true}]}]}
-									CVETraversalsModule.analyze_hpg(url, container_name, vuln_list, container_transaction_timeout, code_matching_cutoff, call_count_limit)
-							except TimeoutError as e:
-								LOGGER.error(f"POC analysis timeout: {e}")
-							except Exception as e:
-								LOGGER.error(f"neo4j exception {e}")
-							LOGGER.info("finished HPG construction and analysis over neo4j for site %s."%(url))
+					# Cleanup
+					if not config['staticpass']['keep_docker_alive']:
+						dockerModule.stop_neo4j_container(container_name)
+						dockerModule.remove_neo4j_container(container_name)
 
-							# Cleanup
-							if not config['staticpass']['keep_docker_alive']:
-								dockerModule.stop_neo4j_container(container_name)
-								dockerModule.remove_neo4j_container(container_name)
-
-						# Parse sink.flows.out if exist and generate trace.json
-						sink_flows_out_path = os.path.join(webpage_folder, 'sink.flows.out')
-						if os.path.exists(sink_flows_out_path):
-							process_sink_flows_file(sink_flows_out_path)
-
-				except TimeoutError as e:
-					LOGGER.error(f"Analysis timeout for {url}: {e}")
+				# Parse sink.flows.out if exist and generate trace.json
+				sink_flows_out_path = os.path.join(webpage_folder, 'sink.flows.out')
+				if os.path.exists(sink_flows_out_path):
+					process_sink_flows_file(sink_flows_out_path)
 
 def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode, code_matching_cutoff, call_count_limit, poc_analysis_timeout, analysis_timeout):
 	"""
