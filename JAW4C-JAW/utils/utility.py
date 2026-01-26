@@ -34,6 +34,8 @@ from datetime import datetime
 import signal
 from utils.logging import logger
 import json
+from contextlib import contextmanager
+
 
 
 # -------------------------------------------------------------------------- #
@@ -59,7 +61,6 @@ class Tee:
 # -------------------------------------------------------------------------- #
 #  		OS Utils
 # -------------------------------------------------------------------------- #
-
 
 
 def run_os_command(cmd, print_stdout=True, timeout=30*60, prettify=False, return_output=False):
@@ -175,6 +176,107 @@ def _get_last_subpath(s):
 	return os.path.basename(os.path.normpath(s))
 
 	
+class TimeoutManager:
+	"""Manages nested timeouts using SIGALRM for analysis operations"""
+
+	def __init__(self, total_timeout=None, operation_timeout=None):
+		"""
+		Args:
+			total_timeout: Overall timeout for entire analysis (seconds)
+			operation_timeout: Timeout per operation/POC (seconds)
+		"""
+		self.total_timeout = total_timeout
+		self.operation_timeout = operation_timeout
+		self.deadline = None
+		self.prev_handler = None
+		self.prev_timer = None
+		self.in_operation = False
+
+	def __enter__(self):
+		"""Setup signal handler and timer on context entry"""
+		if not self.total_timeout and not self.operation_timeout:
+			return self
+
+		if self.total_timeout:
+			self.deadline = time.monotonic() + self.total_timeout
+
+		self.prev_handler = signal.getsignal(signal.SIGALRM)
+		self.prev_timer = signal.getitimer(signal.ITIMER_REAL)
+		signal.signal(signal.SIGALRM, self._timeout_handler)
+
+		if self.deadline:
+			signal.setitimer(signal.ITIMER_REAL, self.total_timeout)
+
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		"""Restore previous signal handler and timer on context exit"""
+		if not self.total_timeout and not self.operation_timeout:
+			return False
+
+		# Restore previous signal handler and timer
+		if self.prev_timer is not None:
+			signal.setitimer(signal.ITIMER_REAL, self.prev_timer[0], self.prev_timer[1])
+		else:
+			signal.setitimer(signal.ITIMER_REAL, 0)
+
+		if self.prev_handler is not None:
+			signal.signal(signal.SIGALRM, self.prev_handler)
+
+		return False
+
+	def _timeout_handler(self, signum, frame):
+		"""Signal handler for SIGALRM"""
+		if self.in_operation and self.operation_timeout:
+			raise TimeoutError(f"Operation timeout ({self.operation_timeout}s) exceeded")
+
+		if self.deadline and time.monotonic() >= self.deadline:
+			raise TimeoutError(f"Total analysis timeout ({self.total_timeout}s) exceeded")
+
+		raise TimeoutError("Analysis timeout exceeded")
+
+	def get_remaining_time(self):
+		"""Returns remaining seconds, or None if no deadline set"""
+		if self.deadline is None:
+			return None
+		remaining = self.deadline - time.monotonic()
+		return max(0, remaining)
+
+	@contextmanager
+	def operation(self):
+		"""
+		Context manager for individual operations with their own timeout
+
+		Usage:
+			with tm.operation():
+				# Code that should timeout per operation
+		"""
+		if not self.operation_timeout:
+			yield
+			return
+
+		remaining = self.get_remaining_time()
+		if remaining is not None and remaining <= 0:
+			raise TimeoutError(f"Total analysis timeout ({self.total_timeout}s) exceeded")
+
+		# Set timer to minimum of operation timeout and remaining total time
+		timeout = self.operation_timeout
+		if remaining is not None:
+			timeout = min(timeout, remaining)
+
+		self.in_operation = True
+		signal.setitimer(signal.ITIMER_REAL, timeout)
+
+		try:
+			yield
+		finally:
+			self.in_operation = False
+			# Reset timer to remaining total time
+			remaining = self.get_remaining_time()
+			if remaining is not None:
+				signal.setitimer(signal.ITIMER_REAL, remaining)
+
+
 		
 # -------------------------------------------------------------------------- #
 #  		Other Utils
