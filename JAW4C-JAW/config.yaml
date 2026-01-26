@@ -11,8 +11,8 @@ testbed:
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
-  from_row: 2936  #2981 # 2070 has problem
-  to_row: 2936 # 1973 # row number or 'end'
+  from_row: 2954  #2981 # 2070 has problem
+  to_row: 2954 # 1973 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -116,14 +116,14 @@ verificationpass:
   sitetimeout: 10800 # 3 hrs
   # which browser to use
   browser:
-    name: chrome
+    name: chromeer
   endpoint: http://127.0.0.1:3456
 
 cve_vuln:
   enabled: true
   passes:
-    crawling: false
-    lib_detection: false   
+    crawling: true
+    lib_detection: true   
     vulndb: true
     static: true
     static_neo4j: true  

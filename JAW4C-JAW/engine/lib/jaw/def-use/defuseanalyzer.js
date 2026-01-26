@@ -709,7 +709,6 @@ DefUseAnalyzer.prototype.findGENSet = function (cfgNode) {
     
     if(cfgNode.astNode){
         walkes(cfgNode.astNode, {
-            // Program: function () {},
             Program: function(node, recurse){
                 for(let n of node.body){
                     recurse(n);
@@ -813,6 +812,8 @@ DefUseAnalyzer.prototype.findUSESet = function (cfgNode) {
     var currentScope = cfgNode.scope;
 
     walkes(cfgNode.astNode, {
+        // Default handler prevents walkes from recursively walking all properties
+        // of unhandled node types via checkProps, which can cause stack overflow
         Program: function () {},
         ClassDeclaration: function () {},
         FunctionDeclaration: function () {},

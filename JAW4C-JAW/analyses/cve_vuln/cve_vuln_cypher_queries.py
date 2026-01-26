@@ -2606,6 +2606,12 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 		# filter out items with empty intersection
 		item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
 		item_with_matches.sort(key=lambda x: len(x[1]), reverse=True)
+		# Add cutoffs to prevent huge outputs
+		if len(item_with_matches) > 50:
+			item_with_matches = item_with_matches[:50]  # limit to top 50 matches to avoid performance issues at getTopMostProgramPath
+														 # this will unlikely break the fullset matching, since fullset matches should be among the top matches
+			logger.warning(f"For {poc['fullset']}: Limiting item_with_matches to top 50 entries to avoid performance issues.")
+		
 
 		for nodeId, matchSet in item_with_matches:
 			node = get_node_by_id(tx, nodeId)
@@ -2635,14 +2641,6 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 
 			return res, all_poc_max_levels
 		else:
-			# order the nodeid_to_matches by size of sets (descending)		
-			# logger.debug(f"nodeid_to_matches before processing max levels: {nodeid_to_matches}")
-			# item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
-			# # filter out items with empty intersection
-			# item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
-			# item_with_matches.sort(key=lambda x: len(x[1]), reverse=True)
-			# logger.debug(f"item_with_matches: {item_with_matches}")
-			
 			# detect full set if missed by earlier processing (if all pattern were skipped, no 'root' will be marked)
 			max_len = len(item_with_matches[0][1]) if item_with_matches else 0  # we only look at the largest match set
 			res = []
@@ -2660,15 +2658,6 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			if root_found:				
 				return res, all_poc_max_levels
 
-			# for nodeId, matchSet in item_with_matches:
-			# 	node = get_node_by_id(tx, nodeId)
-			# 	if node:
-			# 		all_poc_max_levels.append({
-			# 			'node': node,
-			# 			'matchSet': list(matchSet),
-			# 			'file': getTopMostProgramPath(tx, node),
-			# 			'location': node['Location'] if 'Location' in node else None
-			# 		})
 			return [], all_poc_max_levels
 
 	

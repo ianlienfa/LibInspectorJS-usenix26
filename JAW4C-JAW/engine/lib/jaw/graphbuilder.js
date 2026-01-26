@@ -331,7 +331,6 @@ function getEventNameAtRegistrationSite(graphNode, scopeTree) {
     "use strict";
     var foundValue = null;
     walkes(graphNode.astNode["arguments"][0], {
-        // FunctionDeclaration: function () {},
         Identifier: function (node) {
             var event_variable_to_resolve = graphNode.scope.getVariable(node.name);
             if(graphNode.reachIns){
@@ -1191,7 +1190,6 @@ GraphBuilder.prototype.getInterProceduralModelNodesAndEdges = async function(sem
             
             var lastClassName = 'UNKNOWN';
             walkes(mainAST, {
-
                 FunctionDeclaration: function(node, recurse){
                     // CASE 1: function f(){}
                     if(node.id && node.id.name) {
