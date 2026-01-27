@@ -318,28 +318,10 @@ function debounce(func, wait) {
     };
 }
 
-// Apply file content search results (client-side filtering for file content search only)
+// Apply file content search results (no longer needed - using server-side filtering)
 function applyFileContentFilter() {
-    const siteItems = document.querySelectorAll('.site-item');
-    let visibleCount = 0;
-
-    siteItems.forEach(item => {
-        // For file content search mode, only show matching results
-        if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
-            if (fileContentSearchResults.has(item.dataset.hash)) {
-                item.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                item.classList.add('hidden');
-            }
-        } else {
-            item.classList.remove('hidden');
-            visibleCount++;
-        }
-    });
-
-    // Update visible count
-    document.getElementById('visible-count').textContent = visibleCount;
+    // This function is deprecated - file content search now works like URL/Hash search
+    // with server-side filtering and proper pagination
 }
 
 // Update visible count (used after loading)
@@ -351,6 +333,24 @@ function updateVisibleCount() {
 // Search mode handling
 let currentSearchMode = 'url';
 let fileContentSearchResults = new Set(); // Store hashes that match file content search
+let searchSpinnerActive = false;
+
+function setSearchButtonLoading(isLoading, labelText) {
+    const searchBtn = document.getElementById('search-btn');
+    if (!searchBtn) return;
+    const labelEl = searchBtn.querySelector('.btn-label');
+    const defaultLabel = labelEl ? labelEl.textContent : searchBtn.textContent;
+    if (!searchBtn.dataset.defaultLabel) {
+        searchBtn.dataset.defaultLabel = defaultLabel;
+    }
+    searchBtn.classList.toggle('is-loading', isLoading);
+    searchBtn.disabled = isLoading;
+    if (labelEl) {
+        labelEl.textContent = isLoading ? (labelText || 'Searching...') : searchBtn.dataset.defaultLabel;
+    } else {
+        searchBtn.textContent = isLoading ? (labelText || 'Searching...') : searchBtn.dataset.defaultLabel;
+    }
+}
 
 function switchSearchMode() {
     const mode = document.querySelector('input[name="search-mode"]:checked').value;
@@ -388,6 +388,8 @@ function executeSearch() {
         // URL/Hash search - update query and reload from page 1
         const searchInput = document.getElementById('search-input');
         currentSearchQuery = searchInput.value.trim();
+        searchSpinnerActive = true;
+        setSearchButtonLoading(true);
         loadPage(1);
     }
 }
@@ -404,10 +406,7 @@ async function executeFileContentSearch() {
     }
 
     // Show loading indicator
-    const searchBtn = document.getElementById('search-btn');
-    const originalText = searchBtn.textContent;
-    searchBtn.textContent = 'Searching...';
-    searchBtn.disabled = true;
+    setSearchButtonLoading(true);
 
     try {
         const response = await fetch('/api/search-file-content', {
@@ -432,18 +431,14 @@ async function executeFileContentSearch() {
         // Store matching hashes
         fileContentSearchResults = new Set(data.matches.map(m => m.hash));
 
-        // Apply file content filter to show only matching sites
-        applyFileContentFilter();
-
-        // Show results count
-        alert(`Found ${data.matches.length} site(s) with matching content`);
+        // Reload from page 1 with matching results (same as URL/Hash search)
+        loadPage(1);
 
     } catch (error) {
         console.error('File content search error:', error);
         alert('Error performing file content search: ' + error.message);
     } finally {
-        searchBtn.textContent = originalText;
-        searchBtn.disabled = false;
+        setSearchButtonLoading(false);
     }
 }
 
@@ -472,6 +467,13 @@ function clearSelections() {
     }
     currentSearchQuery = '';
     fileContentSearchResults.clear();
+
+    // Reset to URL search mode
+    currentSearchMode = 'url';
+    const urlRadio = document.querySelector('input[name="search-mode"][value="url"]');
+    if (urlRadio) urlRadio.checked = true;
+    switchSearchMode(); // Update UI to reflect URL mode
+
     loadPage(1); // Reload from page 1 with no selections
 }
 
@@ -1326,7 +1328,10 @@ function escapeHtml(text) {
 function buildQueryParams() {
     const params = new URLSearchParams();
 
-    if (currentSearchQuery) {
+    // If in file content search mode, pass the matching hashes
+    if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
+        params.set('hashes', Array.from(fileContentSearchResults).join(','));
+    } else if (currentSearchQuery) {
         params.set('q', currentSearchQuery);
     }
 
@@ -1461,6 +1466,10 @@ async function loadPage(page) {
     } finally {
         isLoadingSites = false;
         loadingIndicator.style.display = 'none';
+        if (searchSpinnerActive) {
+            setSearchButtonLoading(false);
+            searchSpinnerActive = false;
+        }
     }
 }
 

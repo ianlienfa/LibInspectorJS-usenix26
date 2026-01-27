@@ -11,8 +11,8 @@ testbed:
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
-  from_row: 2959  #2936 the debugging site
-  to_row: end # 2936 # row number or 'end'
+  from_row: 2544  #2936 the debugging site
+  to_row: 2544 # 2936 # row number or 'end'
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -72,7 +72,7 @@ staticpass:
   # timeout for graph-based querying (analysis) of each site in seconds
   analysis_timeout: 3600 # 1 hr
   # enforce a max per webpage timeout for graph generation (in seconds)
-  pagetimeout: 1200 # 20 min
+  pagetimeout: 1200 # 20 min # only 1% got cutoff, should be fine
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process
@@ -124,10 +124,10 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: true
-    lib_detection: true   
-    vulndb: true
-    static: true
+    crawling: false
+    lib_detection: false   
+    vulndb: false
+    static: false
     static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation

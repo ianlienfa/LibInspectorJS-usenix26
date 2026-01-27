@@ -64,7 +64,10 @@
                     </div>
                     <div class="search-box">
                         <input type="text" id="search-input" placeholder="Search by URL or hash..." onkeydown="handleSearchKeydown(event)">
-                        <button id="search-btn" class="search-execute-btn" onclick="executeSearch()">Search</button>
+                        <button id="search-btn" class="search-execute-btn" onclick="executeSearch()">
+                            <span class="btn-label">Search</span>
+                            <span class="btn-spinner" aria-hidden="true"></span>
+                        </button>
                     </div>
                 </div>
                 <div id="search-options" class="search-options" style="display: none;">

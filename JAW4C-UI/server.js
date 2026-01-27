@@ -984,7 +984,9 @@ app.get('/api/search', async (req, res) => {
             timeEnd,
             // Hash range parameters
             hashStart,
-            hashEnd
+            hashEnd,
+            // File content search hashes (comma-separated)
+            hashes
         } = req.query;
 
         const pageNum = parseInt(page, 10);
@@ -999,8 +1001,13 @@ app.get('/api/search', async (req, res) => {
         const allSites = data.sites;
         let sites = allSites;
 
-        // Filter by search term
-        if (searchTerm) {
+        // Filter by file content search hashes (takes precedence over text search)
+        if (hashes) {
+            const hashArray = hashes.split(',').map(h => h.trim()).filter(h => h);
+            const hashSet = new Set(hashArray);
+            sites = sites.filter(site => hashSet.has(site.hash));
+        } else if (searchTerm) {
+            // Filter by search term only if not using file content search
             sites = sites.filter(site => {
                 const searchText = (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase();
                 return searchText.includes(searchTerm);

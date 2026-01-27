@@ -488,6 +488,7 @@ def perform_cve_vulnerability_analysis(website_url, config, lib_detector_enable,
 				# Parse sink.flows.out if exist and generate trace.json
 				sink_flows_out_path = os.path.join(webpage_folder, 'sink.flows.out')
 				if os.path.exists(sink_flows_out_path):
+					LOGGER.info(f"parsing sink flows from {sink_flows_out_path}")
 					process_sink_flows_file(sink_flows_out_path)
 
 def process_single_website(website_url, config, domain_health_check, crawler_command_cwd, crawling_timeout, lib_detector_lift, transform_enabled, crawler_node_memory, lib_detector_enable, vuln_db, iterative_output, static_analysis_memory, static_analysis_per_webpage_timeout, static_analysis_compress_hpg, static_analysis_overwrite_hpg, container_transaction_timeout, static_analysis_debug_mode, code_matching_cutoff, call_count_limit, poc_analysis_timeout, analysis_timeout):
