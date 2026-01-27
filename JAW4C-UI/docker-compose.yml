@@ -8,6 +8,7 @@ services:
       # Mount the JAW4C-JAW data directory for read-only access
       - /home/rafael/nms/jan20-jaw4c-crawl/worker15:/app/../JAW4C-JAW/data:ro
       - /home/rafael/nms/jan20-jaw4c-crawl/worker15/review:/app/../JAW4C-JAW/data/review
+      - ../JAW4C-UI/jan20-jaw4c-crawl/site-cache:/app/site-cache
       # Mount source code for live updates (no rebuild needed for code changes)
       - ./server.js:/app/server.js:ro
       - ./public:/app/public:ro

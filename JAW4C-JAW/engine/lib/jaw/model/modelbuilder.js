@@ -83,7 +83,6 @@ ModelBuilder.prototype.buildIntraProceduralModels = function () {
 					if(!model.graph){
 						console.log('[-] CFG generation failed for function at range:', scope.ast.range);
 						// print code
-						console.log(escodegen.generate(scope.ast));
 					}
                     if(model.graph && model.graph.length){ // ensure CFG construction succeeds
                         // generate definitions for the function nodes on the entry `BlockStatement`
@@ -253,14 +252,41 @@ function findFunctionDefinitionFromReachInSet(reachIns, scope, calleeName, flag)
  * Look at the current model of the provided scope, identify call-sites by looking into the ReachIn sets, find callee scopes
  * @param {Scope} scope
  * @param {ScopeTree} scopeTree
+ * @param {Set} [visitedScopes] - Set of scope IDs already being processed (for cycle detection)
  * @returns {Model}
  * @memberof ModelBuilder.prototype
  * @private
  */
-function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
+function getInterProceduralModelStartFromTheScope(scope, scopeTree, visitedScopes) {
     "use strict";
+	// Initialize visitedScopes set if not provided (first call in the chain)
+	if (!visitedScopes) {
+		visitedScopes = new Set();
+	}
+
+	// Get unique identifier for this scope
+	var scopeId = scope.ast._id || (scope.ast.range ? scope.ast.range.join('-') : null);
+
+	// Cycle detection: if we're already processing this scope, return early to prevent infinite recursion
+	if (scopeId && visitedScopes.has(scopeId)) {
+		// console.log(`[CYCLE DETECTED] Skipping scope ${scopeId} to prevent infinite recursion`);
+		var scopeModel = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
+		return scopeModel; // Return the intra-procedural model without further recursion
+	}
+
+	// Mark this scope as being visited
+	if (scopeId) {
+		visitedScopes.add(scopeId);
+	}
+
 	// console.log(`scope type: ${scope.ast.type}`, (scope.ast && scope.ast.loc) ? `loc: start {line: ${scope.ast.loc.start.line}, col: ${scope.ast.loc.start.column}} end {line: ${scope.ast.loc.end.line}, col: ${scope.ast.loc.end.column}}` : `no location`);
-	var scopeModel = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
+	var scopeModel = null;
+	try {
+		scopeModel = modelCtrl.getIntraProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, scope);
+	} catch (error) {
+		// print out stack trace
+		console.log('[getInterProceduralModelStartFromTheScope] Error getting intra-procedural model:', error.stack);
+	}
 	var resultModel = scopeModel;
 	var callSiteMapCalleeScope = new Map();
 	// debugger;
@@ -391,14 +417,23 @@ function getInterProceduralModelStartFromTheScope(scope, scopeTree) {
 	if (callSiteMapCalleeScope.size > 0) {
 		// Recursive model building
 		callSiteMapCalleeScope.forEach(function (callee, callSite) {
-			// Don't connect if callee is the same as the current scope (recursive call)
+			// Get callee's unique identifier
+			var calleeId = callee.ast._id || (callee.ast.range ? callee.ast.range.join('-') : null);
+
+			// Don't connect if callee is the same as the current scope (direct recursion)
 			if(callee.ast._id === scope.ast._id)
-				return;			
-			
+				return;
+
+			// Skip if callee is already in the call chain (indirect mutual recursion / cycle)
+			if (calleeId && visitedScopes.has(calleeId)) {
+				// console.log(`[CYCLE SKIP] Callee ${calleeId} already in call chain, skipping to prevent infinite recursion`);
+				return;
+			}
+
 			// recursively get inter-procedural model of callee scope
 			var connectedModel =
 				modelCtrl.getInterProceduralModelByMainlyRelatedScopeFromAPageModels(scopeTree, callee) ||
-				getInterProceduralModelStartFromTheScope(callee, scopeTree);
+				getInterProceduralModelStartFromTheScope(callee, scopeTree, visitedScopes);
 
 			// connect caller and callee models at the call-site
 			resultModel = connectCallerCalleeScopeRelatedModelsAtCallSite(resultModel || scopeModel, connectedModel, callSite);
@@ -421,19 +456,26 @@ ModelBuilder.prototype.buildInterProceduralModels = function () {
 
 	// Go through all scope of each page scope trees
     for(let scopeTree of scopeCtrl.pageScopeTrees){
+		console.log('[-] Building inter-procedural model for page:', scopeTree.pageScriptName);		
 		var scopesToSearch = scopeTree.scopes, searchedScopes = new Set();
+		// let processed_progress = 1;
 		for (var searchIndex = 0; searchIndex < scopesToSearch.length; ++searchIndex) {
+			// Hypothesis: the processing of a scope will also process all related scopes, 
+			// so we don't need to process them again
             if (searchedScopes.has(scopesToSearch[searchIndex])) {
                 continue;
             }
 			var currentScope = scopesToSearch[searchIndex];
 			var interProceduralModel = getInterProceduralModelStartFromTheScope(currentScope, scopeTree);
-			if (interProceduralModel.relatedScopes.length > 1) {
+			if (interProceduralModel && interProceduralModel.relatedScopes && interProceduralModel.relatedScopes.length > 1) {
                 var relatedScopes = [].concat(interProceduralModel.relatedScopes);
                 while (relatedScopes.length > 0) {
                     searchedScopes.add(relatedScopes.pop());
+					// processed_progress++;
                 }
 			}
+			// print out the progress
+			// console.log("[-] Processed scope ", processed_progress++, " of ", scopesToSearch.length, " in page scope tree.");			
 		}
 	};
 };
