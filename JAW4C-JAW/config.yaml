@@ -11,8 +11,14 @@ testbed:
     mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
+  # Option A: Continuous range (from_row to to_row)
   from_row: 2544  #2936 the debugging site
   to_row: 2544 # 2936 # row number or 'end'
+
+  # Option B: Non-continuous indices (takes precedence over from_row/to_row if uncommented)
+  # Specify a list of specific row indices to process
+  # row_indices: [2981, 2960, 2952, 2944, 2936, 2935, 2928, 2898]
+
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -124,10 +130,10 @@ verificationpass:
 cve_vuln:
   enabled: true
   passes:
-    crawling: false
-    lib_detection: false   
-    vulndb: false
-    static: false
+    crawling: true
+    lib_detection: true   
+    vulndb: true
+    static: true
     static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation

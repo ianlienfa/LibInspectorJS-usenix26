@@ -779,18 +779,38 @@ def main():
 		site_list_str = config["testbed"]["site_list"] if "site_list" in config["testbed"] else None
 		site_list = None
 		if site_list_str and os.path.exists(site_list_str):
-			with open(site_list_str, 'r') as f:				
+			with open(site_list_str, 'r') as f:
 				site_list = set(json.load(f))
-		from_row = int(config["testbed"]["from_row"])
-		to_row = int(config["testbed"]["to_row"]) if not (config["testbed"]["to_row"] == 'end') else config["testbed"]["to_row"]
+
+		# Check if row_indices (non-continuous) is specified, otherwise use from_row/to_row range
+		use_row_indices = False
+		row_indices = None
+		if "row_indices" in config["testbed"] and config["testbed"]["row_indices"]:
+			row_indices = config["testbed"]["row_indices"]
+			use_row_indices = True
+			LOGGER.info(f"Using non-continuous row indices: {row_indices}")
+		else:
+			from_row = int(config["testbed"]["from_row"])
+			to_row = int(config["testbed"]["to_row"]) if not (config["testbed"]["to_row"] == 'end') else config["testbed"]["to_row"]
+			LOGGER.info(f"Using continuous range from row {from_row} to {to_row}")
+
 		if config["testbed"]["archive"]["enable"] and config["testbed"]["archive"]["mappinglist"]:
 			with open(config["testbed"]["archive"]["mappinglist"], 'r') as f:
 				mapping = json.load(f)
-				if to_row == "end":
-					to_row = len(mapping.keys())
 				archive_urls = list(mapping.keys())
-				for i in range(from_row, to_row+1):
-					LOGGER.info(f"[Archive working]=================={i}/{to_row+1}==================")
+
+				# Determine which indices to iterate over
+				if use_row_indices:
+					indices_to_process = row_indices
+					total_count = len(row_indices)
+				else:
+					if to_row == "end":
+						to_row = len(mapping.keys())
+					indices_to_process = range(from_row, to_row+1)
+					total_count = to_row + 1
+
+				for idx, i in enumerate(indices_to_process, 1):
+					LOGGER.info(f"[Archive working]=================={idx}/{total_count}: Processing index {i}==================")
 					try:
 						if site_list and (archive_urls[i] not in site_list):
 							LOGGER.info(f"Skipping {archive_urls[i]} as it is not in the provided site list.")
