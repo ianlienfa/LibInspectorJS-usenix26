@@ -498,17 +498,21 @@ DefUseAnalyzer.prototype.findDUPairs = function (model) {
  * @returns used definitions
  */
 function getUsedDefs(defs, used) {
-    
+
     'use strict';
     var usedDefs = new Set();
     if (defs instanceof Set && used instanceof Set) {
+        // Build a native Set of used variables for O(1) lookup instead of O(n) nested loop
+        var usedSet = new global.Set();
+        used.forEach(function (variable) {
+            usedSet.add(variable);
+        });
+        // Now single pass through defs with O(1) lookup
         defs.forEach(function (vardef) {
-            used.forEach(function (variable) {
-                if (vardef.variable === variable) {
-                    usedDefs.add(vardef);
-                }
-            });
-        });  
+            if (usedSet.has(vardef.variable)) {
+                usedDefs.add(vardef);
+            }
+        });
     }
     return usedDefs;
 }
@@ -705,7 +709,6 @@ DefUseAnalyzer.prototype.findGENSet = function (cfgNode) {
     
     if(cfgNode.astNode){
         walkes(cfgNode.astNode, {
-            // Program: function () {},
             Program: function(node, recurse){
                 for(let n of node.body){
                     recurse(n);
@@ -809,6 +812,8 @@ DefUseAnalyzer.prototype.findUSESet = function (cfgNode) {
     var currentScope = cfgNode.scope;
 
     walkes(cfgNode.astNode, {
+        // Default handler prevents walkes from recursively walking all properties
+        // of unhandled node types via checkProps, which can cause stack overflow
         Program: function () {},
         ClassDeclaration: function () {},
         FunctionDeclaration: function () {},

@@ -8,11 +8,17 @@ testbed:
   archive: 
     enable: true
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_jan5_rank0_18100_norep_0/name_mapping.json
-    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
+    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
     # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
-    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
-  from_row: 0  #2981 # 2070 has problem
-  to_row: end # 1973 # row number or 'end'
+    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
+  # Option A: Continuous range (from_row to to_row)
+  from_row: 2544  #2936 the debugging site
+  to_row: 2544 # 2936 # row number or 'end'
+
+  # Option B: Non-continuous indices (takes precedence over from_row/to_row if uncommented)
+  # Specify a list of specific row indices to process
+  # row_indices: [2981, 2960, 2952, 2944, 2936, 2935, 2928, 2898]
+
   # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
@@ -67,10 +73,12 @@ vuln_db:
 
 # 3. static analysis configuration
 staticpass:
-  # time budget for static analysis of each page running taint static analysis (in seconds)
-  sitetimeout: 3000 # 50 min
-  # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
-  pagetimeout: 1200 # 20 min
+  # timeout per vulnerability (analyze_hpg / run_traversals) in seconds
+  poc_analysis_timeout: 1500 # 25 min
+  # timeout for graph-based querying (analysis) of each site in seconds
+  analysis_timeout: 3600 # 1 hr
+  # enforce a max per webpage timeout for graph generation (in seconds)
+  pagetimeout: 1200 # 20 min # only 1% got cutoff, should be fine
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process
@@ -116,17 +124,17 @@ verificationpass:
   sitetimeout: 10800 # 3 hrs
   # which browser to use
   browser:
-    name: chrome
+    name: chromeer
   endpoint: http://127.0.0.1:3456
 
 cve_vuln:
   enabled: true
   passes:
-    crawling: false
+    crawling: true
     lib_detection: true   
-    vulndb: false
-    static: false
-    static_neo4j: false  
+    vulndb: true
+    static: true
+    static_neo4j: true  
     lift: true  # enable lifting functionality
     transform: true  # enable sequence expression transformation
     # verification: false

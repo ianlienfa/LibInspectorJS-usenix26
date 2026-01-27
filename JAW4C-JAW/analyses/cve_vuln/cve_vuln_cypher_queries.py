@@ -1681,7 +1681,8 @@ def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
 		@param {object} vuln_info: vulnerability information containing 'poc_str', 'mod', and 'location'
 		@return {object} parsed JSON object from the flattened POC
 		"""
-		if 'LIBOBJ' not in vuln_info['poc_str']:
+
+		if 'LIBOBJ' not in vuln_info['poc_str'] and vuln_info['jq'] != True:
 			raise RuntimeError("poc_str format error")
 		
 		
@@ -1701,7 +1702,7 @@ def pocPreprocess(vuln_info, LIBOBJ_replacement=True):
 		)
 		pocFlattenedJsonStr = p.stdout
 		if not pocFlattenedJsonStr:
-			logger.error(f"POC parsing failed, stderr: {p.stderr}")
+			logger.warning(f"POC parsing failed, stderr: {p.stderr}")
 			raise RuntimeError("POC parsing failed, no output from parser")			
 		flatPoc = json.loads(pocFlattenedJsonStr)
 		flatPoc[0]['poc_str'] = vuln_info['poc_str']	
@@ -1882,6 +1883,10 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			codes = record['codes']
 			for i in codes:
 				properties += i
+		properties = list(reversed(properties))
+		if len(properties) > 3:
+			print("Might be too long member expression:", properties, " for ", memberNode, ", trimming...")
+			properties = properties[:1] # weird, only keep the root
 		if properties:
 			return '.'.join(reversed(properties))
 
@@ -2035,7 +2040,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			Enqueue a taint-processing function for later execution.
 			Functions remain side-effect driven; queueing avoids deep recursion.
 			"""								
-			taint_dispatch_queue.append((function_ptr, args, kwargs))
+			taint_dispatch_queue.append([function_ptr, args, kwargs])
 
 		def taintPropTilASTTopmost(node, currASTNode, topMost, taintTag, nodeid_to_matches, out_values, context_scope='', nodeTagTaintingDepth=None, taintPropTilASTTopmostDepth=None):
 			# halt until currASTNode is topMost
@@ -2067,7 +2072,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 						# foo(a, a.b, '1', {'a': 1})
 						# Here: foo(a, b, c, d), d calls taintThroughEdgeProperty, finds the FunctionDef, 
 						# then calls taintPropTilASTTopmost with the argument node						
-						queue_call(nodeTagTainting, node, currASTNode, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
+						queue_call(nodeTagTainting, node, topMost, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
 					case 'ReturnStatement':
 						# TODO: improve function-callsite search efficiency through knowledge database
 						# the PDG match is at a return statement
@@ -2142,7 +2147,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 						# logger.debug(f"currASTNode: {currASTNode}")
 						queue_call(nodeTagTainting, node, topMost, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
 					case 'VariableDeclaration':
-						queue_call(nodeTagTainting, node, currASTNode, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
+						queue_call(nodeTagTainting, node, topMost, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
 					case _:
 						# Could be all kinds of CFG nodes here
 						# logger.warning(f"taintThroughEdgeProperty not implemented for node type, not implemented for node type: {currASTNode['Type']}")
@@ -2323,6 +2328,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 				RETURN member_expr
 				""" % (b_node['Id'], property_name)
 				results = tx.run(query)
+				print("Time taken for _get_alias_node_from_b_via_edge query:", query)
 				for record in results:
 					return record['member_expr']
 			else: # single identifier
@@ -2330,11 +2336,14 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 				query = """
 				MATCH (n { Id: '%s' })-[:AST_parentOf*]->(ident_node { Type: 'Identifier', Code: '%s' })
 				RETURN ident_node
-				""" % (b_node['Id'], identifier_name)
+				""" % (b_node['Id'], identifier_name)				
 				results = tx.run(query)
+				# breakpoint()
+				# print("Time taken for single id _get_alias_node_from_b_via_edge query:", query)
 				for record in results:
 					return record['ident_node']
 
+		# Bottleneck function, requires optimization
 		def taintThroughEdgeProperty(node, contextNode, varname, taintTag, nodeid_to_matches, out_values, context_scope='', nodeTagTaintingDepth=None, taintPropTilASTTopmostDepth=None):
 			"""
 			Propagate taint through PDG querying, unlike the taint implementation that goes to source
@@ -2359,18 +2368,29 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			"""%(contextNode['Id'], varname)
 			# logger.debug(f"taintThroughEdgeProperty query: {query}")
 			results = [] # DEBUG
+			# breakpoint()
+			logger.warning(f"Running taintThroughEdgeProperty PDG query: {query}")
 			try:
 				results = tx.run(query) # All PDG nodes that is one edge away via 'varname' argument
 			except Exception as e:
 				logger.error(f"Error running taintThroughEdgeProperty query: {e}")
+			# breakpoint()
+			logger.warning(f"Running taintThroughEdgeProperty iterations: {query}")
 			for item in results:
 				currentNodes = item['resultset']
 				for iteratorNode in currentNodes:
+					# Early tagging: if we wait until reaching topMost AST node, we might miss important nodes due to time out
+					if iteratorNode['Id'] not in nodeid_to_matches:
+						nodeid_to_matches[iteratorNode['Id']] = set()
+					nodeid_to_matches[iteratorNode['Id']].add(taintTag) # only add the code part, not the constructKey part			
+					# prioritize nodeTagTaintingDepth first					
+					queue_call(nodeTagTainting, iteratorNode, iteratorNode, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
 					# logger.debug(f"iteratorNode: {iteratorNode}")					
 					# Handle different iteratorNode types from inside out
 					# Starts tainting constructs like CallExpression, AssignmentExpression, etc.
 					# When currentASTNode reaches topMost AST node, calls taintThroughEdgeProperty again for further propagation
 					# identify the alias node in the dependent node
+					logger.warning(f"Finding alias node in taintThroughEdgeProperty for varname: {varname}")
 					alias = _get_alias_node_from_b_via_edge(varname, iteratorNode) # find alias node in iteratorNode that matches 'node'
 					if alias:
 						queue_call(taintPropTilASTTopmost, alias, alias, iteratorNode, taintTag, nodeid_to_matches, out_values, context_scope=context_scope, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
@@ -2435,9 +2455,11 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			var_root_name = None
 			var_full_name = None
 			if node['Type'] not in ['Identifier', 'Literal']: # Skip graph querying for Identifiers and Literals		
-				try:
+				try:					
 					var_full_name = _get_full_member_name(tx, node) # implement getting full var name from node
-					var_root_name = var_full_name.split('.')[0] if var_full_name else None
+					var_root_name = var_full_name.split('.')[0] if var_full_name else None # still get root name even if node is not member expression
+					if node['Type'] != 'MemberExpression':
+						var_full_name = None # makes no sense to query full name for non-member expressions
 				except Exception as e:
 					logger.warning(f"Error getting var_root_name and var_full_name for {node['Id']}: \nError: {e}")					
 			else:
@@ -2459,7 +2481,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 												
 			# Add debug print here
 			# logger.debug(f"nodeTagTainting: node {node['Id']} var_root_name: {var_root_name}, taintTag: {taintTag}")
-			if var_root_name:
+			if var_root_name and var_root_name != var_full_name:
 				try:
 					queue_call(taintThroughEdgeProperty, node, contextNode, var_root_name, taintTag, nodeid_to_matches, out_values, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
 				except Exception as e:
@@ -2482,6 +2504,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 						continue  # skip non-leaf nodes, preserved nodes, ex: (LIBOBJ, PAYLOAD, WILDCARD)				
 					code_set.add(code) # a code set to return later, this will be used to filter out idenfiers within pocs during the propagation phase, after an vulnerable sink is found
 					logger.debug(f"code: {code}, curr_construct: {curr_construct}")
+					# breakpoint()  # Debug breakpoint before processing each construct
 					
 					# Optimization: skip previously processed pattern, eg. jquery's '$' should only be processed once for a graph
 					if(code in processed_pattern):
@@ -2547,7 +2570,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 							nodeid_to_matches[context_node['Id']].add(taintTag) # only add the code part, not the constructKey part			
 						continue  # skip further processing for this construct
 
-
+					# breakpoint()  # Debug breakpoint before processing matchesc
 					for idx, matchingNode in enumerate(matching_nodes):
 						if idx > code_matching_cutoff:
 							logger.warning(f"Reached {code_matching_cutoff} matching, full: {len(matching_nodes)} for code: {code}, skipping further matches to avoid performance issues.")
@@ -2573,18 +2596,30 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 											logger.warning(f"Max recursion depth ({call_count_limit}) reached in nodeTagTainting for taintTag {taintTag}. Halting further propagation.")
 											break
 									elif func is taintPropTilASTTopmost:
-										if taintPropTilASTTopmostDepth is not None and taintPropTilASTTopmostDepth >= call_count_limit * 3:
-											logger.warning(f"Max recursion depth ({call_count_limit * 3}) reached in taintPropTilASTTopmost for taintTag {taintTag}. Halting further propagation.")
+										if taintPropTilASTTopmostDepth is not None and taintPropTilASTTopmostDepth > 5: # since we have already tag the topmost node, we don't have to must go reach topmost
+											logger.warning(f"Max recursion depth ({call_count_limit > 5}) reached in taintPropTilASTTopmost for taintTag {taintTag}. Force lifting to halt further propagation.")
+											# reset currentASTNode to topMost to halt further propagation
+											# node, currentASTNode, topMost, *rest = args
+											# args = (node, currentASTNode, topMost, *rest)
+											# if topMost['Type'] == 'ReturnStatement':
+											# 	# only this is 
+											# 	pass
+											# else:
 											break
+											
 									# Execute the queued function
-									# if func.__name__ == 'nodeTagTainting': # add debug print here
-									# 	logger.warning(f"Executing nodeTagTainting with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
-									# 	logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', taintTag: {args[2]}")
-									# elif func.__name__ == 'taintPropTilASTTopmost': # add debug print here
-									# 	logger.warning(f"Executing taintPropTilASTTopmost with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
-									# 	logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', currentASTNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', topMost: '{args[2]['Id'], args[2]['Location'], args[2]['Type']}', taintTag: {args[3]}")
-									# else:
-									# 	logger.warning(f"Executing queued function: {func.__name__}")
+									if func.__name__ == 'nodeTagTainting': # add debug print here
+										logger.warning(f"Executing nodeTagTainting with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
+										logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', taintTag: {args[2]}")
+									elif func.__name__ == 'taintPropTilASTTopmost': # add debug print here
+										logger.warning(f"Executing taintPropTilASTTopmost with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
+										logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', currentASTNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', topMost: '{args[2]['Id'], args[2]['Location'], args[2]['Type']}', taintTag: {args[3]}")
+									# def taintThroughEdgeProperty(node, contextNode, varname, taintTag, nodeid_to_matches, out_values, context_scope='', nodeTagTaintingDepth=None, taintPropTilASTTopmostDepth=None):
+									elif func.__name__ == 'taintThroughEdgeProperty': # add debug print here
+										logger.warning(f"Executing taintThroughEdgeProperty with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
+										logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', varname: {args[2]}, taintTag: {args[3]}")
+									else:
+										logger.warning(f"Executing queued function: {func.__name__}")
 									func(*args, **kwargs)
 							except Exception as e:
 								print(f"Error in nodeTagTainting: {e}")
@@ -2597,14 +2632,19 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			logger.info(f"Early halt due to none matching for construct: {str(e)}")
 			logger.info(f"poc['constructs']: {poc['constructs']}")
 		except Exception as e:
-			# logger.error(f"Exception in processPocMatch: {e}")
-			# breakpoint()
+			logger.error(f"Exception in processPocMatch: {e}")
 			raise e
 					
 		item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
 		# filter out items with empty intersection
 		item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
 		item_with_matches.sort(key=lambda x: len(x[1]), reverse=True)
+		# Add cutoffs to prevent huge outputs
+		if len(item_with_matches) > 50:
+			item_with_matches = item_with_matches[:50]  # limit to top 50 matches to avoid performance issues at getTopMostProgramPath
+														 # this will unlikely break the fullset matching, since fullset matches should be among the top matches
+			logger.warning(f"For {poc['fullset']}: Limiting item_with_matches to top 50 entries to avoid performance issues.")
+		
 
 		for nodeId, matchSet in item_with_matches:
 			node = get_node_by_id(tx, nodeId)
@@ -2634,14 +2674,6 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 
 			return res, all_poc_max_levels
 		else:
-			# order the nodeid_to_matches by size of sets (descending)		
-			# logger.debug(f"nodeid_to_matches before processing max levels: {nodeid_to_matches}")
-			# item_with_matches = [ (id, st.intersection(poc['fullset'])) for id, st in nodeid_to_matches.items() ]
-			# # filter out items with empty intersection
-			# item_with_matches = list(filter(lambda item: len(item[1]) > 0, item_with_matches))
-			# item_with_matches.sort(key=lambda x: len(x[1]), reverse=True)
-			# logger.debug(f"item_with_matches: {item_with_matches}")
-			
 			# detect full set if missed by earlier processing (if all pattern were skipped, no 'root' will be marked)
 			max_len = len(item_with_matches[0][1]) if item_with_matches else 0  # we only look at the largest match set
 			res = []
@@ -2659,15 +2691,6 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			if root_found:				
 				return res, all_poc_max_levels
 
-			# for nodeId, matchSet in item_with_matches:
-			# 	node = get_node_by_id(tx, nodeId)
-			# 	if node:
-			# 		all_poc_max_levels.append({
-			# 			'node': node,
-			# 			'matchSet': list(matchSet),
-			# 			'file': getTopMostProgramPath(tx, node),
-			# 			'location': node['Location'] if 'Location' in node else None
-			# 		})
 			return [], all_poc_max_levels
 
 	
@@ -2675,8 +2698,8 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 		flatPoc = pocPreprocess(vuln_info)
 		# libObjectList = getLibObjList(tx, vuln_info)		
 	except Exception as e:
-		# logger.error(f"getSinkByTagTainting preprocessing fails, vuln_info: {vuln_info}, error: {e}")
-		raise e
+		logger.error(f"getSinkByTagTainting preprocessing fails, vuln_info: {vuln_info}, error: {e}, moving to the next vuln")
+		return [], []
 	
 	# Should just be one, for loop is only for unwrapping
 	for poc in flatPoc:
@@ -3218,8 +3241,12 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 				request_fn = vuln_info['poc_str'] # temporary
 				wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, top_expression_node) # returns all the child of a specific node
 				# logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
-				ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)
-				top_expression_code = ce[0]
+				top_expression_code = ""
+				try:
+					ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)
+					top_expression_code = ce[0]
+				except Exception as e:
+					logger.error(f"Error in getAdvancedCodeExpression for top_expression_node {top_expression_node}: {e}")									
 				varnames = processPayloadStringAndRelationships(tx, vuln_info, top_expression_node)
 				print("poc_str:", request_fn)
 				print("varnames identified for top expression:", varnames)
@@ -3232,7 +3259,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 
 				nid = request_fn + '__nid=' + top_expression_node['Id'] + '__Loc=' + str(top_expression_node['Location'])
 				# logger.info(f"[debug] nid: {nid}")
-				request_storage[nid] = {'reachability':[], 'endpoint_code': ce[0], 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': top_expression_node['Id'], 'CallExpression': top_expression_node['Id'], 'Argument': top_expression_node['Id']}}
+				request_storage[nid] = {'reachability':[], 'endpoint_code': top_expression_code, 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': top_expression_node['Id'], 'CallExpression': top_expression_node['Id'], 'Argument': top_expression_node['Id']}}
 				for varname in varnames:
 					vals = DF._get_varname_value_from_context(tx, varname, top_expression_node, call_values_cache=call_values_cache, PDG_on_arguments_only=True)						
 					request_storage[nid]['expected_values'][varname] = vals

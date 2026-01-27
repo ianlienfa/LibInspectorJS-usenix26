@@ -962,6 +962,159 @@ app.get('/api/sites', async (req, res) => {
     }
 });
 
+// API endpoint for server-side search and filtering
+app.get('/api/search', async (req, res) => {
+    try {
+        const {
+            q = '',
+            page = 1,
+            limit = 50,
+            // Filter parameters
+            hasFlows,
+            hasLibDetection,
+            hasSinkFlows,
+            hasVulnOut,
+            hasErrorLog,
+            hasWarningLog,
+            reviewed,
+            unreviewed,
+            vulnerable,
+            hasNotes,
+            // Time range parameters (milliseconds)
+            timeStart,
+            timeEnd,
+            // Hash range parameters
+            hashStart,
+            hashEnd,
+            // File content search hashes (comma-separated)
+            hashes
+        } = req.query;
+
+        const pageNum = parseInt(page, 10);
+        const limitNum = parseInt(limit, 10);
+        const searchTerm = q.toLowerCase().trim();
+
+        if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum <= 0 || limitNum > 200) {
+            return res.status(400).json({ error: 'Invalid pagination parameters' });
+        }
+
+        const data = await getCachedSiteData();
+        const allSites = data.sites;
+        let sites = allSites;
+
+        // Filter by file content search hashes (takes precedence over text search)
+        if (hashes) {
+            const hashArray = hashes.split(',').map(h => h.trim()).filter(h => h);
+            const hashSet = new Set(hashArray);
+            sites = sites.filter(site => hashSet.has(site.hash));
+        } else if (searchTerm) {
+            // Filter by search term only if not using file content search
+            sites = sites.filter(site => {
+                const searchText = (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase();
+                return searchText.includes(searchTerm);
+            });
+        }
+
+        // Apply checkbox filters
+        if (hasFlows === 'true') {
+            sites = sites.filter(site => site.hasFlows);
+        }
+        if (hasLibDetection === 'true') {
+            sites = sites.filter(site => site.hasLibDetection);
+        }
+        if (hasSinkFlows === 'true') {
+            sites = sites.filter(site => site.hasSinkFlows);
+        }
+        if (hasVulnOut === 'true') {
+            sites = sites.filter(site => site.hasVulnOut);
+        }
+        if (hasErrorLog === 'true') {
+            sites = sites.filter(site => site.hasErrorLog);
+        }
+        if (hasWarningLog === 'true') {
+            sites = sites.filter(site => site.hasWarningLog);
+        }
+        if (reviewed === 'true') {
+            sites = sites.filter(site => site.reviewed);
+        }
+        if (unreviewed === 'true') {
+            sites = sites.filter(site => !site.reviewed);
+        }
+        if (vulnerable === 'true') {
+            sites = sites.filter(site => site.vulnerable);
+        }
+        if (hasNotes === 'true') {
+            sites = sites.filter(site => site.memo && site.memo.trim());
+        }
+
+        // Resolve hash range to a time range (server-side)
+        let resolvedTimeStart = null;
+        let resolvedTimeEnd = null;
+        if (hashStart || hashEnd) {
+            if (!hashStart || !hashEnd) {
+                return res.status(400).json({ error: 'Both hashStart and hashEnd are required' });
+            }
+            const resolveHashPrefix = (prefix) => {
+                const normalized = String(prefix).toLowerCase();
+                const matches = allSites.filter(site => String(site.hash).toLowerCase().startsWith(normalized));
+                if (matches.length === 0) {
+                    return { error: `No match for hash prefix: ${prefix}` };
+                }
+                if (matches.length > 1) {
+                    return { error: `Hash prefix is not unique: ${prefix}` };
+                }
+                return { site: matches[0] };
+            };
+
+            const startResult = resolveHashPrefix(hashStart);
+            if (startResult.error) {
+                return res.status(400).json({ error: startResult.error });
+            }
+            const endResult = resolveHashPrefix(hashEnd);
+            if (endResult.error) {
+                return res.status(400).json({ error: endResult.error });
+            }
+            const startSite = startResult.site;
+            const endSite = endResult.site;
+            const startMs = startSite.modifiedTime;
+            const endMs = endSite.modifiedTime;
+            if (!startMs || !endMs) {
+                return res.status(400).json({ error: 'hashStart/hashEnd missing modified time' });
+            }
+            resolvedTimeStart = Math.min(startMs, endMs);
+            resolvedTimeEnd = Math.max(startMs, endMs);
+        }
+
+        // Apply time range filter (explicit or resolved from hashes)
+        const startMsValue = resolvedTimeStart ?? (timeStart ? parseInt(timeStart, 10) : null);
+        const endMsValue = resolvedTimeEnd ?? (timeEnd ? parseInt(timeEnd, 10) : null);
+        if (startMsValue && !isNaN(startMsValue)) {
+            sites = sites.filter(site => site.modifiedTime >= startMsValue);
+        }
+        if (endMsValue && !isNaN(endMsValue)) {
+            sites = sites.filter(site => site.modifiedTime <= endMsValue);
+        }
+
+        // Sites are already sorted by modifiedTime (newest first) from getSiteData()
+        const total = sites.length;
+        const totalPages = Math.ceil(total / limitNum) || 1;
+        const offset = (pageNum - 1) * limitNum;
+        const paginatedSites = sites.slice(offset, offset + limitNum);
+
+        res.json({
+            sites: paginatedSites,
+            total,
+            page: pageNum,
+            limit: limitNum,
+            totalPages,
+            hasMore: pageNum < totalPages
+        });
+    } catch (error) {
+        console.error('Error searching sites:', error);
+        res.status(500).json({ error: 'Failed to search sites' });
+    }
+});
+
 // File size threshold for chunked loading (1MB)
 const CHUNK_SIZE_THRESHOLD = 1024 * 1024;
 

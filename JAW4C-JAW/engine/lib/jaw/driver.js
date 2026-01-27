@@ -536,7 +536,6 @@ function getEventNameAtRegistrationSite(graphNode, scopeTree) {
     "use strict";
     var foundValue = null;
     walkes(graphNode.astNode["arguments"][0], {
-        // FunctionDeclaration: function () {},
         Identifier: function (node) {
             var event_variable_to_resolve = graphNode.scope.getVariable(node.name)
             graphNode.reachIns.some(function (vardef) {
