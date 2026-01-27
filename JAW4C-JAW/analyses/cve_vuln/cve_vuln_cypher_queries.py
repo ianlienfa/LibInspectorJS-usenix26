@@ -1885,7 +1885,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 				properties += i
 		properties = list(reversed(properties))
 		if len(properties) > 3:
-			print("Might be too long member expression:", properties, ", trimming...")
+			print("Might be too long member expression:", properties, " for ", memberNode, ", trimming...")
 			properties = properties[:1] # weird, only keep the root
 		if properties:
 			return '.'.join(reversed(properties))
@@ -2369,12 +2369,13 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			# logger.debug(f"taintThroughEdgeProperty query: {query}")
 			results = [] # DEBUG
 			# breakpoint()
+			logger.warning(f"Running taintThroughEdgeProperty PDG query: {query}")
 			try:
 				results = tx.run(query) # All PDG nodes that is one edge away via 'varname' argument
 			except Exception as e:
 				logger.error(f"Error running taintThroughEdgeProperty query: {e}")
-			# print("Time taken for taintThroughEdgeProperty PDG query:", query)
 			# breakpoint()
+			logger.warning(f"Running taintThroughEdgeProperty iterations: {query}")
 			for item in results:
 				currentNodes = item['resultset']
 				for iteratorNode in currentNodes:
@@ -2382,12 +2383,14 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 					if iteratorNode['Id'] not in nodeid_to_matches:
 						nodeid_to_matches[iteratorNode['Id']] = set()
 					nodeid_to_matches[iteratorNode['Id']].add(taintTag) # only add the code part, not the constructKey part			
-
+					# prioritize nodeTagTaintingDepth first					
+					queue_call(nodeTagTainting, iteratorNode, iteratorNode, taintTag, nodeid_to_matches=nodeid_to_matches, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
 					# logger.debug(f"iteratorNode: {iteratorNode}")					
 					# Handle different iteratorNode types from inside out
 					# Starts tainting constructs like CallExpression, AssignmentExpression, etc.
 					# When currentASTNode reaches topMost AST node, calls taintThroughEdgeProperty again for further propagation
 					# identify the alias node in the dependent node
+					logger.warning(f"Finding alias node in taintThroughEdgeProperty for varname: {varname}")
 					alias = _get_alias_node_from_b_via_edge(varname, iteratorNode) # find alias node in iteratorNode that matches 'node'
 					if alias:
 						queue_call(taintPropTilASTTopmost, alias, alias, iteratorNode, taintTag, nodeid_to_matches, out_values, context_scope=context_scope, nodeTagTaintingDepth=nodeTagTaintingDepth, taintPropTilASTTopmostDepth=taintPropTilASTTopmostDepth)
@@ -2452,9 +2455,11 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			var_root_name = None
 			var_full_name = None
 			if node['Type'] not in ['Identifier', 'Literal']: # Skip graph querying for Identifiers and Literals		
-				try:
+				try:					
 					var_full_name = _get_full_member_name(tx, node) # implement getting full var name from node
-					var_root_name = var_full_name.split('.')[0] if var_full_name else None
+					var_root_name = var_full_name.split('.')[0] if var_full_name else None # still get root name even if node is not member expression
+					if node['Type'] != 'MemberExpression':
+						var_full_name = None # makes no sense to query full name for non-member expressions
 				except Exception as e:
 					logger.warning(f"Error getting var_root_name and var_full_name for {node['Id']}: \nError: {e}")					
 			else:
@@ -2596,6 +2601,10 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 											# reset currentASTNode to topMost to halt further propagation
 											# node, currentASTNode, topMost, *rest = args
 											# args = (node, currentASTNode, topMost, *rest)
+											# if topMost['Type'] == 'ReturnStatement':
+											# 	# only this is 
+											# 	pass
+											# else:
 											break
 											
 									# Execute the queued function
@@ -3232,8 +3241,12 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 				request_fn = vuln_info['poc_str'] # temporary
 				wrapper_node_top_expression = neo4jQueryUtilityModule.getChildsOf(tx, top_expression_node) # returns all the child of a specific node
 				# logger.info(f"[debug] wrapper_node_top_expression: {wrapper_node_top_expression}")
-				ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)
-				top_expression_code = ce[0]
+				top_expression_code = ""
+				try:
+					ce = neo4jQueryUtilityModule.getAdvancedCodeExpression(wrapper_node_top_expression)
+					top_expression_code = ce[0]
+				except Exception as e:
+					logger.error(f"Error in getAdvancedCodeExpression for top_expression_node {top_expression_node}: {e}")									
 				varnames = processPayloadStringAndRelationships(tx, vuln_info, top_expression_node)
 				print("poc_str:", request_fn)
 				print("varnames identified for top expression:", varnames)
@@ -3246,7 +3259,7 @@ def run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_m
 
 				nid = request_fn + '__nid=' + top_expression_node['Id'] + '__Loc=' + str(top_expression_node['Location'])
 				# logger.info(f"[debug] nid: {nid}")
-				request_storage[nid] = {'reachability':[], 'endpoint_code': ce[0], 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': top_expression_node['Id'], 'CallExpression': top_expression_node['Id'], 'Argument': top_expression_node['Id']}}
+				request_storage[nid] = {'reachability':[], 'endpoint_code': top_expression_code, 'expected_values': {}, 'top_expression': top_expression_code, 'id_set': {'TopExpression': top_expression_node['Id'], 'CallExpression': top_expression_node['Id'], 'Argument': top_expression_node['Id']}}
 				for varname in varnames:
 					vals = DF._get_varname_value_from_context(tx, varname, top_expression_node, call_values_cache=call_values_cache, PDG_on_arguments_only=True)						
 					request_storage[nid]['expected_values'][varname] = vals
