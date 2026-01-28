@@ -167,6 +167,7 @@ def generate_test_config(test_dir, action, port=3000, config_path='config.yaml',
 
     # Load existing config
     base_config_file = BASE_DIR / config_path
+    print(f"  Loading base config from: {base_config_file}")
     if base_config_file.exists():
         with open(base_config_file, 'r') as f:
             config = yaml.safe_load(f)

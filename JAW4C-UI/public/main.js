@@ -18,8 +18,27 @@ function toggleDetails(hash) {
     const icon = document.getElementById(`icon-${hash}`);
 
     if (details.classList.contains('open')) {
+        // Collapsing - clear DOM content to free memory
         details.classList.remove('open');
         icon.textContent = '+';
+
+        // Clear file content from DOM
+        const codeEl = document.getElementById(`code-${hash}`);
+        const wrapperEl = document.getElementById(`wrapper-${hash}`);
+        if (codeEl) {
+            codeEl.textContent = ''; // Clear content
+        }
+        if (wrapperEl) {
+            wrapperEl.style.display = 'none'; // Hide wrapper
+        }
+
+        // Clear current file indicator
+        const currentFileEl = document.getElementById(`current-file-${hash}`);
+        if (currentFileEl) {
+            currentFileEl.textContent = '';
+        }
+
+        console.log(`[Memory] Cleared content for ${hash}`);
     } else {
         details.classList.add('open');
         icon.textContent = '-';
@@ -34,8 +53,21 @@ function toggleJsFiles(hash) {
         dropdown.style.display = 'block';
         icon.textContent = '▼';
     } else {
+        // Collapsing JS files dropdown - clear file content if displayed
         dropdown.style.display = 'none';
         icon.textContent = '▶';
+
+        // Clear file content from DOM to save memory
+        const codeEl = document.getElementById(`code-${hash}`);
+        const wrapperEl = document.getElementById(`wrapper-${hash}`);
+        if (codeEl) {
+            codeEl.textContent = ''; // Clear content
+        }
+        if (wrapperEl) {
+            wrapperEl.style.display = 'none'; // Hide wrapper
+        }
+
+        console.log(`[Memory] Cleared JS file content for ${hash}`);
     }
 }
 
@@ -149,8 +181,11 @@ async function loadFile(hash, file) {
     const isSameFile = currentFileEl.textContent === file;
 
     if (isWrapperVisible && isSameFile) {
-        // Hide the file content wrapper
+        // Hide the file content wrapper and clear content to free memory
         wrapperEl.style.display = 'none';
+        codeEl.textContent = ''; // Clear content from DOM
+        currentFileEl.textContent = '';
+        console.log(`[Memory] Cleared content for ${file} in ${hash}`);
         return;
     }
 
@@ -283,106 +318,79 @@ function debounce(func, wait) {
     };
 }
 
-function applyFilters() {
-    const filterFlows = document.getElementById('filter-flows').checked;
-    const filterLibDetection = document.getElementById('filter-lib-detection').checked;
-    const filterSinkFlows = document.getElementById('filter-sink-flows').checked;
-    const filterVulnOut = document.getElementById('filter-vuln-out').checked;
-    const filterErrorLog = document.getElementById('filter-error-log').checked;
-    const filterWarningLog = document.getElementById('filter-warning-log').checked;
-    const filterReviewed = document.getElementById('filter-reviewed').checked;
-    const filterUnreviewed = document.getElementById('filter-unreviewed').checked;
-    const filterVulnerable = document.getElementById('filter-vulnerable').checked;
-    const filterHasNotes = document.getElementById('filter-has-notes').checked;
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+// Apply file content search results (no longer needed - using server-side filtering)
+function applyFileContentFilter() {
+    // This function is deprecated - file content search now works like URL/Hash search
+    // with server-side filtering and proper pagination
+}
 
-    const siteItems = document.querySelectorAll('.site-item');
-    let visibleCount = 0;
-
-    // Use requestAnimationFrame for better performance
-    requestAnimationFrame(() => {
-        // Batch DOM updates
-        const fragment = document.createDocumentFragment();
-
-        siteItems.forEach(item => {
-            let shouldShow = true;
-
-            // For file content search mode, only show matching results
-            if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
-                shouldShow = fileContentSearchResults.has(item.dataset.hash);
-            } else {
-                // Early exit optimization - combine all checks
-                shouldShow = !(
-                    (filterFlows && item.dataset.flows !== '1') ||
-                    (filterLibDetection && item.dataset.hasLibDetection !== 'true') ||
-                    (filterSinkFlows && item.dataset.hasSinkFlows !== 'true') ||
-                    (filterVulnOut && item.dataset.hasVulnOut !== 'true') ||
-                    (filterErrorLog && item.dataset.hasErrorLog !== 'true') ||
-                    (filterWarningLog && item.dataset.hasWarningLog !== 'true') ||
-                    (filterReviewed && item.dataset.reviewed !== 'true') ||
-                    (filterUnreviewed && item.dataset.reviewed === 'true') ||
-                    (filterVulnerable && item.dataset.vulnerable !== 'true') ||
-                    (filterHasNotes && item.dataset.hasNotes !== 'true') ||
-                    (searchTerm && !item.dataset.searchText.includes(searchTerm))
-                );
-            }
-
-            // Toggle visibility with class instead of inline style for better performance
-            if (shouldShow) {
-                item.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                item.classList.add('hidden');
-            }
-        });
-
-        // Update visible count
-        document.getElementById('visible-count').textContent = visibleCount;
-    });
+// Update visible count (used after loading)
+function updateVisibleCount() {
+    const siteItems = document.querySelectorAll('.site-item:not(.hidden)');
+    document.getElementById('visible-count').textContent = siteItems.length;
 }
 
 // Search mode handling
 let currentSearchMode = 'url';
 let fileContentSearchResults = new Set(); // Store hashes that match file content search
+let searchSpinnerActive = false;
+
+function setSearchButtonLoading(isLoading, labelText) {
+    const searchBtn = document.getElementById('search-btn');
+    if (!searchBtn) return;
+    const labelEl = searchBtn.querySelector('.btn-label');
+    const defaultLabel = labelEl ? labelEl.textContent : searchBtn.textContent;
+    if (!searchBtn.dataset.defaultLabel) {
+        searchBtn.dataset.defaultLabel = defaultLabel;
+    }
+    searchBtn.classList.toggle('is-loading', isLoading);
+    searchBtn.disabled = isLoading;
+    if (labelEl) {
+        labelEl.textContent = isLoading ? (labelText || 'Searching...') : searchBtn.dataset.defaultLabel;
+    } else {
+        searchBtn.textContent = isLoading ? (labelText || 'Searching...') : searchBtn.dataset.defaultLabel;
+    }
+}
 
 function switchSearchMode() {
     const mode = document.querySelector('input[name="search-mode"]:checked').value;
     currentSearchMode = mode;
 
     const searchInput = document.getElementById('search-input');
-    const searchBtn = document.getElementById('search-btn');
     const searchOptions = document.getElementById('search-options');
 
     if (mode === 'content') {
         // Switch to file content search mode
         searchInput.placeholder = 'Enter regex pattern to search in files...';
-        searchBtn.style.display = 'inline-block';
         searchOptions.style.display = 'flex';
-        searchInput.onkeyup = null; // Disable auto-search
-
-        // Add enter key handler
-        searchInput.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                executeFileContentSearch();
-            }
-        };
     } else {
         // Switch to URL/hash search mode
         searchInput.placeholder = 'Search by URL or hash...';
-        searchBtn.style.display = 'none';
         searchOptions.style.display = 'none';
-        searchInput.onkeydown = null;
-        searchInput.onkeyup = handleSearchInput;
 
         // Clear file content search results
         fileContentSearchResults.clear();
-        applyFilters();
     }
 }
 
-function handleSearchInput() {
-    if (currentSearchMode === 'url') {
-        debouncedApplyFilters();
+// Handle Enter key in search input
+function handleSearchKeydown(event) {
+    if (event.key === 'Enter') {
+        executeSearch();
+    }
+}
+
+// Execute search based on current mode
+function executeSearch() {
+    if (currentSearchMode === 'content') {
+        executeFileContentSearch();
+    } else {
+        // URL/Hash search - update query and reload from page 1
+        const searchInput = document.getElementById('search-input');
+        currentSearchQuery = searchInput.value.trim();
+        searchSpinnerActive = true;
+        setSearchButtonLoading(true);
+        loadPage(1);
     }
 }
 
@@ -398,10 +406,7 @@ async function executeFileContentSearch() {
     }
 
     // Show loading indicator
-    const searchBtn = document.getElementById('search-btn');
-    const originalText = searchBtn.textContent;
-    searchBtn.textContent = 'Searching...';
-    searchBtn.disabled = true;
+    setSearchButtonLoading(true);
 
     try {
         const response = await fetch('/api/search-file-content', {
@@ -426,25 +431,18 @@ async function executeFileContentSearch() {
         // Store matching hashes
         fileContentSearchResults = new Set(data.matches.map(m => m.hash));
 
-        // Apply filters to show only matching sites
-        applyFilters();
-
-        // Show results count
-        alert(`Found ${data.matches.length} site(s) with matching content`);
+        // Reload from page 1 with matching results (same as URL/Hash search)
+        loadPage(1);
 
     } catch (error) {
         console.error('File content search error:', error);
         alert('Error performing file content search: ' + error.message);
     } finally {
-        searchBtn.textContent = originalText;
-        searchBtn.disabled = false;
+        setSearchButtonLoading(false);
     }
 }
 
-// Debounced version for search input
-const debouncedApplyFilters = debounce(applyFilters, 300);
-
-function clearFilters() {
+function clearSelections() {
     document.getElementById('filter-flows').checked = false;
     document.getElementById('filter-lib-detection').checked = false;
     document.getElementById('filter-sink-flows').checked = false;
@@ -456,11 +454,136 @@ function clearFilters() {
     document.getElementById('filter-vulnerable').checked = false;
     document.getElementById('filter-has-notes').checked = false;
     document.getElementById('search-input').value = '';
-    applyFilters();
+    document.getElementById('time-start').value = '';
+    document.getElementById('time-end').value = '';
+    const hashStartEl = document.getElementById('hash-start');
+    const hashEndEl = document.getElementById('hash-end');
+    if (hashStartEl) hashStartEl.value = '';
+    if (hashEndEl) hashEndEl.value = '';
+    const rangeError = document.getElementById('hash-range-error');
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+    currentSearchQuery = '';
+    fileContentSearchResults.clear();
+
+    // Reset to URL search mode
+    currentSearchMode = 'url';
+    const urlRadio = document.querySelector('input[name="search-mode"][value="url"]');
+    if (urlRadio) urlRadio.checked = true;
+    switchSearchMode(); // Update UI to reflect URL mode
+
+    loadPage(1); // Reload from page 1 with no selections
+}
+
+// Time-based selection functions
+function applyTimeSelection() {
+    loadPage(1); // Reload from page 1 with time selection applied
+}
+
+function clearTimeSelection() {
+    document.getElementById('time-start').value = '';
+    document.getElementById('time-end').value = '';
+    loadPage(1); // Reload without time filter
+}
+
+function formatForDatetimeLocal(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0') + 'T' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0');
+}
+
+function swapTimeRange() {
+    const startEl = document.getElementById('time-start');
+    const endEl = document.getElementById('time-end');
+    if (!startEl || !endEl) {
+        return;
+    }
+    const tmp = startEl.value;
+    startEl.value = endEl.value;
+    endEl.value = tmp;
+    loadPage(1);
+}
+
+// Set time from clicking a site's timestamp
+function setTimeEnd(timestamp) {
+    document.getElementById('time-end').value = formatForDatetimeLocal(timestamp);
+}
+
+function switchRangeMode(mode) {
+    const timePanel = document.getElementById('time-range-panel');
+    const hashPanel = document.getElementById('hash-range-panel');
+    const timeBtn = document.getElementById('range-time-btn');
+    const hashBtn = document.getElementById('range-hash-btn');
+    const rangeError = document.getElementById('hash-range-error');
+    if (!timePanel || !hashPanel || !timeBtn || !hashBtn) {
+        return;
+    }
+    const isTime = mode === 'time';
+    currentRangeMode = isTime ? 'time' : 'hash';
+    timePanel.classList.toggle('hidden', !isTime);
+    hashPanel.classList.toggle('hidden', isTime);
+    timeBtn.classList.toggle('active', isTime);
+    hashBtn.classList.toggle('active', !isTime);
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+}
+
+function applyHashRange() {
+    const startInput = document.getElementById('hash-start');
+    const endInput = document.getElementById('hash-end');
+    const rangeError = document.getElementById('hash-range-error');
+    if (!startInput || !endInput) {
+        return;
+    }
+
+    const startHash = startInput.value.trim();
+    const endHash = endInput.value.trim();
+    if (!startHash || !endHash) {
+        if (rangeError) {
+            rangeError.textContent = 'Please enter both start and end hashes.';
+            rangeError.style.display = 'block';
+        }
+        return;
+    }
+
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+    loadPage(1);
+}
+
+function clearHashRange() {
+    const startInput = document.getElementById('hash-start');
+    const endInput = document.getElementById('hash-end');
+    const rangeError = document.getElementById('hash-range-error');
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    if (rangeError) {
+        rangeError.style.display = 'none';
+        rangeError.textContent = '';
+    }
+    loadPage(1);
 }
 
 // View mode switching
 let currentView = 'normal';
+let currentRangeMode = 'time';
+
+function updateNotesVisibility(view) {
+    const noteElements = document.querySelectorAll('.site-note-inline');
+    noteElements.forEach(note => {
+        note.style.display = view === 'notes' ? 'block' : 'none';
+    });
+}
 
 function switchView(view) {
     currentView = view;
@@ -470,20 +593,16 @@ function switchView(view) {
     document.getElementById('view-notes-btn').classList.toggle('active', view === 'notes');
 
     // Toggle inline notes visibility
-    const noteElements = document.querySelectorAll('.site-note-inline');
-    noteElements.forEach(note => {
-        note.style.display = view === 'notes' ? 'block' : 'none';
-    });
+    updateNotesVisibility(view);
 
-    // In notes view, auto-enable the "Has Notes" filter
+    // In notes view, auto-enable the "Has Notes" filter and reload
     if (view === 'notes') {
         document.getElementById('filter-has-notes').checked = true;
-        applyFilters();
+        reloadWithFilters();
     } else if (document.getElementById('filter-has-notes').checked) {
-        // When switching back to normal, keep the filter if it was manually set
-        // Otherwise, turn it off
+        // When switching back to normal, turn off the filter
         document.getElementById('filter-has-notes').checked = false;
-        applyFilters();
+        reloadWithFilters();
     }
 }
 
@@ -560,8 +679,10 @@ async function updateReview(hash, field, value) {
             const siteItem = document.querySelector(`[data-search-text*="${hash.toLowerCase()}"]`);
             if (siteItem) {
                 siteItem.dataset[field] = value;
-                // Re-apply filters to update visibility
-                applyFilters();
+                // Update hasNotes attribute when memo field changes
+                if (field === 'memo') {
+                    siteItem.dataset.hasNotes = value && value.trim() ? 'true' : 'false';
+                }
             }
         } else {
             console.error('Failed to update review');
@@ -579,7 +700,7 @@ async function updateReview(hash, field, value) {
 function filterSitesWithFlows() {
     const filterFlowsCheckbox = document.getElementById('filter-flows');
     filterFlowsCheckbox.checked = true;
-    applyFilters();
+    reloadWithFilters();
 
     // Smooth scroll to the filter section
     const filterSection = document.querySelector('.filter-section');
@@ -1052,19 +1173,29 @@ function createLibrariesRanking(libraries) {
     container.innerHTML = html;
 }
 
-// ===== Dynamic Site Loading with Infinite Scroll =====
+// ===== Pagination-based Site Loading =====
 
 let allLoadedSites = []; // Store all loaded sites for filtering/sorting
-let currentOffset = 0;
+let currentPage = 1;
+let totalPages = 1;
+let totalSites = 0;
 const SITES_PER_PAGE = 50;
 let isLoadingSites = false;
-let hasMoreSites = true;
+let currentSearchQuery = '';
+
+// Format date/time for display
+function formatDateTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+}
 
 // Function to create site item HTML from site data
 function createSiteItemHTML(site) {
     const urlPathHTML = site.urlPath ? `<div class="site-path">${escapeHtml(site.urlPath)}</div>` : '';
+    const noteDisplay = currentView === 'notes' ? 'block' : 'none';
     const noteHTML = (site.memo && site.memo.trim()) ? `
-        <div class="site-note-inline" style="display: none;">
+        <div class="site-note-inline" style="display: ${noteDisplay};">
             <div class="note-label">📝 Note:</div>
             <div class="note-content">${escapeHtml(site.memo)}</div>
         </div>
@@ -1126,17 +1257,22 @@ function createSiteItemHTML(site) {
              data-pocs="${site.pocMatches}"
              data-js-count="${site.jsFiles ? site.jsFiles.length : 0}">
             <div class="site-header" onclick="toggleDetails('${site.hash}')">
-                <div class="site-name-wrapper">
+                <div class="site-header-left">
                     <div class="site-domain" title="${escapeHtml(site.originalUrl)}">${escapeHtml(site.domain)}</div>
                     ${urlPathHTML}
                     <div class="file-badges">
                         ${badges.join('')}
                     </div>
                 </div>
-                <div class="site-summary">
-                    <span>Flows: <span class="indicator ${site.hasFlows ? 'yes' : 'no'}">${site.hasFlows ? 'Yes' : 'No'}</span></span>
-                    <span>Vuln Libs: ${site.vulnerableLibs}</span>
-                    <span>POCs: ${site.pocMatches}</span>
+                <div class="site-header-right">
+                    <span class="modified-time" title="Click to set as end time" onclick="event.stopPropagation(); setTimeEnd(${site.modifiedTime})">${formatDateTime(site.modifiedTime)}</span>
+                    <div class="site-stats">
+                        <span>Flows: <span class="indicator ${site.hasFlows ? 'yes' : 'no'}">${site.hasFlows ? 'Yes' : 'No'}</span></span>
+                        <span class="stat-divider">|</span>
+                        <span>Vuln Libs: ${site.vulnerableLibs}</span>
+                        <span class="stat-divider">|</span>
+                        <span>POCs: ${site.pocMatches}</span>
+                    </div>
                 </div>
                 <span class="expand-icon" id="icon-${site.hash}">+</span>
             </div>
@@ -1188,90 +1324,285 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Load more sites from API
-async function loadMoreSites() {
-    if (isLoadingSites || !hasMoreSites) return;
+// Build query string with current search and filters
+function buildQueryParams() {
+    const params = new URLSearchParams();
+
+    // If in file content search mode, pass the matching hashes
+    if (currentSearchMode === 'content' && fileContentSearchResults.size > 0) {
+        params.set('hashes', Array.from(fileContentSearchResults).join(','));
+    } else if (currentSearchQuery) {
+        params.set('q', currentSearchQuery);
+    }
+
+    // Add filter parameters
+    if (document.getElementById('filter-flows')?.checked) {
+        params.set('hasFlows', 'true');
+    }
+    if (document.getElementById('filter-lib-detection')?.checked) {
+        params.set('hasLibDetection', 'true');
+    }
+    if (document.getElementById('filter-sink-flows')?.checked) {
+        params.set('hasSinkFlows', 'true');
+    }
+    if (document.getElementById('filter-vuln-out')?.checked) {
+        params.set('hasVulnOut', 'true');
+    }
+    if (document.getElementById('filter-error-log')?.checked) {
+        params.set('hasErrorLog', 'true');
+    }
+    if (document.getElementById('filter-warning-log')?.checked) {
+        params.set('hasWarningLog', 'true');
+    }
+    if (document.getElementById('filter-reviewed')?.checked) {
+        params.set('reviewed', 'true');
+    }
+    if (document.getElementById('filter-unreviewed')?.checked) {
+        params.set('unreviewed', 'true');
+    }
+    if (document.getElementById('filter-vulnerable')?.checked) {
+        params.set('vulnerable', 'true');
+    }
+    if (document.getElementById('filter-has-notes')?.checked) {
+        params.set('hasNotes', 'true');
+    }
+
+    if (currentRangeMode === 'hash') {
+        const hashStart = document.getElementById('hash-start')?.value?.trim();
+        const hashEnd = document.getElementById('hash-end')?.value?.trim();
+        if (hashStart) {
+            params.set('hashStart', hashStart);
+        }
+        if (hashEnd) {
+            params.set('hashEnd', hashEnd);
+        }
+    } else {
+        // Add time range parameters
+        const timeStart = document.getElementById('time-start')?.value;
+        const timeEnd = document.getElementById('time-end')?.value;
+        if (timeStart) {
+            params.set('timeStart', new Date(timeStart).getTime().toString());
+        }
+        if (timeEnd) {
+            params.set('timeEnd', new Date(timeEnd).getTime().toString());
+        }
+    }
+
+    return params.toString();
+}
+
+// Reload from page 1 when filters change
+function reloadWithFilters() {
+    loadPage(1);
+}
+
+// Load sites for a specific page
+async function loadPage(page) {
+    if (isLoadingSites) return;
 
     isLoadingSites = true;
     const loadingIndicator = document.getElementById('loading-indicator');
     loadingIndicator.style.display = 'flex';
 
     try {
-        const response = await fetch(`/api/sites?offset=${currentOffset}&limit=${SITES_PER_PAGE}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // Build URL with pagination, search, and filter parameters
+        const queryParams = buildQueryParams();
+        const url = `/api/search?page=${page}&limit=${SITES_PER_PAGE}${queryParams ? '&' + queryParams : ''}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData && errorData.error) {
+                    errorMessage = errorData.error;
+                }
+            } catch (parseError) {
+                // Ignore JSON parsing errors
+            }
+            const rangeError = document.getElementById('hash-range-error');
+            if (rangeError && currentRangeMode === 'hash') {
+                rangeError.textContent = errorMessage;
+                rangeError.style.display = 'block';
+            }
+            throw new Error(errorMessage);
+        }
 
         const data = await response.json();
 
-        // Store sites in our array
-        allLoadedSites.push(...data.sites);
+        // Update pagination state
+        currentPage = data.page;
+        totalPages = data.totalPages;
+        totalSites = data.total;
 
-        // Render the sites
+        // Store sites
+        allLoadedSites = data.sites;
+
+        // Clear any hash range error on success
+        const rangeError = document.getElementById('hash-range-error');
+        if (rangeError) {
+            rangeError.style.display = 'none';
+            rangeError.textContent = '';
+        }
+
+        // Clear and render the sites
         const siteList = document.getElementById('site-list');
+        siteList.innerHTML = '';
         data.sites.forEach(site => {
             const siteHTML = createSiteItemHTML(site);
             siteList.insertAdjacentHTML('beforeend', siteHTML);
         });
 
-        // Update pagination state
-        currentOffset += data.sites.length;
-        hasMoreSites = data.hasMore;
+        // Update pagination UI
+        updatePaginationUI();
 
-        // Apply sorting after each batch to maintain sort order
-        // This ensures all sites (including newly loaded ones) are properly sorted
-        applySorting();
+        // Update visible count
+        updateVisibleCount();
 
-        // Update visible count through applyFilters (which updates the count)
-        applyFilters();
+        // Ensure notes visibility matches current view after re-render
+        updateNotesVisibility(currentView);
 
-        // If no more sites, disconnect observer
-        if (!hasMoreSites) {
-            if (window.siteObserver) {
-                window.siteObserver.disconnect();
-            }
-        }
     } catch (error) {
         console.error('Error loading sites:', error);
     } finally {
         isLoadingSites = false;
         loadingIndicator.style.display = 'none';
+        if (searchSpinnerActive) {
+            setSearchButtonLoading(false);
+            searchSpinnerActive = false;
+        }
     }
 }
 
-// Set up Intersection Observer for infinite scroll
-function setupInfiniteScroll() {
-    const sentinel = document.getElementById('load-more-sentinel');
+// Generate page number buttons HTML
+function generatePageNumbers(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-    if (!sentinel) {
-        console.error('Sentinel element not found');
-        return;
+    let html = '';
+    const maxVisible = 7; // Max number of page buttons to show
+
+    if (totalPages <= maxVisible) {
+        // Show all pages
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-num ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+    } else {
+        // Show first, last, current and nearby pages with ellipsis
+        const pages = new Set();
+
+        // Always include first and last
+        pages.add(1);
+        pages.add(totalPages);
+
+        // Include current and neighbors
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            pages.add(i);
+        }
+
+        const sortedPages = Array.from(pages).sort((a, b) => a - b);
+        let prev = 0;
+
+        for (const page of sortedPages) {
+            if (page - prev > 1) {
+                html += '<span class="page-ellipsis">...</span>';
+            }
+            html += `<button class="page-num ${page === currentPage ? 'active' : ''}" onclick="goToPage(${page})">${page}</button>`;
+            prev = page;
+        }
     }
 
-    const options = {
-        root: null,
-        rootMargin: '200px', // Start loading 200px before reaching the sentinel
-        threshold: 0
-    };
+    container.innerHTML = html;
+}
 
-    window.siteObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && hasMoreSites && !isLoadingSites) {
-                loadMoreSites();
+// Update pagination UI elements
+function updatePaginationUI() {
+    // Top pagination
+    const pageInput = document.getElementById('page-input');
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    const pageRange = document.getElementById('page-range');
+
+    // Bottom pagination
+    const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
+    const nextBtnBottom = document.getElementById('next-page-btn-bottom');
+
+    if (pageInput) {
+        pageInput.value = currentPage;
+        pageInput.max = totalPages;
+    }
+
+    // Generate page number buttons
+    generatePageNumbers('page-numbers-top');
+    generatePageNumbers('page-numbers-bottom');
+
+    // Enable/disable prev buttons
+    const hasPrev = currentPage > 1;
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (prevBtnBottom) prevBtnBottom.disabled = !hasPrev;
+
+    // Enable/disable next buttons
+    const hasNext = currentPage < totalPages;
+    if (nextBtn) nextBtn.disabled = !hasNext;
+    if (nextBtnBottom) nextBtnBottom.disabled = !hasNext;
+
+    // Show page range info
+    const startSite = (currentPage - 1) * SITES_PER_PAGE + 1;
+    const endSite = Math.min(currentPage * SITES_PER_PAGE, totalSites);
+    if (pageRange) {
+        pageRange.textContent = `(Sites ${startSite}-${endSite} of ${totalSites})`;
+    }
+
+    // Update total count
+    document.getElementById('total-count').textContent = totalSites;
+}
+
+// Navigation functions
+function nextPage() {
+    if (currentPage < totalPages) {
+        loadPage(currentPage + 1);
+    }
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        loadPage(currentPage - 1);
+    }
+}
+
+function goToPage(page) {
+    const pageNum = parseInt(page, 10);
+    if (pageNum >= 1 && pageNum <= totalPages) {
+        loadPage(pageNum);
+    }
+}
+
+function goToPageInput() {
+    const pageInput = document.getElementById('page-input');
+    const page = parseInt(pageInput.value, 10);
+    if (page >= 1 && page <= totalPages) {
+        loadPage(page);
+    } else {
+        pageInput.value = currentPage; // Reset to current page if invalid
+    }
+}
+
+// Initialize pagination on page load
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Pagination] Initializing...');
+
+    // Load first page
+    loadPage(1);
+
+    // Default range mode
+    switchRangeMode('time');
+
+    // Add keyboard navigation for page input
+    const pageInput = document.getElementById('page-input');
+    if (pageInput) {
+        pageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                goToPageInput();
             }
         });
-    }, options);
-
-    window.siteObserver.observe(sentinel);
-}
-
-// Initialize dynamic loading on page load
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Dynamic Loading] Initializing...');
-
-    // Load initial batch of sites
-    // Note: applySorting() and applyFilters() are now called inside loadMoreSites()
-    // after each batch loads, ensuring consistent sort order
-    loadMoreSites().then(() => {
-        // Set up infinite scroll after initial load
-        setupInfiniteScroll();
-    });
+    }
 });

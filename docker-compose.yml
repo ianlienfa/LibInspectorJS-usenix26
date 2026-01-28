@@ -1,3 +1,6 @@
+# To change worker configuration, change worker number, e.g., worker1 to worker2, and the config file accordingly.
+# and also --conf=config_docker_01_onr_1.yaml to the desired config file.
+# Run command: docker compose -p 'worker1' up 
 networks:
   jaw-network: {}
 
@@ -8,11 +11,11 @@ services:
     # container_name: jaw4c-logic    
     volumes:
       # Mount data to nms
-      - /home/rafael/JAW4C:/JAW4C
-      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1/name_mapping.json.run:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
-      - /home/rafael/nms/jan20-jaw4c-crawl/worker15:/JAW4C/JAW4C-JAW/data
+      - /home/enyenl/JAW4C:/JAW4C
+      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - /home/enyenl/nms/jan27-jaw4c-analysis/worker1:/JAW4C/JAW4C-JAW/data
       # Foxhound
-      - /home/rafael/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
+      - /home/enyenl/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
       # Docker socket for Docker-in-Docker (DinD)
       - /var/run/docker.sock:/var/run/docker.sock
       # node_modules (anonymous volumes for faster rebuilds)
@@ -46,7 +49,7 @@ services:
     #   HTTP_PROXY: http://proxy:8002
     #   HTTPS_PROXY: http://proxy:8002
     environment:
-      - WORKER_NAME=worker15
+      - WORKER_NAME=worker1
     networks:
       - jaw-network
     depends_on:
@@ -57,10 +60,10 @@ services:
         limits:
           memory: 6g
     command: >
-      sh -c "python3 -m run_pipeline --conf=config_docker_01_5.yaml"
-
-# sh -c "python3 -m run_pipeline --conf=config_docker_01_1.yaml"
+      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_01_onr_1.yaml"
 # sh -c "while [ 1 ]; do echo '' > /dev/null; done"
+# sh -c "python3 -m run_pipeline --conf=config_docker_01_onr_1.yaml"
+# sh -c "cd tests/pipeline_test && python3 test_run.py --action analysis --test integration_test/static_analysis/test_jq_CVE-2020-7656 --config=/JAW4C/JAW4C-JAW/config_docker.yaml"
 
   # neo4j:
   #   image: neo4j:4.4
@@ -93,19 +96,25 @@ services:
       POSTGRES_PASSWORD: vulndb_pwd
       POSTGRES_DB: vulndb_annotated
     volumes:
-      - ./vuln_db_llm/pgdata/worker15:/var/lib/postgresql/data
+      - ./vuln_db_llm/pgdata/worker1:/var/lib/postgresql/data
       - ./vuln_db_llm/advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
-
+    deploy:
+          resources:
+            limits:
+              memory: 1g
   proxy:
     build: ./JAW4C-WebArchive
     # container_name: jaw4c-webarchive
     networks:
       - jaw-network
     volumes:
-      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1:/proxy/archive_2026_jan12_distribution_0_1:ro
-      - /home/rafael/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1/name_mapping.json.run:/proxy/archive_2026_jan12_distribution_0_1/name_mapping.json:ro   
+      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1:/proxy/archive_2026_jan12_distribution_0_1:ro
     # ports:
     #   - "8002:8002"
     environment:
       - PROXY_VOLUME_PATH=/proxy
       - PROXY_ARCHIVE=archive_2026_jan12_distribution_0_1
+    deploy:
+          resources:
+            limits:
+              memory: 1g

@@ -12,7 +12,9 @@ app.use(express.json());
 
 // --- Constants ---
 const JAW4C_DIR = path.resolve(__dirname, '..');
+const APP_DIR = path.resolve(__dirname, '.');
 const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
+const CACHE_DIR = path.join(APP_DIR, 'site-cache');
 const REVIEW_FILE = path.join(DATA_DIR, 'review', 'review.json');
 
 // --- Cache Management ---
@@ -20,6 +22,180 @@ const CACHE_TTL = 30000; // 30 seconds cache
 let siteDataCache = null;
 let cacheTimestamp = 0;
 let isUpdatingCache = false;
+
+// --- File System Cache Layer ---
+// Cache statistics for monitoring
+const cacheStats = {
+    hits: 0,
+    misses: 0,
+    updates: 0,
+    errors: 0,
+    totalReadTime: 0,
+    totalCacheTime: 0
+};
+
+// Ensure cache directory exists
+async function ensureCacheDir() {
+    try {
+        await fs.mkdir(CACHE_DIR, { recursive: true });
+        console.log('[FileCache] Cache directory ready:', CACHE_DIR);
+    } catch (e) {
+        console.error('[FileCache] Failed to create cache directory:', e);
+    }
+}
+
+// Get relative path from DATA_DIR
+function getRelativePath(absolutePath) {
+    return path.relative(DATA_DIR, absolutePath);
+}
+
+// Get cached file path
+function getCachedPath(dataFilePath) {
+    const relativePath = getRelativePath(dataFilePath);
+    return path.join(CACHE_DIR, relativePath);
+}
+
+// Check if cache is valid (exists and is newer than source)
+async function isCacheValid(sourcePath, cachePath) {
+    try {
+        const [sourceStats, cacheFileStats] = await Promise.all([
+            fs.stat(sourcePath),
+            fs.stat(cachePath)
+        ]);
+
+        // Cache is valid if it exists and is newer than or equal to source
+        return cacheFileStats.mtime.getTime() >= sourceStats.mtime.getTime();
+    } catch (e) {
+        // If either file doesn't exist or error occurs, cache is invalid
+        return false;
+    }
+}
+
+// Copy file to cache with directory structure
+async function copyToCache(sourcePath, cachePath) {
+    const startTime = Date.now();
+    try {
+        // Ensure cache directory exists
+        const cacheDir = path.dirname(cachePath);
+        await fs.mkdir(cacheDir, { recursive: true });
+
+        // Copy file
+        await fs.copyFile(sourcePath, cachePath);
+
+        // Preserve modification time
+        const sourceStats = await fs.stat(sourcePath);
+        await fs.utimes(cachePath, sourceStats.atime, sourceStats.mtime);
+
+        cacheStats.updates++;
+        const duration = Date.now() - startTime;
+        cacheStats.totalCacheTime += duration;
+
+        console.log(`[FileCache] Cached: ${getRelativePath(sourcePath)} (${duration}ms)`);
+    } catch (e) {
+        if(!(e.message.toLowerCase().includes('no such file or directory'))) {
+            cacheStats.errors++;
+            console.error(`[FileCache] Error caching ${getRelativePath(sourcePath)}:`, e);
+            throw e;
+        }
+    }
+}
+
+// Cached fs.readFile - reads from cache if available and valid, otherwise updates cache
+async function cachedReadFile(filePath, encoding = 'utf8') {
+    const startTime = Date.now();
+    const cachePath = getCachedPath(filePath);
+    try {
+        // Check if cache is valid
+        const isValid = await isCacheValid(filePath, cachePath);
+
+        if (isValid) {
+            // Read from cache
+            const content = await fs.readFile(cachePath, encoding);
+            cacheStats.hits++;
+            cacheStats.totalReadTime += (Date.now() - startTime);
+            return content;
+        } else {
+            // Cache miss or outdated - update cache then read
+            cacheStats.misses++;
+            await copyToCache(filePath, cachePath);
+            const content = await fs.readFile(cachePath, encoding);
+            cacheStats.totalReadTime += (Date.now() - startTime);
+            return content;
+        }
+    } catch (e) {
+        // If caching fails, fall back to reading directly from source
+        if(!(e.message.toLowerCase().includes('no such file or directory'))){
+            cacheStats.errors++;
+            console.warn(`[FileCache] Error with cached read, falling back to direct: ${e.message}`);
+            const content = await fs.readFile(filePath, encoding);
+            cacheStats.totalReadTime += (Date.now() - startTime);
+            return content;
+        }
+        else{
+            return '';
+        }
+    }
+}
+
+// Cached fs.stat - checks cache first, updates if needed
+async function cachedStat(filePath) {
+    const startTime = Date.now();
+    const cachePath = getCachedPath(filePath);
+
+    try {
+        // First, get source stats (we need this anyway to check cache validity)
+        const sourceStats = await fs.stat(filePath);
+
+        // Try to get cache stats
+        try {
+            const cacheFileStats = await fs.stat(cachePath);
+
+            // If cache exists and is up-to-date, return source stats but count as hit
+            if (cacheFileStats.mtime.getTime() >= sourceStats.mtime.getTime()) {
+                cacheStats.hits++;
+                cacheStats.totalReadTime += (Date.now() - startTime);
+                return sourceStats;
+            }
+        } catch (e) {
+            // Cache doesn't exist, will be created on actual read
+        }
+
+        // Cache miss - return source stats
+        cacheStats.misses++;
+        cacheStats.totalReadTime += (Date.now() - startTime);
+        return sourceStats;
+    } catch (e) {
+        cacheStats.errors++;
+        cacheStats.totalReadTime += (Date.now() - startTime);
+        throw e;
+    }
+}
+
+// Print cache statistics
+function logCacheStats() {
+    const total = cacheStats.hits + cacheStats.misses;
+    const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(2) : 0;
+
+    console.log('[FileCache] Stats:', {
+        hits: cacheStats.hits,
+        misses: cacheStats.misses,
+        updates: cacheStats.updates,
+        errors: cacheStats.errors,
+        hitRate: `${hitRate}%`,
+        avgReadTime: total > 0 ? `${(cacheStats.totalReadTime / total).toFixed(2)}ms` : '0ms',
+        avgCacheTime: cacheStats.updates > 0 ? `${(cacheStats.totalCacheTime / cacheStats.updates).toFixed(2)}ms` : '0ms'
+    });
+}
+
+// Reset cache statistics
+function resetCacheStats() {
+    cacheStats.hits = 0;
+    cacheStats.misses = 0;
+    cacheStats.updates = 0;
+    cacheStats.errors = 0;
+    cacheStats.totalReadTime = 0;
+    cacheStats.totalCacheTime = 0;
+}
 
 // --- Server-Side Parsing Functions ---
 
@@ -298,7 +474,7 @@ async function saveReviewData(reviewData) {
 
 // --- Data Fetching and Processing ---
 
-// Batch file reading with concurrency limit
+// Batch file reading with concurrency limit - now uses cached reads
 async function batchReadFiles(filePaths, concurrency = 10) {
     const results = new Map();
     const queue = [...filePaths];
@@ -307,7 +483,7 @@ async function batchReadFiles(filePaths, concurrency = 10) {
         while (queue.length > 0) {
             const { key, path: filePath } = queue.shift();
             try {
-                const content = await fs.readFile(filePath, 'utf8');
+                const content = await cachedReadFile(filePath, 'utf8');
                 results.set(key, content);
             } catch (e) {
                 results.set(key, null);
@@ -367,9 +543,12 @@ function formatUrlForDisplay(url) {
 }
 
 async function getSiteData() {
+    const overallStartTime = Date.now();
+
     let parentDirs = [];
     try {
         parentDirs = await fs.readdir(DATA_DIR);
+        console.log(`[getSiteData] Found ${parentDirs.length} parent directories`);
     } catch (err) {
         if (err.code === 'ENOENT') {
             console.warn(`Data directory not found: ${DATA_DIR}`);
@@ -383,8 +562,10 @@ async function getSiteData() {
     const reviewData = await loadReviewData();
 
     // First pass: collect all site paths in parallel
+    const collectStartTime = Date.now();
     const sitePathsPromises = parentDirs.map(async (parentDir) => {
         const parentPath = path.join(DATA_DIR, parentDir);
+        const parentStartTime = Date.now();
         try {
             const parentStats = await fs.stat(parentPath);
             if (!parentStats.isDirectory()) return [];
@@ -394,7 +575,7 @@ async function getSiteData() {
                 siteHashes.map(async (hash) => {
                     const sitePath = path.join(parentPath, hash);
                     try {
-                        const siteStats = await fs.stat(sitePath);
+                        const siteStats = await cachedStat(sitePath);
                         if (siteStats.isDirectory()) {
                             return { parentDir, hash, sitePath, modifiedTime: siteStats.mtime.getTime() };
                         }
@@ -404,13 +585,15 @@ async function getSiteData() {
                     return null;
                 })
             );
-            return validSites.filter(s => s !== null);
+            const filtered = validSites.filter(s => s !== null);
+            return filtered;
         } catch (e) {
             return [];
         }
     });
 
     const sitePaths = (await Promise.all(sitePathsPromises)).flat();
+    console.log(`[getSiteData] Collected ${sitePaths.length} site paths (${Date.now() - collectStartTime}ms)`);
 
     // Prepare batch file reading for all sites
     const filesToRead = [];
@@ -422,14 +605,22 @@ async function getSiteData() {
     });
 
     // Batch read all files
+    const batchReadStartTime = Date.now();
+    console.log(`[getSiteData] Batch reading ${filesToRead.length} files...`);
     const fileContents = await batchReadFiles(filesToRead, 20);
+    console.log(`[getSiteData] Batch read complete (${Date.now() - batchReadStartTime}ms)`);
 
     // Process each site with cached file contents
+    const processStartTime = Date.now();
+    console.log(`[getSiteData] Processing ${sitePaths.length} sites...`);
     const allSitesData = await Promise.all(
         sitePaths.map(async ({ parentDir, hash, sitePath, modifiedTime }) => {
+            const siteStart = Date.now();
             const compositeHash = `${parentDir}/${hash}`;
+            const timings = {};
 
             // Process URL
+            const urlStart = Date.now();
             let siteDomain = compositeHash;
             let siteUrlPath = '';
             let originalUrl = '';
@@ -447,8 +638,10 @@ async function getSiteData() {
                 siteDomain = formatted.domain;
                 siteUrlPath = formatted.path;
             }
+            timings.url = Date.now() - urlStart;
 
             // Process flows
+            const flowsStart = Date.now();
             let hasFlows = false;
             let pocMatches = 0;
             const tagCounts = {};
@@ -490,8 +683,10 @@ async function getSiteData() {
                     hasFlows = true;
                 }
             }
+            timings.flows = Date.now() - flowsStart;
 
             // Process vulnerabilities
+            const vulnStart = Date.now();
             let vulnerableLibs = 0;
             let hasValidVulnData = false;
             const vulnContent = fileContents.get(`${compositeHash}:vuln`);
@@ -512,57 +707,64 @@ async function getSiteData() {
                     });
                 } catch (e) { /* Ignore errors */ }
             }
+            timings.vuln = Date.now() - vulnStart;
 
-            // Check file existence in parallel
+            // Read directory once and reuse for all file checks (optimization)
+            const readdirStart = Date.now();
+            let allFiles = [];
+            try {
+                allFiles = await fs.readdir(sitePath);
+            } catch (e) {
+                // Directory read error
+                allFiles = [];
+            }
+            timings.readdir = Date.now() - readdirStart;
+
+            // Check file existence using the directory listing (no extra I/O needed)
+            const fileCheckStart = Date.now();
             const importantFiles = [
                 'sink.flows.out', 'vuln.out', 'lib.detection.json', 'urls.out',
                 'errors.log', 'warnings.log', 'info.log'
             ];
-
-            const fileExistenceChecks = await Promise.all(
-                importantFiles.map(async (file) => {
-                    try {
-                        await fs.access(path.join(sitePath, file));
-                        return file;
-                    } catch (e) {
-                        return null;
-                    }
-                })
-            );
+            const fileSet = new Set(allFiles);
+            const fileExistenceChecks = importantFiles.filter(file => fileSet.has(file));
+            timings.fileExistence = Date.now() - fileCheckStart;
 
             // Check errors.log file size to only show non-empty files
+            const errorLogStart = Date.now();
             let hasErrorLog = false;
             try {
                 const errorLogPath = path.join(sitePath, 'errors.log');
-                const errorLogStats = await fs.stat(errorLogPath);
+                const errorLogStats = await cachedStat(errorLogPath);
                 hasErrorLog = errorLogStats.size > 0;
             } catch (e) {
                 // File doesn't exist or can't be accessed
                 hasErrorLog = false;
             }
+            timings.errorLog = Date.now() - errorLogStart;
 
-            // Collect numbered JS files (e.g., 0.js, 1.js, etc., but not *.min.js)
-            let jsFiles = [];
-            try {
-                const allFiles = await fs.readdir(sitePath);
-                jsFiles = allFiles
-                    .filter(file => /^\d+\.js$/.test(file)) // Only [num].js files
-                    .sort((a, b) => {
-                        const numA = parseInt(a.match(/^(\d+)\.js$/)[1]);
-                        const numB = parseInt(b.match(/^(\d+)\.js$/)[1]);
-                        return numA - numB;
-                    });
-            } catch (e) {
-                // Directory read error
-                jsFiles = [];
-            }
+            // Collect numbered JS files using the same directory listing
+            const jsFilesStart = Date.now();
+            const jsFiles = allFiles
+                .filter(file => /^\d+\.js$/.test(file)) // Only [num].js files
+                .sort((a, b) => {
+                    const numA = parseInt(a.match(/^(\d+)\.js$/)[1]);
+                    const numB = parseInt(b.match(/^(\d+)\.js$/)[1]);
+                    return numA - numB;
+                });
+            timings.jsFiles = Date.now() - jsFilesStart;
 
-            const availableFiles = fileExistenceChecks.filter(f => f !== null);
+            const availableFiles = fileExistenceChecks; // Already filtered by Set lookup
             const hasLibDetection = availableFiles.includes('lib.detection.json');
             const hasSinkFlows = availableFiles.includes('sink.flows.out');
             const hasWarningLog = availableFiles.includes('warnings.log');
 
             const review = reviewData[compositeHash] || { reviewed: false, vulnerable: false, memo: '' };
+
+            const totalSiteTime = Date.now() - siteStart;
+            if (totalSiteTime > 10) { // Only log if processing took more than 10ms
+                console.log(`[Site ${compositeHash}] ${totalSiteTime}ms total - url:${timings.url}ms flows:${timings.flows}ms vuln:${timings.vuln}ms readdir:${timings.readdir}ms fileCheck:${timings.fileExistence}ms errorLog:${timings.errorLog}ms jsFiles:${timings.jsFiles}ms`);
+            }
 
             return {
                 hash: compositeHash,
@@ -587,6 +789,8 @@ async function getSiteData() {
             };
         })
     );
+    const processingDuration = Date.now() - processStartTime;
+    console.log(`[getSiteData] Site processing complete (${processingDuration}ms, avg: ${(processingDuration / sitePaths.length).toFixed(2)}ms per site)`);
 
     // Sort sites by modified time (newest first) BEFORE returning
     // This ensures paginated batches are in the correct order
@@ -603,23 +807,32 @@ async function getSiteData() {
         pocMatches: nonLocalHostSites.reduce((acc, s) => acc + s.pocMatches, 0),
     };
 
+    const totalTime = Date.now() - overallStartTime;
+    console.log(`[getSiteData] Complete: ${allSitesData.length} sites in ${totalTime}ms`);
+    logCacheStats();
+
     return { globalStats, sites: allSitesData };
 }
 
 // Background cache update function
 async function updateCacheInBackground() {
-    if (isUpdatingCache) return;
+    if (isUpdatingCache) {
+        console.log('[Cache] Update already in progress, skipping');
+        return;
+    }
 
     isUpdatingCache = true;
-    console.log('[Cache] Updating site data cache in background...');
+    const startTime = Date.now();
+    console.log('[Cache] 🔄 Starting background cache update...');
 
     try {
         const data = await getSiteData();
         siteDataCache = data;
         cacheTimestamp = Date.now();
-        console.log(`[Cache] Updated with ${data.sites.length} sites`);
+        const duration = Date.now() - startTime;
+        console.log(`[Cache] ✅ Cache ready! ${data.sites.length} sites loaded in ${(duration / 1000).toFixed(2)}s`);
     } catch (error) {
-        console.error('[Cache] Error updating cache:', error);
+        console.error('[Cache] ❌ Error updating cache:', error);
     } finally {
         isUpdatingCache = false;
     }
@@ -627,31 +840,29 @@ async function updateCacheInBackground() {
 
 // Get cached or fresh data
 async function getCachedSiteData() {
-    const now = Date.now();
-
-    // If cache is fresh, return it immediately
-    if (siteDataCache && (now - cacheTimestamp) < CACHE_TTL) {
+    // If cache exists, return it immediately
+    if (siteDataCache) {
         return siteDataCache;
     }
 
-    // If cache is stale but exists, return stale data and trigger background update
-    if (siteDataCache && !isUpdatingCache) {
-        console.log('[Cache] Returning stale cache, updating in background');
-        updateCacheInBackground(); // Don't await - update in background
-        return siteDataCache;
+    // If cache is being built, return empty data (don't block the UI)
+    if (isUpdatingCache) {
+        console.log('[Cache] Cache still building, returning empty data');
+        return {
+            globalStats: { sites: 0, sitesWithFlows: 0, vulnerableLibs: 0, pocMatches: 0 },
+            sites: [],
+            loading: true
+        };
     }
 
-    // No cache exists, wait for fresh data
-    if (!siteDataCache) {
-        console.log('[Cache] No cache exists, fetching fresh data');
-        const data = await getSiteData();
-        siteDataCache = data;
-        cacheTimestamp = now;
-        return data;
-    }
-
-    // Cache update in progress, return stale cache
-    return siteDataCache;
+    // No cache and not updating - trigger background update and return empty data
+    console.log('[Cache] No cache exists, triggering background update');
+    updateCacheInBackground(); // Don't await - let it run in background
+    return {
+        globalStats: { sites: 0, sitesWithFlows: 0, vulnerableLibs: 0, pocMatches: 0 },
+        sites: [],
+        loading: true
+    };
 }
 
 // --- Routes ---
@@ -668,6 +879,16 @@ app.get('/', async (req, res) => {
     }
 });
 
+// API endpoint to check cache status
+app.get('/api/cache-status', (req, res) => {
+    res.json({
+        ready: siteDataCache !== null,
+        loading: isUpdatingCache,
+        timestamp: cacheTimestamp,
+        siteCount: siteDataCache ? siteDataCache.sites.length : 0
+    });
+});
+
 // API endpoint to manually trigger cache refresh
 app.post('/api/refresh-cache', async (req, res) => {
     try {
@@ -675,6 +896,38 @@ app.post('/api/refresh-cache', async (req, res) => {
         res.json({ success: true, message: 'Cache refresh triggered' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to trigger cache refresh' });
+    }
+});
+
+// API endpoint to get file cache statistics
+app.get('/api/cache-stats', (req, res) => {
+    const total = cacheStats.hits + cacheStats.misses;
+    const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(2) : 0;
+
+    res.json({
+        hits: cacheStats.hits,
+        misses: cacheStats.misses,
+        updates: cacheStats.updates,
+        errors: cacheStats.errors,
+        hitRate: parseFloat(hitRate),
+        avgReadTime: total > 0 ? parseFloat((cacheStats.totalReadTime / total).toFixed(2)) : 0,
+        avgCacheTime: cacheStats.updates > 0 ? parseFloat((cacheStats.totalCacheTime / cacheStats.updates).toFixed(2)) : 0,
+        cacheDir: CACHE_DIR
+    });
+});
+
+// API endpoint to clear file cache
+app.post('/api/clear-cache', async (req, res) => {
+    try {
+        const rimraf = require('fs').promises;
+        await rimraf.rm(CACHE_DIR, { recursive: true, force: true });
+        await ensureCacheDir();
+        resetCacheStats();
+        console.log('[FileCache] Cache cleared and reset');
+        res.json({ success: true, message: 'File cache cleared' });
+    } catch (error) {
+        console.error('[FileCache] Error clearing cache:', error);
+        res.status(500).json({ error: 'Failed to clear cache' });
     }
 });
 
@@ -689,7 +942,8 @@ app.get('/api/sites', async (req, res) => {
             return res.status(400).json({ error: 'Invalid pagination parameters' });
         }
 
-        const { sites } = await getCachedSiteData();
+        const data = await getCachedSiteData();
+        const { sites, loading } = data;
 
         // Apply pagination
         const paginatedSites = sites.slice(offsetNum, offsetNum + limitNum);
@@ -699,11 +953,165 @@ app.get('/api/sites', async (req, res) => {
             total: sites.length,
             offset: offsetNum,
             limit: limitNum,
-            hasMore: offsetNum + limitNum < sites.length
+            hasMore: offsetNum + limitNum < sites.length,
+            loading: loading || false
         });
     } catch (error) {
         console.error('Error fetching paginated sites:', error);
         res.status(500).json({ error: 'Failed to fetch sites' });
+    }
+});
+
+// API endpoint for server-side search and filtering
+app.get('/api/search', async (req, res) => {
+    try {
+        const {
+            q = '',
+            page = 1,
+            limit = 50,
+            // Filter parameters
+            hasFlows,
+            hasLibDetection,
+            hasSinkFlows,
+            hasVulnOut,
+            hasErrorLog,
+            hasWarningLog,
+            reviewed,
+            unreviewed,
+            vulnerable,
+            hasNotes,
+            // Time range parameters (milliseconds)
+            timeStart,
+            timeEnd,
+            // Hash range parameters
+            hashStart,
+            hashEnd,
+            // File content search hashes (comma-separated)
+            hashes
+        } = req.query;
+
+        const pageNum = parseInt(page, 10);
+        const limitNum = parseInt(limit, 10);
+        const searchTerm = q.toLowerCase().trim();
+
+        if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum <= 0 || limitNum > 200) {
+            return res.status(400).json({ error: 'Invalid pagination parameters' });
+        }
+
+        const data = await getCachedSiteData();
+        const allSites = data.sites;
+        let sites = allSites;
+
+        // Filter by file content search hashes (takes precedence over text search)
+        if (hashes) {
+            const hashArray = hashes.split(',').map(h => h.trim()).filter(h => h);
+            const hashSet = new Set(hashArray);
+            sites = sites.filter(site => hashSet.has(site.hash));
+        } else if (searchTerm) {
+            // Filter by search term only if not using file content search
+            sites = sites.filter(site => {
+                const searchText = (site.domain + ' ' + site.urlPath + ' ' + site.originalUrl + ' ' + site.hash).toLowerCase();
+                return searchText.includes(searchTerm);
+            });
+        }
+
+        // Apply checkbox filters
+        if (hasFlows === 'true') {
+            sites = sites.filter(site => site.hasFlows);
+        }
+        if (hasLibDetection === 'true') {
+            sites = sites.filter(site => site.hasLibDetection);
+        }
+        if (hasSinkFlows === 'true') {
+            sites = sites.filter(site => site.hasSinkFlows);
+        }
+        if (hasVulnOut === 'true') {
+            sites = sites.filter(site => site.hasVulnOut);
+        }
+        if (hasErrorLog === 'true') {
+            sites = sites.filter(site => site.hasErrorLog);
+        }
+        if (hasWarningLog === 'true') {
+            sites = sites.filter(site => site.hasWarningLog);
+        }
+        if (reviewed === 'true') {
+            sites = sites.filter(site => site.reviewed);
+        }
+        if (unreviewed === 'true') {
+            sites = sites.filter(site => !site.reviewed);
+        }
+        if (vulnerable === 'true') {
+            sites = sites.filter(site => site.vulnerable);
+        }
+        if (hasNotes === 'true') {
+            sites = sites.filter(site => site.memo && site.memo.trim());
+        }
+
+        // Resolve hash range to a time range (server-side)
+        let resolvedTimeStart = null;
+        let resolvedTimeEnd = null;
+        if (hashStart || hashEnd) {
+            if (!hashStart || !hashEnd) {
+                return res.status(400).json({ error: 'Both hashStart and hashEnd are required' });
+            }
+            const resolveHashPrefix = (prefix) => {
+                const normalized = String(prefix).toLowerCase();
+                const matches = allSites.filter(site => String(site.hash).toLowerCase().startsWith(normalized));
+                if (matches.length === 0) {
+                    return { error: `No match for hash prefix: ${prefix}` };
+                }
+                if (matches.length > 1) {
+                    return { error: `Hash prefix is not unique: ${prefix}` };
+                }
+                return { site: matches[0] };
+            };
+
+            const startResult = resolveHashPrefix(hashStart);
+            if (startResult.error) {
+                return res.status(400).json({ error: startResult.error });
+            }
+            const endResult = resolveHashPrefix(hashEnd);
+            if (endResult.error) {
+                return res.status(400).json({ error: endResult.error });
+            }
+            const startSite = startResult.site;
+            const endSite = endResult.site;
+            const startMs = startSite.modifiedTime;
+            const endMs = endSite.modifiedTime;
+            if (!startMs || !endMs) {
+                return res.status(400).json({ error: 'hashStart/hashEnd missing modified time' });
+            }
+            resolvedTimeStart = Math.min(startMs, endMs);
+            resolvedTimeEnd = Math.max(startMs, endMs);
+        }
+
+        // Apply time range filter (explicit or resolved from hashes)
+        const startMsValue = resolvedTimeStart ?? (timeStart ? parseInt(timeStart, 10) : null);
+        const endMsValue = resolvedTimeEnd ?? (timeEnd ? parseInt(timeEnd, 10) : null);
+        if (startMsValue && !isNaN(startMsValue)) {
+            sites = sites.filter(site => site.modifiedTime >= startMsValue);
+        }
+        if (endMsValue && !isNaN(endMsValue)) {
+            sites = sites.filter(site => site.modifiedTime <= endMsValue);
+        }
+
+        // Sites are already sorted by modifiedTime (newest first) from getSiteData()
+        const total = sites.length;
+        const totalPages = Math.ceil(total / limitNum) || 1;
+        const offset = (pageNum - 1) * limitNum;
+        const paginatedSites = sites.slice(offset, offset + limitNum);
+
+        res.json({
+            sites: paginatedSites,
+            total,
+            page: pageNum,
+            limit: limitNum,
+            totalPages,
+            hasMore: pageNum < totalPages
+        });
+    } catch (error) {
+        console.error('Error searching sites:', error);
+        res.status(500).json({ error: 'Failed to search sites' });
     }
 });
 
@@ -719,7 +1127,7 @@ app.get('/api/file-info', async (req, res) => {
 
     const filePath = path.join(DATA_DIR, hash, file);
     try {
-        const stats = await fs.stat(filePath);
+        const stats = await cachedStat(filePath);
         res.json({
             size: stats.size,
             shouldChunk: stats.size > CHUNK_SIZE_THRESHOLD,
@@ -739,14 +1147,25 @@ app.get('/api/file-stream', async (req, res) => {
 
     const filePath = path.join(DATA_DIR, hash, file);
     try {
-        const stats = await fs.stat(filePath);
+        // Get cached file path
+        const cachePath = getCachedPath(filePath);
+
+        // Ensure file is cached before streaming
+        const isValid = await isCacheValid(filePath, cachePath);
+        if (!isValid) {
+            console.log(`[FileStream] Caching ${file} before streaming...`);
+            await copyToCache(filePath, cachePath);
+        }
+
+        // Get stats from cached file
+        const stats = await fs.stat(cachePath);
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Content-Length', stats.size);
         res.setHeader('X-File-Size', stats.size);
 
-        // Stream file in chunks
-        const readableStream = require('fs').createReadStream(filePath, {
+        // Stream file from cache (fast local disk instead of network storage)
+        const readableStream = require('fs').createReadStream(cachePath, {
             encoding: 'utf8',
             highWaterMark: 64 * 1024 // 64KB chunks
         });
@@ -754,12 +1173,13 @@ app.get('/api/file-stream', async (req, res) => {
         readableStream.pipe(res);
 
         readableStream.on('error', (error) => {
-            console.error('Stream error:', error);
+            console.error('[FileStream] Stream error:', error);
             if (!res.headersSent) {
                 res.status(500).json({ error: 'Error streaming file.' });
             }
         });
     } catch (error) {
+        console.error('[FileStream] Error:', error);
         res.status(404).json({ error: 'File not found.' });
     }
 });
@@ -773,7 +1193,7 @@ app.get('/api/file-content', async (req, res) => {
     const filePath = path.join(DATA_DIR, hash, file);
     try {
         // Check file size first
-        const stats = await fs.stat(filePath);
+        const stats = await cachedStat(filePath);
 
         // For very large files, suggest using streaming endpoint
         if (stats.size > CHUNK_SIZE_THRESHOLD && !view) {
@@ -785,7 +1205,7 @@ app.get('/api/file-content', async (req, res) => {
             });
         }
 
-        const content = await fs.readFile(filePath, 'utf8');
+        const content = await cachedReadFile(filePath, 'utf8');
 
         // If raw view is requested, return plain text
         if (view === 'raw') {
@@ -927,7 +1347,7 @@ app.post('/api/search-file-content', async (req, res) => {
                 for (const file of filesToSearch) {
                     const filePath = path.join(sitePath, file);
                     try {
-                        const content = await fs.readFile(filePath, 'utf-8');
+                        const content = await cachedReadFile(filePath, 'utf-8');
                         if (regex.test(content)) {
                             matches.push({
                                 hash: compositeHash,
@@ -995,7 +1415,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                 let siteDomain = '';
                 const urlFile = path.join(sitePath, 'url.out');
                 try {
-                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const urlContent = await cachedReadFile(urlFile, 'utf8');
                     const rawUrl = urlContent.trim();
                     const formatted = formatUrlForDisplay(rawUrl);
                     siteDomain = formatted.domain;
@@ -1009,7 +1429,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
 
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {
-                    const libContent = await fs.readFile(libDetectionFile, 'utf8');
+                    const libContent = await cachedReadFile(libDetectionFile, 'utf8');
                     const libData = JSON.parse(libContent);
                     let siteHasDetections = false;
 
@@ -1131,7 +1551,7 @@ app.get('/api/tag-stats', async (req, res) => {
                 let siteDomain = '';
                 const urlFile = path.join(sitePath, 'url.out');
                 try {
-                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const urlContent = await cachedReadFile(urlFile, 'utf8');
                     const rawUrl = urlContent.trim();
                     const formatted = formatUrlForDisplay(rawUrl);
                     siteDomain = formatted.domain;
@@ -1145,7 +1565,7 @@ app.get('/api/tag-stats', async (req, res) => {
 
                 const flowsFile = path.join(sitePath, 'sink.flows.out');
                 try {
-                    const flowsContent = await fs.readFile(flowsFile, 'utf8');
+                    const flowsContent = await cachedReadFile(flowsFile, 'utf8');
                     const flowEntries = flowsContent.split(/(?=\[\*\] Tags:)/);
                     let siteHasTags = false;
 
@@ -1239,7 +1659,7 @@ app.get('/api/vuln-stats', async (req, res) => {
                 let siteDomain = '';
                 const urlFile = path.join(sitePath, 'url.out');
                 try {
-                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const urlContent = await cachedReadFile(urlFile, 'utf8');
                     const rawUrl = urlContent.trim();
                     const formatted = formatUrlForDisplay(rawUrl);
                     siteDomain = formatted.domain;
@@ -1253,7 +1673,7 @@ app.get('/api/vuln-stats', async (req, res) => {
 
                 const vulnFile = path.join(sitePath, 'vuln.out');
                 try {
-                    const vulnContent = await fs.readFile(vulnFile, 'utf8');
+                    const vulnContent = await cachedReadFile(vulnFile, 'utf8');
                     let siteHasVulns = false;
 
                     vulnContent.split('\n').forEach(line => {
@@ -1369,7 +1789,7 @@ app.get('/api/detected-libs', async (req, res) => {
                 let siteDomain = '';
                 const urlFile = path.join(sitePath, 'url.out');
                 try {
-                    const urlContent = await fs.readFile(urlFile, 'utf8');
+                    const urlContent = await cachedReadFile(urlFile, 'utf8');
                     const rawUrl = urlContent.trim();
                     const formatted = formatUrlForDisplay(rawUrl);
                     siteDomain = formatted.domain;
@@ -1383,7 +1803,7 @@ app.get('/api/detected-libs', async (req, res) => {
 
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {
-                    const libDetectionContent = await fs.readFile(libDetectionFile, 'utf8');
+                    const libDetectionContent = await cachedReadFile(libDetectionFile, 'utf8');
 
                     try {
                         const detectionData = JSON.parse(libDetectionContent);
@@ -1445,17 +1865,33 @@ app.get('/api/detected-libs', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`JAW4C Read-Only UI listening at http://localhost:${port}`);
-    // Initialize cache in background on startup
-    console.log('[Cache] Initializing cache on startup...');
+    console.log('UI is ready - cache will load in the background');
+
+    // Initialize file cache directory
+    await ensureCacheDir();
+
+    // Initialize site data cache in background (non-blocking)
+    // UI will show empty data until cache is ready
+    // Use GET /api/cache-status to check when cache is loaded
     updateCacheInBackground();
 });
 
-// Periodic cache refresh (every 5 minutes)
+// Periodic cache refresh (every 1 hour)
 setInterval(() => {
     if (!isUpdatingCache) {
-        console.log('[Cache] Periodic cache refresh triggered');
+        console.log('[Cache] Hourly cache refresh triggered');
         updateCacheInBackground();
     }
-}, 5 * 60 * 1000);
+}, 60 * 60 * 1000); // 1 hour = 3600000 ms
+
+// Periodic file cache statistics logging (every 30 seconds)
+setInterval(() => {
+    const total = cacheStats.hits + cacheStats.misses;
+    if (total > 0) {
+        logCacheStats();
+        // Reset stats after logging to keep them fresh
+        resetCacheStats();
+    }
+}, 60 * 10 * 1000);

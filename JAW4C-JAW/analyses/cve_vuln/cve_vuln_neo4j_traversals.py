@@ -31,6 +31,7 @@ import sys
 import time
 import uuid
 import signal
+from contextlib import nullcontext
 import constants as constantsModule
 import utils.io as IOModule
 import docker.neo4j.manage_container as dockerModule
@@ -167,15 +168,23 @@ def build_hpg(container_name, webpage):
 	return container_name
 
 
-def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300, code_matching_cutoff=100, call_count_limit=30):
+def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeout=300, code_matching_cutoff=100, call_count_limit=30, timeout_manager=None):
 	"""
 	@param {string} seed_url
 	@param {int} container_transaction_timeout: timeout in seconds for each transaction (default: 300)
 	@param {int} code_matching_cutoff: maximum number of matching nodes to process per code pattern (default: 100)
 	@param {int} call_count_limit: maximum recursion depth for taint propagation (default: 30)
+	@param {TimeoutManager} timeout_manager: optional timeout manager for per-POC timeouts (default: None)
 	@description: imports an HPG inside a neo4j docker instance and runs traversals over it.
 
 	"""
+	def get_jq_locations(vuln_list):
+		jq_locs = set()
+		for entry in vuln_list:
+			if entry['libname'].lower() == 'jquery':
+				jq_locs.add(entry['location'])
+		return jq_locs
+
 	webapp_folder_name = get_name_from_url(seed_url)
 	webapp_data_directory = os.path.join(constantsModule.DATA_DIR, webapp_folder_name)
 	if not os.path.exists(webapp_data_directory):
@@ -206,7 +215,74 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 			call_sites_cache = {}  # stores a map: funcDef id -> list of call expression nodes
 			call_values_cache = {}  # stores a map: funcDef id -> get_function_call_values_of_function_definitions(funcDef)
 			nodeid_to_matches = {}  # stores a map: nodeid -> set of matched poc strings
-			processed_pattern = set()
+			processed_pattern = set()			
+
+			# LIBJQ support, find vulnerabilities with LIBJQ patterns and replace them with jQuery locations if any
+			# example layout of vuln_list:
+			"""
+			[
+				{
+					"mod": "False",
+					"libname": "jquery",
+					"location": "$",
+					"version": "3.4.0",
+					"vuln": [
+						{
+							"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)",
+							"gadget": "False",
+							"payload": "<img src=x onerror=alert(1)>",
+							"exported": "True",
+							"arguments": "",
+							"exploited": "True",
+							"sink_type": "javascript",
+							"validated": "True",
+							"payload_type": "string",
+							"arguments_type": "",
+							"additional_info": {},
+							"confidence_score": 0.8,
+							"vulnerability_type": "xss",
+							"grep_found": "True"
+						},
+						{
+							"poc": "LIBOBJ(WILDCARD).html(PAYLOAD)",
+							"gadget": "False",
+							"payload": "<style><style /><img src=x onerror=alert(1)>",
+							"exported": "True",
+							"arguments": "",
+							"exploited": "True",
+							"sink_type": "javascript",
+							"validated": "True",
+							"payload_type": "string",
+							"arguments_type": "",
+							"additional_info": {},
+							"confidence_score": "0.8",
+							"vulnerability_type": "xss",
+							"grep_found": "True"
+						}
+					]
+				},
+			]			
+			"""
+			jq_locs = get_jq_locations(vuln_list) # get the locations of jQuery usage			
+			for vuln in vuln_list:
+				new_vuln_entries = []
+				has_libjq = False
+				for v in vuln['vuln']:					
+					if 'LIBJQ' in v['poc']:	
+						has_libjq = True					
+						logger.info(f'Expanding LIBJQ poc into multiple LIBOBJ poc entries for {v["poc"]}')						
+						if jq_locs and len(jq_locs) > 0:
+							logger.info(f'Found {len(jq_locs)} jQuery locations for {v["poc"]}: {jq_locs}')
+							# create new vuln entries for each jq_location
+							for jq_loc in jq_locs:
+								new_v = v.copy()
+								new_v['poc'] = new_v['poc'].replace('LIBJQ', jq_loc)	
+								new_v['jq'] = True							
+								new_vuln_entries.append(new_v)														
+					else:
+						new_vuln_entries.append(v)
+				vuln['vuln'] = new_vuln_entries if has_libjq else vuln['vuln']
+					
 
 			for entry_idx, entry in enumerate(vuln_list):
 				try:
@@ -217,22 +293,27 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 							logger.info(f'Skipping duplicate poc: {v["poc"]}')
 							continue
 						poc_set.add(v['poc'])
-						if 'LIBOBJ' not in v['poc']:
-							logger.info(f'Skipping {v['poc']} due to unsupported form: no LIBOBJ')
+						if 'LIBOBJ' not in v['poc'] and v['jq'] != True: # Typically we expect LIBOBJ in poc strings, but for LIBJQ expanded entries we may not have it
+							logger.info(f'Skipping {v["poc"]} due to unsupported form: no LIBOBJ')							
 							continue
 						if not v['grep_found']:
-							logger.info(f'Skipping {v['poc']} due to grep found not finding poc fragments')
+							logger.info(f'Skipping {v["poc"]} due to grep found not finding poc fragments')
 							continue
-						vuln_info = {"mod": mod, "libname": libname, "location": location, "poc_str": v['poc']}
+
+						vuln_info = {"mod": mod, "libname": libname, "location": location, "poc_str": v['poc'], "jq": v.get('jq', False)}
 									
-						try:
+						try:							
 							logger.info("=======================================================================================================")
 							logger.info(f"[{entry_idx+1}/{len(vuln_list)}]-[{i+1}/{len(vuln)}] Starting tainting-based sink detection\n vuln_info:", vuln_info)
 							logger.info(f"{vuln_info}")
 							logger.info("=======================================================================================================")
 							# run_traversals(tx, vuln_info, navigation_url, webpage_directory, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache, folder_name_of_url='xxx', document_vars=[], code_matching_cutoff=100, call_count_limit=30):
-							
-							out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals, vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,code_matching_cutoff, call_count_limit, conn_timeout=container_transaction_timeout, conn=constantsModule.NEO4J_CONN_STRING)
+							print(f"constantsModule.NEO4J_CONN_STRING: {constantsModule.NEO4J_CONN_STRING}")
+							with timeout_manager.operation() if timeout_manager else nullcontext():
+								out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
+										vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,
+										code_matching_cutoff, call_count_limit,
+										conn_timeout=container_transaction_timeout, conn=constantsModule.NEO4J_CONN_STRING)
 						except Exception as e:
 							logger.error(traceback.format_exc())
 							logger.error(f"Error executing query, {e}, moving to the next vulnerability...")							
