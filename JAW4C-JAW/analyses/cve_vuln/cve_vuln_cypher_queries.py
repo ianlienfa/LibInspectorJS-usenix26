@@ -1876,16 +1876,15 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 		RETURN codes
 		LIMIT 5
 		""" % (memberNode['Id'])		
-		# print("get_full_member_name query", query)		
+		print("get_full_member_name query", query)	
 		results = tx.run(query)
 		properties = []
 		for record in results:
 			codes = record['codes']
-			for i in codes:
-				properties += i
+			properties += codes
 		properties = list(reversed(properties))
 		if len(properties) > 3:
-			print("Might be too long member expression:", properties, " for ", memberNode, ", trimming...")
+			# print("Might be too long member expression:", properties, " for ", memberNode, ", trimming...")
 			properties = properties[:1] # weird, only keep the root
 		if properties:
 			return '.'.join(reversed(properties))
@@ -2369,13 +2368,13 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 			# logger.debug(f"taintThroughEdgeProperty query: {query}")
 			results = [] # DEBUG
 			# breakpoint()
-			logger.warning(f"Running taintThroughEdgeProperty PDG query: {query}")
+			# logger.warning(f"Running taintThroughEdgeProperty PDG query: {query}")
 			try:
 				results = tx.run(query) # All PDG nodes that is one edge away via 'varname' argument
 			except Exception as e:
 				logger.error(f"Error running taintThroughEdgeProperty query: {e}")
 			# breakpoint()
-			logger.warning(f"Running taintThroughEdgeProperty iterations: {query}")
+			# logger.warning(f"Running taintThroughEdgeProperty iterations: {query}")
 			for item in results:
 				currentNodes = item['resultset']
 				for iteratorNode in currentNodes:
@@ -2608,18 +2607,18 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 											break
 											
 									# Execute the queued function
-									if func.__name__ == 'nodeTagTainting': # add debug print here
-										logger.warning(f"Executing nodeTagTainting with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
-										logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', taintTag: {args[2]}")
-									elif func.__name__ == 'taintPropTilASTTopmost': # add debug print here
-										logger.warning(f"Executing taintPropTilASTTopmost with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
-										logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', currentASTNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', topMost: '{args[2]['Id'], args[2]['Location'], args[2]['Type']}', taintTag: {args[3]}")
-									# def taintThroughEdgeProperty(node, contextNode, varname, taintTag, nodeid_to_matches, out_values, context_scope='', nodeTagTaintingDepth=None, taintPropTilASTTopmostDepth=None):
-									elif func.__name__ == 'taintThroughEdgeProperty': # add debug print here
-										logger.warning(f"Executing taintThroughEdgeProperty with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
-										logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', varname: {args[2]}, taintTag: {args[3]}")
-									else:
-										logger.warning(f"Executing queued function: {func.__name__}")
+									# if func.__name__ == 'nodeTagTainting': # add debug print here
+									# 	logger.warning(f"Executing nodeTagTainting with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
+									# 	logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', taintTag: {args[2]}")
+									# elif func.__name__ == 'taintPropTilASTTopmost': # add debug print here
+									# 	logger.warning(f"Executing taintPropTilASTTopmost with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
+									# 	logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', currentASTNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', topMost: '{args[2]['Id'], args[2]['Location'], args[2]['Type']}', taintTag: {args[3]}")
+									# # def taintThroughEdgeProperty(node, contextNode, varname, taintTag, nodeid_to_matches, out_values, context_scope='', nodeTagTaintingDepth=None, taintPropTilASTTopmostDepth=None):
+									# elif func.__name__ == 'taintThroughEdgeProperty': # add debug print here
+									# 	logger.warning(f"Executing taintThroughEdgeProperty with depth tracking: nodeTagTaintingDepth: {nodeTagTaintingDepth}, taintPropTilASTTopmostDepth: {taintPropTilASTTopmostDepth}")
+									# 	logger.warning(f"node: '{args[0]['Id'], args[0]['Location'], args[0]['Type']}', contextNode: '{args[1]['Id'], args[1]['Location'], args[1]['Type']}', varname: {args[2]}, taintTag: {args[3]}")
+									# else:
+									# 	logger.warning(f"Executing queued function: {func.__name__}")
 									func(*args, **kwargs)
 							except Exception as e:
 								print(f"Error in nodeTagTainting: {e}")

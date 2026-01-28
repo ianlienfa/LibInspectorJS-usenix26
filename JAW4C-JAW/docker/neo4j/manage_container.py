@@ -42,6 +42,7 @@ CONF_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker")
 PLUGINS_HOME = os.path.join(os.path.join(os.path.join(constants.BASE_DIR, "docker"), "neo4j"), "plugins")
 PROCESS_USER_ID = os.getuid()
 PROCESS_GROUP_ID = os.getgid()
+MEMORY_LIMIT = "3g"
 
 # get network info
 WORKER_NAME = os.environ.get("WORKER_NAME")
@@ -79,7 +80,7 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
     --name {container_name} \
 	--network {NETWORK_NAME} \
 	--network-alias neo4j \
-	--memory=3g \
+	--memory={MEMORY_LIMIT} \
     -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
     -d \
     -v {base_path}{volume_home}/{container_name}/neo4j/data:/data \
@@ -151,7 +152,7 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
     --name {container_name} \
 	--network {NETWORK_NAME} \
 	--network-alias neo4j \
-	--memory=3g \
+	--memory={MEMORY_LIMIT} \
     -p{constants.NEO4J_HTTP_PORT}:7474 -p{constants.NEO4J_BOLT_PORT}:7687 \
     -d \
     -v {base_path}{volume_home}/{container_name}/neo4j/data:/data \
@@ -319,7 +320,7 @@ def create_and_import_neo4j_container(container_name, weburl_suffix, webapp_name
 		"--name", container_name,
 		"--network", NETWORK_NAME,
 		"--network-alias", "neo4j",
-		"--memory=3g",
+		f"--memory={MEMORY_LIMIT}",
 		f"-p{constants.NEO4J_HTTP_PORT}:7474",
 		f"-p{constants.NEO4J_BOLT_PORT}:7687",
 		"-v", f"{base_path}{volume_home}/{container_name}/neo4j/data:/data",

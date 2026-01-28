@@ -23,6 +23,30 @@ COPY JAW4C-JAW/engine/lib/jaw/dom-points-to/package.json ./engine/lib/jaw/dom-po
 COPY JAW4C-JAW/engine/lib/jaw/normalization/package.json ./engine/lib/jaw/normalization/
 COPY JAW4C-JAW/driver/package.json ./driver/
 
+# Install Python dependencies
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+RUN pip3 install -r ./requirements.txt
+
+# Install Node.js dependencies
+RUN npm install
+RUN (cd analyses/cve_vuln && npm install)
+RUN (cd crawler && npm install)
+RUN (cd dynamic && npm install)
+RUN (cd engine && npm install)
+RUN (cd engine/lib/jaw/dom-points-to && npm install)
+RUN (cd engine/lib/jaw/normalization && npm install)
+RUN (cd driver && npm install)
+
+# Copy aliasing source and Makefile for compilation
+COPY JAW4C-JAW/engine/lib/jaw/aliasing/ ./engine/lib/jaw/aliasing/
+
+# Build the aliasing component
+RUN (cd engine/lib/jaw/aliasing && make)
+
+# Set up DEBUN
+COPY JAW4C-DEBUN/package.json ../JAW4C-DEBUN/
+RUN (cd /JAW4C/JAW4C-DEBUN && npm install --save-dev @types/node commander && npm install)
+
 # Copy full directories from pipeline tests for dependency installation and webpack build
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/ ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/ ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/
@@ -39,35 +63,14 @@ COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jq
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jq_CVE-2020-7656 ./tests/pipeline_test/sites/integration_test/static_analysis/test_jq_CVE-2020-7656/
 
 # Copy test_prep.py and other essential test files
 COPY JAW4C-JAW/tests/pipeline_test/test_prep.py ./tests/pipeline_test/
 COPY JAW4C-JAW/tests/pipeline_test/test_phases.py ./tests/pipeline_test/
 COPY JAW4C-JAW/tests/pipeline_test/test_run.py ./tests/pipeline_test/
 
-# Install Python dependencies
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
-RUN pip3 install -r ./requirements.txt
-
-# Install Node.js dependencies
-RUN npm install
-RUN (cd analyses/cve_vuln && npm install)
-RUN (cd crawler && npm install)
-RUN (cd dynamic && npm install)
-RUN (cd engine && npm install)
-RUN (cd engine/lib/jaw/dom-points-to && npm install)
-RUN (cd engine/lib/jaw/normalization && npm install)
-RUN (cd driver && npm install)
 RUN (cd /JAW4C/JAW4C-JAW/tests/pipeline_test && python3 test_prep.py) 
-
-# Copy aliasing source and Makefile for compilation
-COPY JAW4C-JAW/engine/lib/jaw/aliasing/ ./engine/lib/jaw/aliasing/
-
-# Build the aliasing component
-RUN (cd engine/lib/jaw/aliasing && make)
-
-# Set up DEBUN
-RUN (cd /JAW4C/JAW4C-DEBUN && npm install)
 
 # Copy essential runtime files
 # COPY JAW4C-JAW/analyses/ ./analyses/
@@ -111,11 +114,13 @@ RUN apt-get update && \
 
 # Copy from builder stage
 COPY --from=builder /JAW4C/JAW4C-JAW /JAW4C/JAW4C-JAW
+COPY --from=builder /JAW4C/JAW4C-DEBUN /JAW4C/JAW4C-DEBUN
 COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
 
 # Install chromium
 RUN cd /JAW4C/JAW4C-JAW/crawler && npx playwright install && npx playwright install-deps
 RUN cd /JAW4C/JAW4C-JAW/driver && npx puppeteer browsers install chrome
+# RUN cd /JAW4C/JAW4C-DEBUN && npm install
 
 # Configure Docker group and permissions for DinD
 RUN groupadd -f docker && \

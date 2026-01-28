@@ -737,9 +737,13 @@ def main():
 		constantsModule.NEO4J_BOLT_PORT = config["staticpass"]["neo4j_bolt_port"]
 		constantsModule.NEO4J_CONN_STRING = "bolt://127.0.0.1:%s"%str(constantsModule.NEO4J_BOLT_PORT)
 		constantsModule.NEOMODEL_NEO4J_CONN_STRING = "bolt://%s:%s@127.0.0.1:%s"%(constantsModule.NEO4J_USER, constantsModule.NEO4J_PASS, constantsModule.NEO4J_BOLT_PORT)
-
+	
+	# if uses docker, the connection string should point to the docker internal port mapping
 	if "neo4j_use_docker" in config["staticpass"]:
 		constantsModule.NEO4J_USE_DOCKER = config["staticpass"]["neo4j_use_docker"] 
+		constantsModule.NEO4J_CONN_HTTP_STRING = "http://neo4j:%s"%str(constantsModule.NEO4J_HTTP_PORT)
+		constantsModule.NEO4J_CONN_STRING = "bolt://neo4j:%s"%str(constantsModule.NEO4J_BOLT_PORT)
+
 
 	if "debug" in config["staticpass"]:
 		static_analysis_debug_mode = config["staticpass"]["debug"]
