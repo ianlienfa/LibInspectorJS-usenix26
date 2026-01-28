@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate config files for bulk analysis
-- 5000 files split into 9 parts per prefix (01, 10)
+- ~6800 files split into 9 parts per prefix (6728 for 01, 6823 for 10)
 - Prefix 01: all 9 files on onr
 - Prefix 10: files 1-3 on nodejs, files 4-9 on nodejs2
 - Each file on same machine gets different ports
@@ -10,7 +10,7 @@ Generate config files for bulk analysis
 import os
 
 # Configuration
-TOTAL_ROWS = 5000
+TOTAL_ROWS = 6800
 NUM_PARTS = 9
 
 # Port assignments (close to 7474)
@@ -46,9 +46,7 @@ PORTS = {
 }
 
 # Calculate row ranges for 9 parts
-# 5000 / 9 = 555 remainder 5
-# First 5 parts get 556 rows, last 4 get 555 rows
-base_size = TOTAL_ROWS // NUM_PARTS  # 555
+base_size = TOTAL_ROWS // NUM_PARTS  # 755
 remainder = TOTAL_ROWS % NUM_PARTS    # 5
 
 ranges = []
@@ -61,6 +59,7 @@ for i in range(NUM_PARTS):
         start = end + 1
     else:
         # Last 4 parts: 555 rows each
+        # Except last part which will be slightly ubalanced but it is what it is
         end = start + base_size - 1
         ranges.append((start, end))
         start = end + 1
