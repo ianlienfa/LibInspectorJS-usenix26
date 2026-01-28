@@ -25,9 +25,9 @@ mitmdump \
     --set anticache=true \
     --set anticomp=true \
     -s "./scripts/proxy.py" \
-    --set useCache=true \
+    --set useCache=false \
     --set onlyUseCache=false \
-    --set useBabel=true \
+    --set useBabel=false \
     --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
     --set warcPath=$PERSIST/$PROXY_ARCHIVE \
     --set replayNearest=true \
