@@ -84,8 +84,8 @@ testbed:
   archive:
     enable: true
     mappinglist: /JAW4C/JAW4C-WebArchive/archive/name_mapping.json
-  from_row: {from_row}
-  to_row: {to_row} # row number or 'end'
+  from_row: 6045
+  to_row: end # row number or 'end'
 
 
 # 2. crawler configuration
@@ -141,10 +141,12 @@ vuln_db:
 
 # 3. static analysis configuration
 staticpass:
-  # time budget for static analysis of each site (in seconds)
-  sitetimeout: 10800 # 3 hrs
-  # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
-  pagetimeout: 3600 # 1 hr
+  # timeout per vulnerability (analyze_hpg / run_traversals) in seconds
+  poc_analysis_timeout: 1500 # 25 min
+  # timeout for graph-based querying (analysis) of each site in seconds
+  analysis_timeout: 3600 # 1 hr
+  # enforce a max per webpage timeout for graph generation (in seconds)
+  pagetimeout: 1200 # 20 min # only 1% got cutoff, should be fine
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process
@@ -158,10 +160,10 @@ staticpass:
   # neo4j instance config
   neo4j_user: neo4j
   neo4j_pass: root
-  neo4j_http_port: '{neo4j_http_port}'
+  neo4j_http_port: '7505'
   # bolt port will default to http port + 2 with ineo
   # otherwise, specify another port here
-  neo4j_bolt_port: '{neo4j_bolt_port}'
+  neo4j_bolt_port: '7715'
   neo4j_use_docker: true
   keep_docker_alive: false
   # Maximum number of matching nodes to process per code pattern (prevents performance issues)
