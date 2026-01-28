@@ -55,15 +55,14 @@ COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_i
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_cfg/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_arg/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_initial_decl_function_call/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_jquery_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jq_CVE-2020-7656 ./tests/pipeline_test/sites/integration_test/static_analysis/test_jq_CVE-2020-7656/
+COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_three_layer_bundle ./tests/pipeline_test/sites/integration_test/static_analysis/test_three_layer_bundle/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656_dev/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_jquery_CVE-2020-7656/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/static_analysis/test_vuln_bund_vary_call_jquery_CVE-2020-7656/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/ ./tests/pipeline_test/sites/integration_test/taint_analysis/test_jquery_vuln_taint_s1_CVE-2020-7656/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/ ./tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/
-COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/static_analysis/test_jq_CVE-2020-7656 ./tests/pipeline_test/sites/integration_test/static_analysis/test_jq_CVE-2020-7656/
 
 # Copy test_prep.py and other essential test files
 COPY JAW4C-JAW/tests/pipeline_test/test_prep.py ./tests/pipeline_test/
