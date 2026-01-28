@@ -1876,7 +1876,7 @@ def getSinkByTagTainting(tx, vuln_info, nodeid_to_matches=None, processed_patter
 		RETURN codes
 		LIMIT 5
 		""" % (memberNode['Id'])		
-		print("get_full_member_name query", query)	
+		# print("get_full_member_name query", query)	
 		results = tx.run(query)
 		properties = []
 		for record in results:
