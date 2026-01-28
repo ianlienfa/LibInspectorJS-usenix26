@@ -7,8 +7,8 @@ testbed:
   archive:
     enable: true
     mappinglist: /JAW4C/JAW4C-WebArchive/archive/name_mapping.json
-  from_row: 1668
-  to_row: 2223 # row number or 'end'
+  from_row: 2268
+  to_row: 3023 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -64,12 +64,10 @@ vuln_db:
 
 # 3. static analysis configuration
 staticpass:
-  # timeout per vulnerability (analyze_hpg / run_traversals) in seconds
-  poc_analysis_timeout: 1500 # 25 min
-  # timeout for graph-based querying (analysis) of each site in seconds
-  analysis_timeout: 3600 # 1 hr
-  # enforce a max per webpage timeout for graph generation (in seconds)
-  pagetimeout: 1200 # 20 min # only 1% got cutoff, should be fine
+  # time budget for static analysis of each site (in seconds)
+  sitetimeout: 10800 # 3 hrs
+  # enforce a max per webpage timeout when `sitetimeout` is not used (in seconds)
+  pagetimeout: 3600 # 1 hr
   # iteratively write the graph output to disk (useful in case of timeouts for partial results)
   iterativeoutput: false
   # max amount of available memory for static analysis per process
