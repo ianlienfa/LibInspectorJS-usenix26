@@ -1,14 +1,14 @@
 # This config is the default config used in the docker compose environment
-testbed: 
+testbed:
   ## option 1: test a specifc website
   # site: http://240.240.240.240/?target=https%3A%2F%2Fwww.google.com.pr%2Fimghp%3Fhl%3Den%26ogbl&type=soak
   ## option 2: provide a top-site list (e.g., Alexa, Tranco, etc)
   # sitelist: /input/tranco_Z2QWG_unique.csv
-  archive: 
+  archive:
     enable: true
     mappinglist: /JAW4C/JAW4C-WebArchive/archive/name_mapping.json
-  from_row: 0
-  to_row: 1000 # row number or 'end'
+  from_row: 2224
+  to_row: 2779 # row number or 'end'
 
 
 # 2. crawler configuration
@@ -20,11 +20,11 @@ crawler:
   # amount of memory for the crawler
   memory: 8192
   # overwrite already existing crawled data or not
-  overwrite: true 
+  overwrite: true
   # check if domain is up with a python request before spawning a browser instance
   domain_health_check: false
   # puppeteer additional args
-  puppeteer:    
+  puppeteer:
     load-extension: /JAW4C/JAW4C-PTV
     load-extension-original: /JAW4C/JAW4C-PTV-Original
     proxy-server: http://proxy:8002
@@ -32,8 +32,8 @@ crawler:
     disk-cache-dir: /dev/null
     disk-cache-size: 1
 
-  playwright:            
-    proxy: 
+  playwright:
+    proxy:
       server: http://proxy:8002
 
 
@@ -44,18 +44,18 @@ crawler:
     # use foxhound if firefox is enabled (default is true)
     foxhound: true
     foxhoundpath: /JAW4C/JAW4C-JAW/crawler/foxhound
-    
+
   lib_detection:
-    enable: true    
+    enable: true
     detection_timeout: 60 # 60
     post_cleanup: true  # cleanup lifted file or not
-    detector:    
+    detector:
       load-extension: /JAW4C/JAW4C-PTV
       load-extension-original: /JAW4C/JAW4C-PTV-Original
       proxy-server: http://proxy:8002
 
 vuln_db:
-  connect: true 
+  connect: true
   host: db
   port: 5432
   dbname: vulndb_annotated
@@ -81,10 +81,10 @@ staticpass:
   # neo4j instance config
   neo4j_user: neo4j
   neo4j_pass: root
-  neo4j_http_port: '7470'
+  neo4j_http_port: '7478'
   # bolt port will default to http port + 2 with ineo
   # otherwise, specify another port here
-  neo4j_bolt_port: '7480'
+  neo4j_bolt_port: '7691'
   neo4j_use_docker: true
   keep_docker_alive: false
   # Maximum number of matching nodes to process per code pattern (prevents performance issues)
@@ -117,10 +117,10 @@ cve_vuln:
   enabled: true
   passes:
     crawling: true #true
-    lib_detection: true #true  
+    lib_detection: true #true
     vulndb: true
     static: true
-    static_neo4j: true  
+    static_neo4j: true
     lift: true #true  # enable lifting functionality
     transform: true #true  # enable sequence expression transformation
     # verification: false
