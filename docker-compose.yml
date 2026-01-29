@@ -1,6 +1,6 @@
-# To change worker configuration, change worker number, e.g., worker9 to worker9, and the config file accordingly.
+# To change worker configuration, change worker number, e.g., worker1 to worker1, and the config file accordingly.
 # and also --conf=config_docker_01_onr_1.yaml to the desired config file.
-# Run command: docker compose -p 'worker9' up 
+# Run command: docker compose -p 'worker1' up 
 networks:
   jaw-network: {}
 
@@ -12,8 +12,8 @@ services:
     volumes:
       # Mount data to nms
       - /home/enyenl/JAW4C:/JAW4C
-      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
-      - /home/enyenl/nms/jan27-jaw4c-analysis/worker9:/JAW4C/JAW4C-JAW/data
+      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - /home/enyenl/nms/jan27-jaw4c-analysis/10_all:/JAW4C/JAW4C-JAW/data
       # Foxhound
       - /home/enyenl/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
       # Docker socket for Docker-in-Docker (DinD)
@@ -27,6 +27,7 @@ services:
       - /JAW4C/JAW4C-JAW/driver/node_modules      
       - /JAW4C/JAW4C-JAW/analyses/cve_vuln/node_modules
       - /JAW4C/JAW4C-JAW/engine/lib/jaw/aliasing
+      - /JAW4C/JAW4C-DEBUN/node_modules
       # test node_modules (anonymous volumes for faster test rebuilds)
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/node_modules
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle/node_modules
@@ -49,7 +50,7 @@ services:
     #   HTTP_PROXY: http://proxy:8002
     #   HTTPS_PROXY: http://proxy:8002
     environment:
-      - WORKER_NAME=worker9
+      - WORKER_NAME=worker1
     networks:
       - jaw-network
     depends_on:
@@ -62,7 +63,7 @@ services:
         reservations:
           memory: 6g
     command: >
-      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_01_onr_9.yaml"
+      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_10_nodejs_1.yaml"
 # sh -c "while [ 1 ]; do echo '' > /dev/null; done"
 # sh -c "python3 -m run_pipeline --conf=config_docker_01_onr_1.yaml"
 # sh -c "cd tests/pipeline_test && python3 test_run.py --action analysis --test integration_test/static_analysis/test_jq_CVE-2020-7656 --config=/JAW4C/JAW4C-JAW/config_docker.yaml"
@@ -98,7 +99,7 @@ services:
       POSTGRES_PASSWORD: vulndb_pwd
       POSTGRES_DB: vulndb_annotated
     volumes:
-      - ./vuln_db_llm/pgdata/worker9:/var/lib/postgresql/data
+      - ./vuln_db_llm/pgdata/worker1:/var/lib/postgresql/data
       - ./vuln_db_llm/advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
     deploy:
           resources:
@@ -111,12 +112,12 @@ services:
     networks:
       - jaw-network
     volumes:
-      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_0_1:/proxy/archive_2026_jan12_distribution_0_1:ro
+      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0:/proxy/archive_2026_jan12_distribution_1_0:ro
     # ports:
     #   - "8002:8002"
     environment:
       - PROXY_VOLUME_PATH=/proxy
-      - PROXY_ARCHIVE=archive_2026_jan12_distribution_0_1
+      - PROXY_ARCHIVE=archive_2026_jan12_distribution_1_0
     deploy:
           resources:
             limits:

@@ -43,9 +43,6 @@ COPY JAW4C-JAW/engine/lib/jaw/aliasing/ ./engine/lib/jaw/aliasing/
 # Build the aliasing component
 RUN (cd engine/lib/jaw/aliasing && make)
 
-# Set up DEBUN
-COPY JAW4C-DEBUN/package.json ../JAW4C-DEBUN/
-RUN (cd /JAW4C/JAW4C-DEBUN && npm install --save-dev @types/node commander && npm install)
 
 # Copy full directories from pipeline tests for dependency installation and webpack build
 COPY JAW4C-JAW/tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/ ./tests/pipeline_test/sites/integration_test/library_detection/test_jquery_bundle_dev/
@@ -113,13 +110,15 @@ RUN apt-get update && \
 
 # Copy from builder stage
 COPY --from=builder /JAW4C/JAW4C-JAW /JAW4C/JAW4C-JAW
-COPY --from=builder /JAW4C/JAW4C-DEBUN /JAW4C/JAW4C-DEBUN
 COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
+
+# Set up DEBUN
+COPY JAW4C-DEBUN/package.json /JAW4C/JAW4C-DEBUN/
+RUN (cd /JAW4C/JAW4C-DEBUN && npm install --save-dev @types/node commander && npm install)
 
 # Install chromium
 RUN cd /JAW4C/JAW4C-JAW/crawler && npx playwright install && npx playwright install-deps
 RUN cd /JAW4C/JAW4C-JAW/driver && npx puppeteer browsers install chrome
-# RUN cd /JAW4C/JAW4C-DEBUN && npm install
 
 # Configure Docker group and permissions for DinD
 RUN groupadd -f docker && \
