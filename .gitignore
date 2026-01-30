@@ -2,5 +2,6 @@ Library-Detector-GTV
 vuln_db_llm/pgdata
 JAW4C-DEBUN/node_modules/
 JAW4C-JAW/docker/neo4j/plugins/apoc.jar
+!JAW4C-JAW/docker/neo4j/plugins/.gitkeep
 data*/
 JAW4C-UI/site-cache*/
