@@ -112,6 +112,10 @@ RUN apt-get update && \
 COPY --from=builder /JAW4C/JAW4C-JAW /JAW4C/JAW4C-JAW
 COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
 
+# Install apoc plugin 
+RUN mkdir -p /JAW4C/JAW4C-JAW/docker/neo4j/plugins && \
+    curl -o /JAW4C/JAW4C-JAW/docker/neo4j/plugins/apoc.jar -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.39/apoc-4.4.0.39-all.jar
+
 # Set up DEBUN
 COPY JAW4C-DEBUN/package.json /JAW4C/JAW4C-DEBUN/
 RUN (cd /JAW4C/JAW4C-DEBUN && npm install --save-dev @types/node commander && npm install)

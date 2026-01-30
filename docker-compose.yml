@@ -1,6 +1,6 @@
-# To change worker configuration, change worker number, e.g., worker1 to worker1, and the config file accordingly.
+# To change worker configuration, change worker number, e.g., worker3 to worker3, and the config file accordingly.
 # and also --conf=config_docker_01_onr_1.yaml to the desired config file.
-# Run command: docker compose -p 'worker1' up 
+# Run command: docker compose -p 'worker3' up 
 networks:
   jaw-network: {}
 
@@ -50,7 +50,7 @@ services:
     #   HTTP_PROXY: http://proxy:8002
     #   HTTPS_PROXY: http://proxy:8002
     environment:
-      - WORKER_NAME=worker1
+      - WORKER_NAME=worker3
     networks:
       - jaw-network
     depends_on:
@@ -63,7 +63,7 @@ services:
         reservations:
           memory: 6g
     command: >
-      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_10_nodejs_1.yaml"
+      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_10_nodejs_3.yaml"
 # sh -c "while [ 1 ]; do echo '' > /dev/null; done"
 # sh -c "python3 -m run_pipeline --conf=config_docker_01_onr_1.yaml"
 # sh -c "cd tests/pipeline_test && python3 test_run.py --action analysis --test integration_test/static_analysis/test_jq_CVE-2020-7656 --config=/JAW4C/JAW4C-JAW/config_docker.yaml"
@@ -99,7 +99,7 @@ services:
       POSTGRES_PASSWORD: vulndb_pwd
       POSTGRES_DB: vulndb_annotated
     volumes:
-      - ./vuln_db_llm/pgdata/worker1:/var/lib/postgresql/data
+      - ./vuln_db_llm/pgdata/worker3:/var/lib/postgresql/data
       - ./vuln_db_llm/advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
     deploy:
           resources:
