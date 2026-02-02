@@ -35,7 +35,7 @@
                 <h2><%= globalStats.vulnerableLibs %></h2>
                 <p>Vulnerable Libraries</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card-clickable" onclick="openPocMatchesModal()">
                 <h2><%= globalStats.pocMatches %></h2>
                 <p>POC Matches</p>
             </div>
@@ -360,6 +360,74 @@
                     <div class="chart-wrapper">
                         <h3>Top 20 Detected Libraries</h3>
                         <div id="top-libraries-ranking"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POC Matches Modal -->
+    <div id="poc-matches-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h2>POC Matches Statistics</h2>
+                    <div class="poc-mode-toggle">
+                        <button class="poc-mode-btn active" data-mode="all" type="button">All POCs</button>
+                        <button class="poc-mode-btn" data-mode="withFlows" type="button">With Flows</button>
+                    </div>
+                </div>
+                <span class="modal-close" onclick="closePocMatchesModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h3 id="total-poc-matches">-</h3>
+                        <p id="total-poc-matches-label">Total POC Matches (incl. NON-REACH)</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="sites-with-poc-matches">-</h3>
+                        <p id="sites-with-poc-matches-label">Sites with POC Matches</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="unique-poc-functions">-</h3>
+                        <p>Unique POC Functions</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3 id="ranked-sites-with-pocs">-</h3>
+                        <p>Ranked Sites with POCs</p>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper chart-wide">
+                        <h3>POC Matches by Site Ranking</h3>
+                        <p class="chart-hint">Hover for a quick breakdown. Click a bar to see sources.</p>
+                        <canvas id="poc-by-ranking-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Top POC Functions</h3>
+                        <canvas id="top-poc-functions-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="poc-source-panel" id="poc-source-panel">
+                    <div class="poc-source-header">
+                        <div>
+                            <h3 id="poc-source-title">POC Sources</h3>
+                            <p id="poc-source-subtitle">Click a ranking bar to see exactly where matches come from.</p>
+                        </div>
+                        <div class="poc-source-tabs">
+                            <button class="poc-source-tab active" data-tab="urls" type="button">URLs</button>
+                            <button class="poc-source-tab" data-tab="files" type="button">Files</button>
+                        </div>
+                    </div>
+                    <div class="poc-source-meta" id="poc-source-meta"></div>
+                    <div class="poc-source-content">
+                        <div class="poc-source-empty" id="poc-source-empty">
+                            Select a bar to load source URLs and file paths.
+                        </div>
+                        <div class="poc-source-list" id="poc-source-list"></div>
                     </div>
                 </div>
             </div>

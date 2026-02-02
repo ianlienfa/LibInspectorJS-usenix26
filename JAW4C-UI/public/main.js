@@ -997,15 +997,302 @@ function closeVulnLibModal() {
     modal.classList.remove('show');
 }
 
+// POC Matches Modal Functions
+let pocMatchesCharts = {};
+let pocRankingBuckets = [];
+let selectedPocBucket = null;
+let activePocSourceTab = 'urls';
+let pocSourcePanelInitialized = false;
+let pocStatsMode = 'all';
+let pocModeToggleInitialized = false;
+
+async function openPocMatchesModal() {
+    const modal = document.getElementById('poc-matches-modal');
+    modal.classList.add('show');
+
+    initPocModeToggle();
+
+    // Show loading state
+    document.getElementById('total-poc-matches').textContent = '...';
+    document.getElementById('sites-with-poc-matches').textContent = '...';
+    document.getElementById('unique-poc-functions').textContent = '...';
+    document.getElementById('ranked-sites-with-pocs').textContent = '...';
+    document.getElementById('total-poc-matches-label').textContent =
+        pocStatsMode === 'withFlows'
+            ? 'Total POC Matches (with flows)'
+            : 'Total POC Matches (incl. NON-REACH)';
+    document.getElementById('sites-with-poc-matches-label').textContent =
+        pocStatsMode === 'withFlows'
+            ? 'Sites with POC Flows'
+            : 'Sites with POC Matches';
+    selectedPocBucket = null;
+    activePocSourceTab = 'urls';
+    document.querySelectorAll('.poc-source-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === activePocSourceTab);
+    });
+    document.querySelectorAll('.poc-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === pocStatsMode);
+    });
+
+    try {
+        const response = await fetch(`/api/poc-match-stats?mode=${encodeURIComponent(pocStatsMode)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const stats = await response.json();
+
+        // Update stats boxes
+        document.getElementById('total-poc-matches').textContent = stats.totalPocMatchesIncludingNonReach;
+        document.getElementById('sites-with-poc-matches').textContent = stats.sitesWithPocMatches;
+        document.getElementById('unique-poc-functions').textContent = stats.uniquePocFunctions;
+
+        // Count ranked POCs (exclude Unranked bucket)
+        const rankedBuckets = stats.rankingBuckets.filter(b => b.bucket !== 'Unranked');
+        const rankedPocCount = rankedBuckets.reduce((sum, b) => sum + b.pocCount, 0);
+        document.getElementById('ranked-sites-with-pocs').textContent = rankedPocCount;
+
+        // Destroy existing charts
+        Object.values(pocMatchesCharts).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        pocMatchesCharts = {};
+
+        // Create charts
+        pocRankingBuckets = stats.rankingBuckets || [];
+        createPocByRankingChart(pocRankingBuckets);
+        createTopPocFunctionsChart(stats.topPocFunctions);
+        initPocSourcePanel();
+
+    } catch (error) {
+        console.error('Error loading POC match stats:', error);
+        alert('Failed to load POC match statistics. Please try again.');
+    }
+}
+
+function closePocMatchesModal() {
+    const modal = document.getElementById('poc-matches-modal');
+    modal.classList.remove('show');
+}
+
+function initPocSourcePanel() {
+    if (!pocSourcePanelInitialized) {
+        const tabs = document.querySelectorAll('.poc-source-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                activePocSourceTab = tab.dataset.tab;
+                tabs.forEach(btn => btn.classList.toggle('active', btn === tab));
+                if (selectedPocBucket) {
+                    renderPocSourceList(selectedPocBucket);
+                }
+            });
+        });
+        pocSourcePanelInitialized = true;
+    }
+    setPocSourceEmptyState();
+}
+
+function initPocModeToggle() {
+    if (pocModeToggleInitialized) return;
+    const buttons = document.querySelectorAll('.poc-mode-btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', async () => {
+            const nextMode = button.dataset.mode || 'all';
+            if (nextMode === pocStatsMode) return;
+            pocStatsMode = nextMode;
+            buttons.forEach(btn => btn.classList.toggle('active', btn === button));
+            selectedPocBucket = null;
+            setPocSourceEmptyState();
+            await openPocMatchesModal();
+        });
+    });
+    pocModeToggleInitialized = true;
+}
+
+function setPocSourceEmptyState() {
+    const title = document.getElementById('poc-source-title');
+    const subtitle = document.getElementById('poc-source-subtitle');
+    const meta = document.getElementById('poc-source-meta');
+    const empty = document.getElementById('poc-source-empty');
+    const list = document.getElementById('poc-source-list');
+    title.textContent = 'POC Sources';
+    subtitle.textContent = 'Click a ranking bar to see exactly where matches come from.';
+    meta.textContent = '';
+    empty.style.display = 'block';
+    list.style.display = 'none';
+    list.innerHTML = '';
+}
+
+function showPocBucketSources(bucket) {
+    selectedPocBucket = bucket;
+    const title = document.getElementById('poc-source-title');
+    const subtitle = document.getElementById('poc-source-subtitle');
+    const meta = document.getElementById('poc-source-meta');
+
+    title.textContent = `POC Sources: ${bucket.bucket}`;
+    subtitle.textContent = 'Sources reflect POC matches within this ranking bucket.';
+    meta.innerHTML = `
+        <span>POC Matches: ${bucket.pocCount}</span>
+        <span>Unique URLs: ${bucket.uniqueUrls || 0}</span>
+        <span>Unique Files: ${bucket.uniqueFiles || 0}</span>
+    `;
+
+    renderPocSourceList(bucket);
+}
+
+function renderPocSourceList(bucket) {
+    const list = document.getElementById('poc-source-list');
+    const empty = document.getElementById('poc-source-empty');
+    const items = activePocSourceTab === 'files' ? bucket.topFiles : bucket.topUrls;
+
+    if (!items || items.length === 0) {
+        empty.textContent = activePocSourceTab === 'files'
+            ? 'No file paths recorded for this bucket.'
+            : 'No navigation URLs recorded for this bucket.';
+        empty.style.display = 'block';
+        list.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    empty.style.display = 'none';
+    list.style.display = 'flex';
+    list.innerHTML = items.map(item => `
+        <div class="poc-source-item">
+            <div class="poc-source-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+            <div class="poc-source-count">${item.count}</div>
+        </div>
+    `).join('');
+}
+
+function createPocByRankingChart(rankingBuckets) {
+    const ctx = document.getElementById('poc-by-ranking-chart').getContext('2d');
+
+    pocMatchesCharts.byRanking = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: rankingBuckets.map(b => b.bucket),
+            datasets: [{
+                label: 'POC Matches',
+                data: rankingBuckets.map(b => b.pocCount),
+                backgroundColor: 'rgba(147, 51, 234, 0.7)',
+                borderColor: 'rgba(147, 51, 234, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            const bucket = rankingBuckets[index];
+                            if (!bucket || !bucket.functions) return '';
+
+                            const functions = Object.entries(bucket.functions)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5);
+
+                            if (functions.length === 0) return '';
+
+                            let result = '\nTop Functions:';
+                            functions.forEach(([name, count]) => {
+                                result += `\n  ${name}: ${count}`;
+                            });
+
+                            const totalFunctions = Object.keys(bucket.functions).length;
+                            if (totalFunctions > 5) {
+                                result += `\n  ... and ${totalFunctions - 5} more`;
+                            }
+
+                            return result;
+                        },
+                        footer: function() {
+                            return 'Click bar to view sources';
+                        }
+                    }
+                }
+            },
+            onClick: function(evt, elements) {
+                if (!elements || elements.length === 0) return;
+                const index = elements[0].index;
+                const bucket = rankingBuckets[index];
+                if (bucket) {
+                    showPocBucketSources(bucket);
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'POC Matches'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Site Ranking Bucket'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createTopPocFunctionsChart(topPocFunctions) {
+    const ctx = document.getElementById('top-poc-functions-chart').getContext('2d');
+
+    pocMatchesCharts.topFunctions = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topPocFunctions.map(f => f.name),
+            datasets: [{
+                label: 'Occurrences',
+                data: topPocFunctions.map(f => f.count),
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Count'
+                    }
+                }
+            }
+        }
+    });
+}
+
 // Close modal when clicking outside
 window.onclick = function(event) {
     const vulnModal = document.getElementById('vuln-lib-modal');
     const libDetectionModal = document.getElementById('lib-detection-modal');
+    const pocMatchesModal = document.getElementById('poc-matches-modal');
 
     if (event.target === vulnModal) {
         closeVulnLibModal();
     } else if (event.target === libDetectionModal) {
         closeLibDetectionModal();
+    } else if (event.target === pocMatchesModal) {
+        closePocMatchesModal();
     }
 }
 

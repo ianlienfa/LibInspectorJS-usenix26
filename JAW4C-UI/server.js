@@ -16,6 +16,110 @@ const APP_DIR = path.resolve(__dirname, '.');
 const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
 const CACHE_DIR = path.join(APP_DIR, 'site-cache');
 const REVIEW_FILE = path.join(DATA_DIR, 'review', 'review.json');
+const TRANCO_FILE = path.join(APP_DIR, 'tranco_NN23W.csv');
+
+// POC stats cache (cleared on refresh or server restart)
+const pocMatchStatsCache = {
+    all: null,
+    withFlows: null
+};
+
+function clearPocMatchStatsCache() {
+    pocMatchStatsCache.all = null;
+    pocMatchStatsCache.withFlows = null;
+}
+
+// --- Domain Ranking Data (loaded once at startup) ---
+let domainRankMap = new Map(); // Map domain -> rank for fast lookup
+
+// Load Tranco CSV and build domain-to-rank map
+async function loadRankingData() {
+    try {
+        const content = await fs.readFile(TRANCO_FILE, 'utf8');
+        const lines = content.trim().split('\n');
+
+        domainRankMap.clear();
+        console.log(`[Ranking] Loading Tranco ranking data from ${TRANCO_FILE}...`);
+        for (const line of lines) {
+            const [rankStr, domain] = line.split(',');
+            if (rankStr && domain) {
+                const rank = parseInt(rankStr, 10);
+                const domainLower = domain.trim().toLowerCase();
+                if (!isNaN(rank) && domainLower) {
+                    domainRankMap.set(domainLower, rank);
+                }
+            }
+        }
+
+        console.log(`[Ranking] Loaded ${domainRankMap.size} domains from Tranco list`);
+    } catch (error) {
+        console.error('[Ranking] Failed to load tranco_NN23W.csv:', error.message);
+        domainRankMap.clear();
+    }
+}
+
+// Extract domain from URL
+function extractDomain(url) {
+    try {
+        const trimmed = String(url || '').trim();
+        if (!trimmed) return null;
+
+        const hasScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed);
+        const urlObj = new URL(hasScheme ? trimmed : `http://${trimmed}`);
+        const targetParam = urlObj.searchParams.get('target');
+
+        let actualUrl = trimmed;
+        if (targetParam) {
+            let decoded = targetParam;
+            try {
+                decoded = decodeURIComponent(targetParam);
+            } catch (e) {
+                decoded = targetParam;
+            }
+
+            if (/^(https?:)?\/\//i.test(decoded)) {
+                actualUrl = decoded;
+            }
+        }
+
+        const actualHasScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(actualUrl);
+        const actualUrlObj = new URL(actualHasScheme ? actualUrl : `http://${actualUrl}`);
+
+        let hostname = actualUrlObj.hostname.toLowerCase().replace(/\.$/, '');
+        if (hostname.startsWith('www.')) {
+            hostname = hostname.slice(4);
+        }
+        return hostname || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Get ranking for a given URL (returns rank or null if not found)
+function getRankingForUrl(url) {
+    const domain = extractDomain(url);
+    if (!domain) return null;
+
+    // Remove www. prefix if present
+    const domainWithoutWww = domain.startsWith('www.') ? domain.slice(4) : domain;
+
+    // Direct lookup first
+    if (domainRankMap.has(domainWithoutWww)) {
+        return domainRankMap.get(domainWithoutWww);
+    }
+
+    // Try progressively shorter domain suffixes to find base domain
+    // e.g., store.google.com → google.com → com
+    const parts = domainWithoutWww.split('.');
+    for (let i = 1; i < parts.length - 1; i++) {
+        const suffix = parts.slice(i).join('.');
+        if (domainRankMap.has(suffix)) {
+            return domainRankMap.get(suffix);
+        }
+    }
+
+    return null;
+}
 
 // --- Cache Management ---
 const CACHE_TTL = 30000; // 30 seconds cache
@@ -643,7 +747,15 @@ async function getSiteData() {
             const flowsStart = Date.now();
             let hasFlows = false;
             let pocMatches = 0;
+            let allFlowsCount = 0; // Including NON-REACH
             const tagCounts = {};
+            const pocFunctions = {}; // Function name -> count
+            const pocSourceUrls = {};
+            const pocSourceFiles = {};
+            let flowPocCount = 0;
+            const flowPocFunctions = {};
+            const flowPocSourceUrls = {};
+            const flowPocSourceFiles = {};
             const flowsContent = fileContents.get(`${compositeHash}:flows`);
             if (flowsContent) {
                 // Split flows by the separator pattern and filter out NON-REACH flows
@@ -653,7 +765,11 @@ async function getSiteData() {
                 flowEntries.forEach(entry => {
                     const tagsMatch = entry.match(/\[\*\] Tags:\s*\[([^\]]*)\]/);
                     if (tagsMatch) {
+                        // Count ALL flows including NON-REACH
+                        allFlowsCount++;
+
                         const tagsStr = tagsMatch[1];
+                        const upperTags = tagsStr.toUpperCase();
                         // Extract individual tags by splitting on comma and cleaning quotes
                         const tags = tagsStr.split(',').map(tag =>
                             tag.trim().replace(/['"]/g, '')
@@ -663,21 +779,48 @@ async function getSiteData() {
                         tags.forEach(tag => {
                             tagCounts[tag] = (tagCounts[tag] || 0) + 1;
                         });
+
+                        // Extract POC function from [*] Function: LIBOBJ.xxx() line
+                        const functionMatch = entry.match(/\[\*\] Function:\s*([^\n\r]+)/);
+                        if (functionMatch) {
+                            let funcName = functionMatch[1].trim();
+                            // Normalize: strip parameters (...) but keep LIBOBJ.method
+                            funcName = funcName.replace(/\([^)]*\)$/, '');
+                            pocFunctions[funcName] = (pocFunctions[funcName] || 0) + 1;
+                        }
+
+                        // Extract navigation URL and file path once per entry
+                        const navMatch = entry.match(/\[\*\] NavigationURL:\s*(.+)$/m);
+                        const fileMatch = entry.match(/^\[\*\] File:\s*(.+)$/m) || entry.match(/^\|\-\s*file:\s*(.+)$/m);
+                        const navUrl = navMatch ? navMatch[1].trim() : '';
+                        const filePath = fileMatch ? fileMatch[1].trim() : '';
+                        if (navUrl) {
+                            pocSourceUrls[navUrl] = (pocSourceUrls[navUrl] || 0) + 1;
+                        }
+                        if (filePath) {
+                            pocSourceFiles[filePath] = (pocSourceFiles[filePath] || 0) + 1;
+                        }
+
+                        const hasFlow = !upperTags.includes('NON-REACH');
+                        if (hasFlow) {
+                            flowPocCount++;
+                            if (functionMatch) {
+                                let funcName = functionMatch[1].trim();
+                                funcName = funcName.replace(/\([^)]*\)$/, '');
+                                flowPocFunctions[funcName] = (flowPocFunctions[funcName] || 0) + 1;
+                            }
+                            if (navUrl) {
+                                flowPocSourceUrls[navUrl] = (flowPocSourceUrls[navUrl] || 0) + 1;
+                            }
+                            if (filePath) {
+                                flowPocSourceFiles[filePath] = (flowPocSourceFiles[filePath] || 0) + 1;
+                            }
+                        }
                     }
                 });
 
-                const validFlows = flowEntries.filter(entry => {
-                    // Check if this flow entry contains NON-REACH tag
-                    const tagsMatch = entry.match(/\[\*\] Tags:\s*(\[.*?\])/);
-                    if (tagsMatch) {
-                        const tagsStr = tagsMatch[1];
-                        return !tagsStr.toUpperCase().includes('NON-REACH');
-                    }
-                    return true; // Keep entries without tags line
-                });
-
-                // Count valid flows (those with Tags line)
-                pocMatches = validFlows.filter(entry => entry.includes('[*] Tags:')).length;
+                // Count valid flows (those with Tags line, excluding NON-REACH)
+                pocMatches = flowPocCount;
                 if (pocMatches > 0) {
                     hasFlows = true;
                 }
@@ -770,10 +913,19 @@ async function getSiteData() {
                 domain: siteDomain,
                 urlPath: siteUrlPath,
                 originalUrl,
+                rank: getRankingForUrl(originalUrl),
                 modifiedTime,
                 hasFlows,
                 pocMatches,
+                allFlowsCount,
                 tagCounts,
+                pocFunctions,
+                pocSourceUrls,
+                pocSourceFiles,
+                flowPocCount,
+                flowPocFunctions,
+                flowPocSourceUrls,
+                flowPocSourceFiles,
                 vulnerableLibs,
                 files: availableFiles,
                 jsFiles: jsFiles,
@@ -891,6 +1043,7 @@ app.get('/api/cache-status', (req, res) => {
 // API endpoint to manually trigger cache refresh
 app.post('/api/refresh-cache', async (req, res) => {
     try {
+        clearPocMatchStatsCache();
         updateCacheInBackground();
         res.json({ success: true, message: 'Cache refresh triggered' });
     } catch (error) {
@@ -1755,6 +1908,176 @@ app.get('/api/vuln-stats', async (req, res) => {
     }
 });
 
+// API endpoint for POC match statistics by site ranking
+app.get('/api/poc-match-stats', async (req, res) => {
+    try {
+        const data = await getCachedSiteData();
+        const mode = req.query.mode === 'withFlows' ? 'withFlows' : 'all';
+        if (pocMatchStatsCache[mode]) {
+            return res.json(pocMatchStatsCache[mode]);
+        }
+        let sites = data.sites;
+        if (mode === 'withFlows') {
+            sites = sites.filter(site => site.hasFlows);
+        }
+
+        if (!sites || sites.length === 0) {
+            const emptyResult = {
+                totalPocMatchesIncludingNonReach: 0,
+                sitesWithPocMatches: 0,
+                rankingBuckets: [],
+                topPocFunctions: []
+            };
+            if (!data.loading && !isUpdatingCache) {
+                pocMatchStatsCache[mode] = emptyResult;
+            }
+            return res.json(emptyResult);
+        }
+
+        let totalPocMatchesIncludingNonReach = 0;
+        let sitesWithPocMatches = 0;
+        const functionCounts = {};
+        const bucketData = {}; // bucket -> { pocCount, functions: {}, urls: {}, files: {} }
+
+        const mergeCounts = (target, source) => {
+            if (!source) return;
+            for (const [key, count] of Object.entries(source)) {
+                target[key] = (target[key] || 0) + count;
+            }
+        };
+
+        // Helper to get bucket name from rank
+        const getBucketName = (rank) => {
+            if (rank === null) return 'Unranked';
+            const bucketStart = Math.floor((rank - 1) / 1000) * 1000 + 1;
+            const bucketEnd = bucketStart + 999;
+            return `${bucketStart}-${bucketEnd}`;
+        };
+
+        // Debug: log ranking data status and first few lookups
+        console.log(`[POC-Stats] domainRankMap size: ${domainRankMap.size}, sites count: ${sites.length}`);
+        if (domainRankMap.size > 0) {
+            const sampleDomains = Array.from(domainRankMap.keys()).slice(0, 3);
+            console.log(`[POC-Stats] Sample domains in map: ${sampleDomains.join(', ')}`);
+        }
+
+        let debugCount = 0;
+
+        // Process each site from cache (already excludes localhost)
+        for (const site of sites) {
+            // Get ranking for this site
+            const rank = site.rank ?? getRankingForUrl(site.originalUrl);
+
+            // Debug logging for first 5 sites with flows
+            if (debugCount < 5 && site.allFlowsCount > 0) {
+                const domain = extractDomain(site.originalUrl);
+                // console.log(`[POC-Stats Debug] originalUrl: "${site.originalUrl}", domain: "${domain}", rank: ${rank}`);
+                debugCount++;
+            }
+
+            const bucketName = getBucketName(rank);
+
+            // Initialize bucket if needed
+            if (!bucketData[bucketName]) {
+                bucketData[bucketName] = { pocCount: 0, functions: {}, urls: {}, files: {} };
+            }
+
+            // Use cached flow data
+            const pocCountForMode = mode === 'withFlows' ? site.flowPocCount : site.allFlowsCount;
+            const functionsForMode = mode === 'withFlows' ? site.flowPocFunctions : site.pocFunctions;
+            const sourceUrlsForMode = mode === 'withFlows' ? site.flowPocSourceUrls : site.pocSourceUrls;
+            const sourceFilesForMode = mode === 'withFlows' ? site.flowPocSourceFiles : site.pocSourceFiles;
+
+            if (pocCountForMode > 0) {
+                totalPocMatchesIncludingNonReach += pocCountForMode;
+                bucketData[bucketName].pocCount += pocCountForMode;
+                sitesWithPocMatches++;
+
+                // Aggregate POC functions from cache
+                if (functionsForMode) {
+                    for (const [funcName, count] of Object.entries(functionsForMode)) {
+                        functionCounts[funcName] = (functionCounts[funcName] || 0) + count;
+                        bucketData[bucketName].functions[funcName] =
+                            (bucketData[bucketName].functions[funcName] || 0) + count;
+                    }
+                }
+
+                mergeCounts(bucketData[bucketName].urls, sourceUrlsForMode);
+                mergeCounts(bucketData[bucketName].files, sourceFilesForMode);
+            }
+        }
+
+        // Convert bucketData to sorted array
+        const topEntries = (map, limit = 10) => Object.entries(map || {})
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, limit)
+            .map(([name, count]) => ({ name, count }));
+
+        const rankingBuckets = Object.entries(bucketData)
+            .map(([bucket, data]) => ({
+                bucket,
+                pocCount: data.pocCount,
+                functions: data.functions,
+                topUrls: topEntries(data.urls, 12),
+                topFiles: topEntries(data.files, 12),
+                uniqueUrls: Object.keys(data.urls).length,
+                uniqueFiles: Object.keys(data.files).length
+            }))
+            .sort((a, b) => {
+                // Sort by bucket start number, with Unranked at the end
+                if (a.bucket === 'Unranked') return 1;
+                if (b.bucket === 'Unranked') return -1;
+                const aStart = parseInt(a.bucket.split('-')[0]);
+                const bStart = parseInt(b.bucket.split('-')[0]);
+                return aStart - bStart;
+            });
+
+        // Get top 15 POC functions
+        const allFunctionEntries = Object.entries(functionCounts)
+            .sort((a, b) => b[1] - a[1]);
+        const topPocFunctions = allFunctionEntries
+            .slice(0, 15)
+            .map(([name, count]) => ({ name, count }));
+
+        const result = {
+            totalPocMatchesIncludingNonReach,
+            sitesWithPocMatches,
+            uniquePocFunctions: allFunctionEntries.length,
+            rankingBuckets,
+            topPocFunctions
+        };
+
+        if (!data.loading && !isUpdatingCache) {
+            pocMatchStatsCache[mode] = result;
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error fetching POC match stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API endpoint for detected libraries statistics
+// API endpoint to get ranking for a URL
+app.get('/api/ranking', (req, res) => {
+    const { url } = req.query;
+
+    if (!url) {
+        return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    const domain = extractDomain(url);
+    const rank = getRankingForUrl(url);
+
+    res.json({
+        url,
+        domain,
+        rank,
+        found: rank !== null
+    });
+});
+
 // API endpoint for detected libraries statistics
 app.get('/api/detected-libs', async (req, res) => {
     try {
@@ -1867,6 +2190,9 @@ app.get('/api/detected-libs', async (req, res) => {
 app.listen(port, async () => {
     console.log(`JAW4C Read-Only UI listening at http://localhost:${port}`);
     console.log('UI is ready - cache will load in the background');
+
+    // Load ranking data (static, loaded once)
+    await loadRankingData();
 
     // Initialize file cache directory
     await ensureCacheDir();
