@@ -13,6 +13,7 @@ services:
       - ./server.js:/app/server.js:ro
       - ./public:/app/public:ro
       - ./views:/app/views:ro
+      - ./tranco_NN23W.csv:/app/tranco_NN23W.csv:ro
     restart: unless-stopped
     environment:
       - NODE_ENV=production

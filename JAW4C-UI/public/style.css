@@ -1798,6 +1798,35 @@ header h1 {
     border-radius: 12px 12px 0 0;
 }
 
+.modal-title {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.poc-mode-toggle {
+    display: inline-flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.poc-mode-btn {
+    border: 1px solid var(--gray-300);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.poc-mode-btn.active {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: #fff;
+}
+
 .modal-header h2 {
     margin: 0;
     color: var(--text-primary);
@@ -1871,6 +1900,138 @@ header h1 {
 
 .chart-wrapper canvas {
     max-height: 300px;
+}
+
+.chart-wrapper.chart-wide {
+    grid-column: span 2;
+}
+
+@media (max-width: 950px) {
+    .chart-wrapper.chart-wide {
+        grid-column: span 1;
+    }
+}
+
+.chart-hint {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    margin: -10px 0 15px 0;
+    font-style: italic;
+}
+
+.poc-source-panel {
+    grid-column: span 2;
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.03), rgba(59, 130, 246, 0.06));
+    border: 1px solid var(--gray-300);
+    border-left: 4px solid var(--primary-blue);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.poc-source-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.poc-source-header h3 {
+    margin: 0 0 6px;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.poc-source-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.poc-source-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.poc-source-tab {
+    border: 1px solid var(--gray-300);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.poc-source-tab.active {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: #fff;
+}
+
+.poc-source-meta {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}
+
+.poc-source-content {
+    margin-top: 16px;
+}
+
+.poc-source-empty {
+    color: var(--text-tertiary);
+    background-color: var(--bg-secondary);
+    border: 1px dashed var(--gray-300);
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.poc-source-list {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.poc-source-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--gray-300);
+}
+
+.poc-source-name {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.poc-source-count {
+    font-weight: 700;
+    color: var(--primary-blue);
+    min-width: 48px;
+    text-align: right;
+}
+
+@media (max-width: 950px) {
+    .poc-source-panel {
+        grid-column: span 1;
+    }
+
+    .poc-source-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 /* Libraries Ranking Styling */
