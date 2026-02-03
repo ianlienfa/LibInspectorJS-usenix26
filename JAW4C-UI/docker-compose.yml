@@ -8,7 +8,7 @@ services:
     volumes:
       # Mount the JAW4C-JAW data directory for read-only access
       - ../JAW4C-JAW/data:/app/../JAW4C-JAW/data:ro
-      - ../JAW4C-JAW/data/review:/app/../JAW4C-JAW/data/review
+      - ./site-cache/review:/app/../JAW4C-JAW/data/review
       - ./site-cache:/app/site-cache
      # Mount source code for live updates (no rebuild needed for code changes)
       - ./server.js:/app/server.js:ro

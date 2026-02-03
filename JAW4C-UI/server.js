@@ -133,12 +133,17 @@ const FILE_READ_CONCURRENCY = parseInt(process.env.FILE_READ_CONCURRENCY || '40'
 const dirStatCache = new Map();
 const dirReaddirCache = new Map();
 const INDEX_CACHE_DIR = path.join(CACHE_DIR, 'index');
+const indexStats = { hits: 0, misses: 0 };
 
 // --- File System Cache Layer ---
 // Cache statistics for monitoring
 const cacheStats = {
     hits: 0,
     misses: 0,
+    fileReadHits: 0,
+    fileReadMisses: 0,
+    statHits: 0,
+    statMisses: 0,
     updates: 0,
     errors: 0,
     totalReadTime: 0,
@@ -228,6 +233,22 @@ async function updateGlobalStatFile(section, payload) {
     await writeStatCache(stats);
 }
 
+async function writeGlobalStatSnapshot(globalStats, totalSites) {
+    const stats = await readStatCache();
+    const reviewData = await loadReviewData();
+    const pocStatusSummary = computePocStatusSummary(reviewData);
+
+    stats.updatedAt = new Date().toISOString();
+    stats.globalStats = {
+        ...globalStats,
+        totalSites
+    };
+    stats.pocStatusSummary = pocStatusSummary;
+    stats.sections = stats.sections || {};
+
+    await writeStatCache(stats);
+}
+
 function getIndexCachePath(name) {
     return path.join(INDEX_CACHE_DIR, name);
 }
@@ -235,8 +256,10 @@ function getIndexCachePath(name) {
 async function readIndexCache(fileName) {
     try {
         const raw = await fs.readFile(getIndexCachePath(fileName), 'utf8');
+        indexStats.hits++;
         return JSON.parse(raw);
     } catch (e) {
+        indexStats.misses++;
         return null;
     }
 }
@@ -255,11 +278,32 @@ function getParentIndexFile(parentDir) {
     return `parent-${safeName}.json`;
 }
 
+function getSiteIndexFile(compositeHash) {
+    const safeName = compositeHash.replace(/[\/\\]/g, '__');
+    return `site-${safeName}.json`;
+}
+
 function getSitePathFromCompositeHash(compositeHash) {
     const parts = compositeHash.split('/');
     if (parts.length < 2) return null;
     const [parentDir, hash] = parts;
     return path.join(DATA_DIR, parentDir, hash);
+}
+
+async function readSiteDirIndex(compositeHash, sitePath) {
+    try {
+        const stats = await fs.stat(sitePath);
+        const mtimeMs = stats.mtimeMs || stats.mtime.getTime();
+        const cached = await readIndexCache(getSiteIndexFile(compositeHash));
+        if (cached && cached.mtimeMs === mtimeMs && Array.isArray(cached.entries)) {
+            return cached.entries;
+        }
+        const entries = await fs.readdir(sitePath);
+        await writeIndexCache(getSiteIndexFile(compositeHash), { mtimeMs, entries });
+        return entries;
+    } catch (e) {
+        return [];
+    }
 }
 
 // Get relative path from DATA_DIR
@@ -338,11 +382,14 @@ async function cachedReadFile(filePath, encoding = 'utf8') {
             // Read from cache
             const content = await fs.readFile(cachePath, encoding);
             cacheStats.hits++;
+            cacheStats.fileReadHits++;
             cacheStats.totalReadTime += (Date.now() - startTime);
             return content;
         } else {
             // Cache miss or outdated - update cache then read
+            console.log(`[FileCache] Cache miss or outdated for: ${getRelativePath(filePath)}`);
             cacheStats.misses++;
+            cacheStats.fileReadMisses++;
             await copyToCache(filePath, cachePath);
             const content = await fs.readFile(cachePath, encoding);
             cacheStats.totalReadTime += (Date.now() - startTime);
@@ -549,17 +596,19 @@ async function cachedStat(filePath) {
             const cacheFileStats = await fs.stat(cachePath);
 
             // If cache exists and is up-to-date, return source stats but count as hit
-            if (cacheFileStats.mtime.getTime() >= sourceStats.mtime.getTime()) {
-                cacheStats.hits++;
-                cacheStats.totalReadTime += (Date.now() - startTime);
-                return sourceStats;
-            }
+        if (cacheFileStats.mtime.getTime() >= sourceStats.mtime.getTime()) {
+            cacheStats.hits++;
+            cacheStats.statHits++;
+            cacheStats.totalReadTime += (Date.now() - startTime);
+            return sourceStats;
+        }
         } catch (e) {
             // Cache doesn't exist, will be created on actual read
         }
 
         // Cache miss - return source stats
         cacheStats.misses++;
+        cacheStats.statMisses++;
         cacheStats.totalReadTime += (Date.now() - startTime);
         return sourceStats;
     } catch (e) {
@@ -612,11 +661,20 @@ function logCacheStats() {
     console.log('[FileCache] Stats:', {
         hits: cacheStats.hits,
         misses: cacheStats.misses,
+        fileReadHits: cacheStats.fileReadHits,
+        fileReadMisses: cacheStats.fileReadMisses,
+        statHits: cacheStats.statHits,
+        statMisses: cacheStats.statMisses,
         updates: cacheStats.updates,
         errors: cacheStats.errors,
         hitRate: `${hitRate}%`,
         avgReadTime: total > 0 ? `${(cacheStats.totalReadTime / total).toFixed(2)}ms` : '0ms',
         avgCacheTime: cacheStats.updates > 0 ? `${(cacheStats.totalCacheTime / cacheStats.updates).toFixed(2)}ms` : '0ms'
+    });
+
+    console.log('[IndexCache] Stats:', {
+        hits: indexStats.hits,
+        misses: indexStats.misses
     });
 }
 
@@ -624,6 +682,10 @@ function logCacheStats() {
 function resetCacheStats() {
     cacheStats.hits = 0;
     cacheStats.misses = 0;
+    cacheStats.fileReadHits = 0;
+    cacheStats.fileReadMisses = 0;
+    cacheStats.statHits = 0;
+    cacheStats.statMisses = 0;
     cacheStats.updates = 0;
     cacheStats.errors = 0;
     cacheStats.totalReadTime = 0;
@@ -1048,13 +1110,38 @@ async function getSiteData() {
     const sitePaths = (await Promise.all(sitePathsPromises)).flat();
     console.log(`[getSiteData] Collected ${sitePaths.length} site paths (${Date.now() - collectStartTime}ms)`);
 
-    // Prepare batch file reading for all sites
+    // Pre-list site directories to avoid missing-file reads
+    const siteFileLists = new Map();
+    const dirQueue = [...sitePaths];
+    const dirConcurrency = Math.min(FILE_READ_CONCURRENCY, dirQueue.length || 1);
+    const dirWorkers = Array(dirConcurrency).fill(null).map(async () => {
+        while (dirQueue.length > 0) {
+            const { sitePath, parentDir, hash } = dirQueue.shift();
+            const compositeHash = `${parentDir}/${hash}`;
+            try {
+                const files = await readSiteDirIndex(compositeHash, sitePath);
+                siteFileLists.set(compositeHash, files);
+            } catch (e) {
+                siteFileLists.set(compositeHash, []);
+            }
+        }
+    });
+    await Promise.all(dirWorkers);
+
+    // Prepare batch file reading only for existing files
     const filesToRead = [];
     sitePaths.forEach(({ sitePath, parentDir, hash }) => {
         const compositeHash = `${parentDir}/${hash}`;
-        filesToRead.push({ key: `${compositeHash}:url`, path: path.join(sitePath, 'url.out') });
-        filesToRead.push({ key: `${compositeHash}:flows`, path: path.join(sitePath, 'sink.flows.out') });
-        filesToRead.push({ key: `${compositeHash}:vuln`, path: path.join(sitePath, 'vuln.out') });
+        const files = siteFileLists.get(compositeHash) || [];
+        if (files.includes('url.out')) {
+            filesToRead.push({ key: `${compositeHash}:url`, path: path.join(sitePath, 'url.out') });
+        }
+        if (files.includes('sink.flows.out')) {
+            filesToRead.push({ key: `${compositeHash}:flows`, path: path.join(sitePath, 'sink.flows.out') });
+        }
+        if (files.includes('vuln.out')) {
+            filesToRead.push({ key: `${compositeHash}:vuln`, path: path.join(sitePath, 'vuln.out') });
+        }
     });
 
     // Batch read all files
@@ -1284,12 +1371,9 @@ async function getSiteData() {
 
             // Read directory once and reuse for all file checks (optimization)
             const readdirStart = Date.now();
-            let allFiles = [];
-            try {
-                allFiles = await fs.readdir(sitePath);
-            } catch (e) {
-                // Directory read error
-                allFiles = [];
+            let allFiles = siteFileLists.get(compositeHash);
+            if (!allFiles) {
+                allFiles = await readSiteDirIndex(compositeHash, sitePath);
             }
             timings.readdir = Date.now() - readdirStart;
 
@@ -1413,6 +1497,7 @@ async function updateCacheInBackground() {
         cacheTimestamp = Date.now();
         const duration = Date.now() - startTime;
         console.log(`[Cache] ✅ Cache ready! ${data.sites.length} sites loaded in ${(duration / 1000).toFixed(2)}s`);
+        await writeGlobalStatSnapshot(data.globalStats, data.sites.length);
 
     } catch (error) {
         console.error('[Cache] ❌ Error updating cache:', error);
@@ -1896,6 +1981,7 @@ app.post('/api/update-review', async (req, res) => {
         const success = await saveReviewData(reviewData);
 
         if (success) {
+            await writeGlobalStatSnapshot(siteDataCache?.globalStats || {}, siteDataCache?.sites?.length || 0);
             res.json({ success: true, data: reviewData[hash] });
         } else {
             res.status(500).json({ error: 'Failed to save review data' });
@@ -1954,6 +2040,7 @@ app.post('/api/update-poc-review', async (req, res) => {
 
         const success = await saveReviewData(reviewData);
         if (success) {
+            await writeGlobalStatSnapshot(siteDataCache?.globalStats || {}, siteDataCache?.sites?.length || 0);
             res.json({ success: true, memo: reviewData[hash].memo, entry: reviewData[hash].pocNotes[headerHash] });
         } else {
             res.status(500).json({ error: 'Failed to save review data' });
