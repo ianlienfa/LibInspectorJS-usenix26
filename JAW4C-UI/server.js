@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
+const crypto = require('crypto');
 
 const app = express();
 const port = 3001;
@@ -17,6 +18,8 @@ const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
 const CACHE_DIR = path.join(APP_DIR, 'site-cache');
 const REVIEW_FILE = path.join(DATA_DIR, 'review', 'review.json');
 const TRANCO_FILE = path.join(APP_DIR, 'tranco_NN23W.csv');
+const SITE_STABLED = true;
+const STAT_FILE = path.join(CACHE_DIR, 'stat.json');
 
 // POC stats cache (cleared on refresh or server restart)
 const pocMatchStatsCache = {
@@ -126,6 +129,10 @@ const CACHE_TTL = 30000; // 30 seconds cache
 let siteDataCache = null;
 let cacheTimestamp = 0;
 let isUpdatingCache = false;
+const FILE_READ_CONCURRENCY = parseInt(process.env.FILE_READ_CONCURRENCY || '40', 10);
+const dirStatCache = new Map();
+const dirReaddirCache = new Map();
+const INDEX_CACHE_DIR = path.join(CACHE_DIR, 'index');
 
 // --- File System Cache Layer ---
 // Cache statistics for monitoring
@@ -148,6 +155,113 @@ async function ensureCacheDir() {
     }
 }
 
+function clearDirCaches() {
+    dirStatCache.clear();
+    dirReaddirCache.clear();
+}
+
+async function readStatCache() {
+    try {
+        const raw = await fs.readFile(STAT_FILE, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return {};
+    }
+}
+
+async function writeStatCache(stats) {
+    try {
+        await fs.mkdir(CACHE_DIR, { recursive: true });
+        await fs.writeFile(STAT_FILE, JSON.stringify(stats, null, 2), 'utf8');
+    } catch (e) {
+        // Non-fatal: skip cache write on error
+    }
+}
+
+function computePocStatusSummary(reviewData) {
+    const counts = {
+        vulnerableFunc: { true: 0, false: 0 },
+        pocMatch: { true: 0, false: 0 },
+        dataflow: { true: 0, false: 0 }
+    };
+
+    Object.values(reviewData || {}).forEach(site => {
+        const notes = site.pocNotes || {};
+        Object.values(notes).forEach(entry => {
+            const status = entry.status || {};
+            Object.keys(counts).forEach(key => {
+                if (status[key] === 'true') counts[key].true += 1;
+                else if (status[key] === 'false') counts[key].false += 1;
+            });
+        });
+    });
+
+    const rates = {};
+    Object.keys(counts).forEach(key => {
+        const t = counts[key].true;
+        const f = counts[key].false;
+        const total = t + f;
+        rates[key] = {
+            true: t,
+            false: f,
+            trueRate: total ? t / total : 0,
+            falseRate: total ? f / total : 0
+        };
+    });
+
+    return { counts, rates };
+}
+
+async function updateGlobalStatFile(section, payload) {
+    const stats = await readStatCache();
+    const reviewData = await loadReviewData();
+    const pocStatusSummary = computePocStatusSummary(reviewData);
+
+    stats.updatedAt = new Date().toISOString();
+    stats.pocStatusSummary = pocStatusSummary;
+    stats.sections = stats.sections || {};
+    stats.sections[section] = {
+        updatedAt: new Date().toISOString(),
+        data: payload
+    };
+
+    await writeStatCache(stats);
+}
+
+function getIndexCachePath(name) {
+    return path.join(INDEX_CACHE_DIR, name);
+}
+
+async function readIndexCache(fileName) {
+    try {
+        const raw = await fs.readFile(getIndexCachePath(fileName), 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+async function writeIndexCache(fileName, payload) {
+    try {
+        await fs.mkdir(INDEX_CACHE_DIR, { recursive: true });
+        await fs.writeFile(getIndexCachePath(fileName), JSON.stringify(payload), 'utf8');
+    } catch (e) {
+        // Non-fatal: skip cache write on error
+    }
+}
+
+function getParentIndexFile(parentDir) {
+    const safeName = parentDir.replace(/[\/\\]/g, '__');
+    return `parent-${safeName}.json`;
+}
+
+function getSitePathFromCompositeHash(compositeHash) {
+    const parts = compositeHash.split('/');
+    if (parts.length < 2) return null;
+    const [parentDir, hash] = parts;
+    return path.join(DATA_DIR, parentDir, hash);
+}
+
 // Get relative path from DATA_DIR
 function getRelativePath(absolutePath) {
     return path.relative(DATA_DIR, absolutePath);
@@ -161,6 +275,14 @@ function getCachedPath(dataFilePath) {
 
 // Check if cache is valid (exists and is newer than source)
 async function isCacheValid(sourcePath, cachePath) {
+    if (SITE_STABLED) {
+        try {
+            await fs.stat(cachePath);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
     try {
         const [sourceStats, cacheFileStats] = await Promise.all([
             fs.stat(sourcePath),
@@ -241,6 +363,178 @@ async function cachedReadFile(filePath, encoding = 'utf8') {
     }
 }
 
+function getFlowSummaryCachePath(compositeHash) {
+    const safeName = compositeHash.replace(/[\/\\]/g, '__');
+    return path.join(CACHE_DIR, 'flow-summaries', `${safeName}.json`);
+}
+
+function getFlowEntriesCachePath(compositeHash) {
+    const safeName = compositeHash.replace(/[\/\\]/g, '__');
+    return path.join(CACHE_DIR, 'flow-entries', `${safeName}.json`);
+}
+
+async function readFlowSummaryCache(compositeHash, flowFilePath) {
+    try {
+        const cachePath = getFlowSummaryCachePath(compositeHash);
+        const valid = await isCacheValid(flowFilePath, cachePath);
+        if (!valid) return null;
+        const raw = await fs.readFile(cachePath, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+async function writeFlowSummaryCache(compositeHash, flowFilePath, summary) {
+    try {
+        const cachePath = getFlowSummaryCachePath(compositeHash);
+        await fs.mkdir(path.dirname(cachePath), { recursive: true });
+        await fs.writeFile(cachePath, JSON.stringify(summary), 'utf8');
+        const sourceStats = await fs.stat(flowFilePath);
+        await fs.utimes(cachePath, sourceStats.atime, sourceStats.mtime);
+    } catch (e) {
+        // Non-fatal: skip cache write on error
+    }
+}
+
+async function readFlowEntriesCache(compositeHash, flowFilePath) {
+    try {
+        const cachePath = getFlowEntriesCachePath(compositeHash);
+        const valid = await isCacheValid(flowFilePath, cachePath);
+        if (!valid) return null;
+        const raw = await fs.readFile(cachePath, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+async function writeFlowEntriesCache(compositeHash, flowFilePath, entries) {
+    try {
+        const cachePath = getFlowEntriesCachePath(compositeHash);
+        await fs.mkdir(path.dirname(cachePath), { recursive: true });
+        await fs.writeFile(cachePath, JSON.stringify(entries), 'utf8');
+        const sourceStats = await fs.stat(flowFilePath);
+        await fs.utimes(cachePath, sourceStats.atime, sourceStats.mtime);
+    } catch (e) {
+        // Non-fatal: skip cache write on error
+    }
+}
+
+function hashHeaderText(text) {
+    return crypto.createHash('sha1').update(text).digest('hex');
+}
+
+function parseTagsLine(line) {
+    const markerIdx = line.indexOf('Tags:');
+    if (markerIdx === -1) return [];
+    let raw = line.slice(markerIdx + 5).trim();
+    raw = raw.replace(/^\[/, '').replace(/\]$/, '').trim();
+    if (!raw) return [];
+    return raw
+        .split(',')
+        .map(tag => tag.trim().replace(/['"]/g, ''))
+        .filter(tag => tag.length > 0);
+}
+
+function parseFlowEntries(rawContent) {
+    const lines = rawContent.split(/\r?\n/);
+    const entries = [];
+    let current = null;
+
+    const finalizeEntry = () => {
+        if (!current) return;
+        const headerLines = [];
+        if (current.tagsLine) headerLines.push(current.tagsLine);
+        if (current.vulnInfo) headerLines.push(`[*] Vuln Info: ${current.vulnInfo}`);
+        if (current.nodeId) headerLines.push(`[*] NodeId: ${current.nodeId}`);
+        if (current.file) headerLines.push(`[*] File: ${current.file}`);
+        if (current.location) headerLines.push(`[*] Location: ${current.location}`);
+        if (current.func) headerLines.push(`[*] Function: ${current.func}`);
+        if (current.template) headerLines.push(`[*] Template: ${current.template}`);
+        if (current.topExpression) headerLines.push(`[*] Top Expression: ${current.topExpression}`);
+        const headerText = headerLines.join('\n');
+        const headerHash = hashHeaderText(headerText);
+
+        entries.push({
+            headerHash,
+            headerText,
+            line: current.startLine,
+            tags: current.tags,
+            vulnInfo: current.vulnInfo || '',
+            nodeId: current.nodeId || '',
+            file: current.file || '',
+            location: current.location || '',
+            func: current.func || '',
+            template: current.template || '',
+            topExpression: current.topExpression || '',
+            title: current.func || current.vulnInfo || (current.tags[0] || 'POC match')
+        });
+        current = null;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (line.startsWith('[*] Tags:')) {
+            finalizeEntry();
+            current = {
+                startLine: i + 1,
+                tagsLine: line.trim(),
+                tags: parseTagsLine(line),
+                vulnInfo: '',
+                nodeId: '',
+                file: '',
+                location: '',
+                func: '',
+                template: '',
+                topExpression: ''
+            };
+            continue;
+        }
+
+        if (!current) continue;
+
+        if (line.startsWith('----------------------------------------------------') || line.startsWith('====================================================')) {
+            finalizeEntry();
+            continue;
+        }
+
+        if (line.startsWith('[*] Vuln Info:')) {
+            current.vulnInfo = line.replace('[*] Vuln Info:', '').trim();
+        } else if (line.startsWith('[*] NodeId:')) {
+            current.nodeId = line.replace('[*] NodeId:', '').trim();
+        } else if (line.startsWith('[*] File:')) {
+            current.file = line.replace('[*] File:', '').trim();
+        } else if (line.startsWith('[*] Location:')) {
+            current.location = line.replace('[*] Location:', '').trim();
+        } else if (line.startsWith('[*] Function:')) {
+            current.func = line.replace('[*] Function:', '').trim();
+        } else if (line.startsWith('[*] Template:')) {
+            current.template = line.replace('[*] Template:', '').trim();
+        } else if (line.startsWith('[*] Top Expression:')) {
+            current.topExpression = line.replace('[*] Top Expression:', '').trim();
+        }
+    }
+
+    finalizeEntry();
+    return entries;
+}
+
+function buildPocNotesSection(pocNotes) {
+    const blocks = Object.values(pocNotes || {})
+        .filter(entry => entry && entry.note && entry.note.trim())
+        .map(entry => `${entry.header}\n\n${entry.note.trim()}`);
+    return blocks.join('\n\n');
+}
+
+function mergeMemoWithPocNotes(existingMemo, pocNotesSection) {
+    const marker = '--- POC NOTES ---';
+    const base = existingMemo ? existingMemo.split(`\n${marker}\n`)[0].trimEnd() : '';
+    if (!pocNotesSection) return base;
+    return `${base}${base ? '\n\n' : ''}${marker}\n${pocNotesSection}`;
+}
+
 // Cached fs.stat - checks cache first, updates if needed
 async function cachedStat(filePath) {
     const startTime = Date.now();
@@ -273,6 +567,41 @@ async function cachedStat(filePath) {
         cacheStats.totalReadTime += (Date.now() - startTime);
         throw e;
     }
+}
+
+async function cachedDirStat(dirPath) {
+    const cached = dirStatCache.get(dirPath);
+    const now = Date.now();
+    if (cached && (now - cached.ts) < CACHE_TTL) {
+        return cached.stats;
+    }
+    const stats = await fs.stat(dirPath);
+    dirStatCache.set(dirPath, { stats, ts: now });
+    return stats;
+}
+
+function getReaddirCacheKey(dirPath, withFileTypes) {
+    return `${dirPath}::${withFileTypes ? 'dirents' : 'names'}`;
+}
+
+async function cachedReaddir(dirPath, withFileTypes = false) {
+    const cacheKey = getReaddirCacheKey(dirPath, withFileTypes);
+    const cached = dirReaddirCache.get(cacheKey);
+    const now = Date.now();
+    if (cached && (now - cached.ts) < CACHE_TTL) {
+        return cached.entries;
+    }
+
+    const stats = await cachedDirStat(dirPath);
+    const mtimeMs = stats.mtimeMs || stats.mtime.getTime();
+    if (cached && cached.mtimeMs === mtimeMs) {
+        cached.ts = now;
+        return cached.entries;
+    }
+
+    const entries = await fs.readdir(dirPath, { withFileTypes });
+    dirReaddirCache.set(cacheKey, { entries, mtimeMs, ts: now });
+    return entries;
 }
 
 // Print cache statistics
@@ -651,7 +980,18 @@ async function getSiteData() {
 
     let parentDirs = [];
     try {
-        parentDirs = await fs.readdir(DATA_DIR);
+        const dataDirStats = await fs.stat(DATA_DIR);
+        const dataDirMtimeMs = dataDirStats.mtimeMs || dataDirStats.mtime.getTime();
+        const parentIndex = await readIndexCache('parents.json');
+
+        if (parentIndex && parentIndex.mtimeMs === dataDirMtimeMs && Array.isArray(parentIndex.entries)) {
+            parentDirs = parentIndex.entries;
+        } else {
+            const parentDirents = await fs.readdir(DATA_DIR, { withFileTypes: true });
+            parentDirs = parentDirents.filter(d => d.isDirectory()).map(d => d.name);
+            await writeIndexCache('parents.json', { mtimeMs: dataDirMtimeMs, entries: parentDirs });
+        }
+
         console.log(`[getSiteData] Found ${parentDirs.length} parent directories`);
     } catch (err) {
         if (err.code === 'ENOENT') {
@@ -672,9 +1012,18 @@ async function getSiteData() {
         const parentStartTime = Date.now();
         try {
             const parentStats = await fs.stat(parentPath);
-            if (!parentStats.isDirectory()) return [];
+            const parentMtimeMs = parentStats.mtimeMs || parentStats.mtime.getTime();
+            const parentIndex = await readIndexCache(getParentIndexFile(parentDir));
 
-            const siteHashes = await fs.readdir(parentPath);
+            let siteHashes = [];
+            if (parentIndex && parentIndex.mtimeMs === parentMtimeMs && Array.isArray(parentIndex.entries)) {
+                siteHashes = parentIndex.entries;
+            } else {
+                const siteDirents = await fs.readdir(parentPath, { withFileTypes: true });
+                siteHashes = siteDirents.filter(d => d.isDirectory()).map(d => d.name);
+                await writeIndexCache(getParentIndexFile(parentDir), { mtimeMs: parentMtimeMs, entries: siteHashes });
+            }
+
             const validSites = await Promise.all(
                 siteHashes.map(async (hash) => {
                     const sitePath = path.join(parentPath, hash);
@@ -711,7 +1060,7 @@ async function getSiteData() {
     // Batch read all files
     const batchReadStartTime = Date.now();
     console.log(`[getSiteData] Batch reading ${filesToRead.length} files...`);
-    const fileContents = await batchReadFiles(filesToRead, 20);
+    const fileContents = await batchReadFiles(filesToRead, FILE_READ_CONCURRENCY);
     console.log(`[getSiteData] Batch read complete (${Date.now() - batchReadStartTime}ms)`);
 
     // Process each site with cached file contents
@@ -759,17 +1108,47 @@ async function getSiteData() {
             const flowPocSourceFiles = {};
             const flowsContent = fileContents.get(`${compositeHash}:flows`);
             if (flowsContent) {
+                const flowFilePath = path.join(sitePath, 'sink.flows.out');
+                const cachedSummary = await readFlowSummaryCache(compositeHash, flowFilePath);
+                const cachedEntries = await readFlowEntriesCache(compositeHash, flowFilePath);
+                if (cachedSummary) {
+                    hasFlows = cachedSummary.hasFlows || false;
+                    pocMatches = cachedSummary.pocMatches || 0;
+                    allFlowsCount = cachedSummary.allFlowsCount || 0;
+                    Object.assign(tagCounts, cachedSummary.tagCounts || {});
+                    Object.assign(pocFunctions, cachedSummary.pocFunctions || {});
+                    Object.assign(pocSourceUrls, cachedSummary.pocSourceUrls || {});
+                    Object.assign(pocSourceFiles, cachedSummary.pocSourceFiles || {});
+                    flowPocCount = cachedSummary.flowPocCount || 0;
+                    Object.assign(flowPocFunctions, cachedSummary.flowPocFunctions || {});
+                    Object.assign(flowPocSourceUrls, cachedSummary.flowPocSourceUrls || {});
+                    Object.assign(flowPocSourceFiles, cachedSummary.flowPocSourceFiles || {});
+                    timings.flows = Date.now() - flowsStart;
+                }
+
+                if (!cachedSummary && flowsContent.indexOf('[*] Tags:') === -1) {
+                    timings.flows = Date.now() - flowsStart;
+                } else if (!cachedSummary) {
                 // Split flows by the separator pattern and filter out NON-REACH flows
                 const flowEntries = flowsContent.split(/(?=\[\*\] Tags:)/);
 
                 // Count tags from all flow entries
                 flowEntries.forEach(entry => {
-                    const tagsMatch = entry.match(/\[\*\] Tags:\s*\[([^\]]*)\]/);
-                    if (tagsMatch) {
+                    const tagsIndex = entry.indexOf('[*] Tags:');
+                    if (tagsIndex !== -1) {
                         // Count ALL flows including NON-REACH
                         allFlowsCount++;
 
-                        const tagsStr = tagsMatch[1];
+                        let tagsLine = entry.slice(tagsIndex + 9);
+                        const lineEnd = tagsLine.indexOf('\n');
+                        if (lineEnd !== -1) {
+                            tagsLine = tagsLine.slice(0, lineEnd);
+                        }
+                        const bracketStart = tagsLine.indexOf('[');
+                        const bracketEnd = tagsLine.lastIndexOf(']');
+                        const tagsStr = bracketStart !== -1 && bracketEnd > bracketStart
+                            ? tagsLine.slice(bracketStart + 1, bracketEnd)
+                            : tagsLine.trim();
                         const upperTags = tagsStr.toUpperCase();
                         // Extract individual tags by splitting on comma and cleaning quotes
                         const tags = tagsStr.split(',').map(tag =>
@@ -782,19 +1161,50 @@ async function getSiteData() {
                         });
 
                         // Extract POC function from [*] Function: LIBOBJ.xxx() line
-                        const functionMatch = entry.match(/\[\*\] Function:\s*([^\n\r]+)/);
-                        if (functionMatch) {
-                            let funcName = functionMatch[1].trim();
+                        let funcName = '';
+                        const funcIndex = entry.indexOf('[*] Function:');
+                        if (funcIndex !== -1) {
+                            let funcLine = entry.slice(funcIndex + 13);
+                            const funcEnd = funcLine.indexOf('\n');
+                            if (funcEnd !== -1) {
+                                funcLine = funcLine.slice(0, funcEnd);
+                            }
+                            funcName = funcLine.trim();
                             // Normalize: strip parameters (...) but keep LIBOBJ.method
                             funcName = funcName.replace(/\([^)]*\)$/, '');
                             pocFunctions[funcName] = (pocFunctions[funcName] || 0) + 1;
                         }
 
                         // Extract navigation URL and file path once per entry
-                        const navMatch = entry.match(/\[\*\] NavigationURL:\s*(.+)$/m);
-                        const fileMatch = entry.match(/^\[\*\] File:\s*(.+)$/m) || entry.match(/^\|\-\s*file:\s*(.+)$/m);
-                        const navUrl = navMatch ? navMatch[1].trim() : '';
-                        const filePath = fileMatch ? fileMatch[1].trim() : '';
+                        let navUrl = '';
+                        const navIndex = entry.indexOf('[*] NavigationURL:');
+                        if (navIndex !== -1) {
+                            let navLine = entry.slice(navIndex + 18);
+                            const navEnd = navLine.indexOf('\n');
+                            if (navEnd !== -1) {
+                                navLine = navLine.slice(0, navEnd);
+                            }
+                            navUrl = navLine.trim();
+                        }
+
+                        let filePath = '';
+                        let fileIndex = entry.indexOf('[*] File:');
+                        if (fileIndex === -1) {
+                            fileIndex = entry.indexOf('|- file:');
+                            if (fileIndex !== -1) {
+                                fileIndex += 8;
+                            }
+                        } else {
+                            fileIndex += 9;
+                        }
+                        if (fileIndex !== -1) {
+                            let fileLine = entry.slice(fileIndex);
+                            const fileEnd = fileLine.indexOf('\n');
+                            if (fileEnd !== -1) {
+                                fileLine = fileLine.slice(0, fileEnd);
+                            }
+                            filePath = fileLine.trim();
+                        }
                         if (navUrl) {
                             pocSourceUrls[navUrl] = (pocSourceUrls[navUrl] || 0) + 1;
                         }
@@ -805,9 +1215,7 @@ async function getSiteData() {
                         const hasFlow = !upperTags.includes('NON-REACH');
                         if (hasFlow) {
                             flowPocCount++;
-                            if (functionMatch) {
-                                let funcName = functionMatch[1].trim();
-                                funcName = funcName.replace(/\([^)]*\)$/, '');
+                            if (funcName) {
                                 flowPocFunctions[funcName] = (flowPocFunctions[funcName] || 0) + 1;
                             }
                             if (navUrl) {
@@ -824,6 +1232,28 @@ async function getSiteData() {
                 pocMatches = flowPocCount;
                 if (pocMatches > 0) {
                     hasFlows = true;
+                }
+                }
+
+                if (!cachedSummary) {
+                    await writeFlowSummaryCache(compositeHash, flowFilePath, {
+                        hasFlows,
+                        pocMatches,
+                        allFlowsCount,
+                        tagCounts,
+                        pocFunctions,
+                        pocSourceUrls,
+                        pocSourceFiles,
+                        flowPocCount,
+                        flowPocFunctions,
+                        flowPocSourceUrls,
+                        flowPocSourceFiles
+                    });
+                }
+
+                if (!cachedEntries) {
+                    const parsedEntries = parseFlowEntries(flowsContent);
+                    await writeFlowEntriesCache(compositeHash, flowFilePath, parsedEntries);
                 }
             }
             timings.flows = Date.now() - flowsStart;
@@ -906,7 +1336,7 @@ async function getSiteData() {
 
             const totalSiteTime = Date.now() - siteStart;
             if (totalSiteTime > 10) { // Only log if processing took more than 10ms
-                console.log(`[Site ${compositeHash}] ${totalSiteTime}ms total - url:${timings.url}ms flows:${timings.flows}ms vuln:${timings.vuln}ms readdir:${timings.readdir}ms fileCheck:${timings.fileExistence}ms errorLog:${timings.errorLog}ms jsFiles:${timings.jsFiles}ms`);
+                // console.log(`[Site ${compositeHash}] ${totalSiteTime}ms total - url:${timings.url}ms flows:${timings.flows}ms vuln:${timings.vuln}ms readdir:${timings.readdir}ms fileCheck:${timings.fileExistence}ms errorLog:${timings.errorLog}ms jsFiles:${timings.jsFiles}ms`);
             }
 
             return {
@@ -983,6 +1413,7 @@ async function updateCacheInBackground() {
         cacheTimestamp = Date.now();
         const duration = Date.now() - startTime;
         console.log(`[Cache] ✅ Cache ready! ${data.sites.length} sites loaded in ${(duration / 1000).toFixed(2)}s`);
+
     } catch (error) {
         console.error('[Cache] ❌ Error updating cache:', error);
     } finally {
@@ -1045,6 +1476,7 @@ app.get('/api/cache-status', (req, res) => {
 app.post('/api/refresh-cache', async (req, res) => {
     try {
         clearPocMatchStatsCache();
+        clearDirCaches();
         updateCacheInBackground();
         res.json({ success: true, message: 'Cache refresh triggered' });
     } catch (error) {
@@ -1076,6 +1508,7 @@ app.post('/api/clear-cache', async (req, res) => {
         await rimraf.rm(CACHE_DIR, { recursive: true, force: true });
         await ensureCacheDir();
         resetCacheStats();
+        clearDirCaches();
         console.log('[FileCache] Cache cleared and reset');
         res.json({ success: true, message: 'File cache cleared' });
     } catch (error) {
@@ -1402,6 +1835,44 @@ app.get('/api/file-content', async (req, res) => {
     }
 });
 
+app.get('/api/flow-entries', async (req, res) => {
+    const { hash } = req.query;
+    if (!hash || hash.includes('..')) {
+        return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    const flowFilePath = path.join(DATA_DIR, hash, 'sink.flows.out');
+    try {
+        let entries = await readFlowEntriesCache(hash, flowFilePath);
+        if (!entries) {
+            const content = await cachedReadFile(flowFilePath, 'utf8');
+            entries = parseFlowEntries(content);
+            await writeFlowEntriesCache(hash, flowFilePath, entries);
+        }
+
+        const reviewData = await loadReviewData();
+        const siteReview = reviewData[hash] || { reviewed: false, vulnerable: false, memo: '', pocNotes: {} };
+        const pocNotes = siteReview.pocNotes || {};
+
+        const enriched = entries.map(entry => {
+            const noteEntry = pocNotes[entry.headerHash] || {};
+            return {
+                ...entry,
+                note: noteEntry.note || '',
+                status: noteEntry.status || {
+                    vulnerableFunc: 'none',
+                    pocMatch: 'none',
+                    dataflow: 'none'
+                }
+            };
+        });
+
+        res.json({ entries: enriched });
+    } catch (error) {
+        res.status(404).json({ error: 'sink.flows.out not found or could not be read.' });
+    }
+});
+
 app.post('/api/update-review', async (req, res) => {
     const { hash, field, value } = req.body;
 
@@ -1431,6 +1902,64 @@ app.post('/api/update-review', async (req, res) => {
         }
     } catch (error) {
         console.error('Error updating review:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/update-poc-review', async (req, res) => {
+    const { hash, headerHash, headerText, statusKey, statusValue, note } = req.body;
+
+    if (!hash || !headerHash || !headerText) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const allowedStatusKeys = ['vulnerableFunc', 'pocMatch', 'dataflow'];
+    if (statusKey && !allowedStatusKeys.includes(statusKey)) {
+        return res.status(400).json({ error: 'Invalid status key' });
+    }
+    if (statusValue && !['none', 'true', 'false'].includes(statusValue)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    try {
+        const reviewData = await loadReviewData();
+
+        if (!reviewData[hash]) {
+            reviewData[hash] = { reviewed: false, vulnerable: false, memo: '', pocNotes: {} };
+        }
+        if (!reviewData[hash].pocNotes) {
+            reviewData[hash].pocNotes = {};
+        }
+
+        const entry = reviewData[hash].pocNotes[headerHash] || {
+            header: headerText,
+            status: { vulnerableFunc: 'none', pocMatch: 'none', dataflow: 'none' },
+            note: ''
+        };
+
+        if (statusKey && statusValue) {
+            entry.status = entry.status || { vulnerableFunc: 'none', pocMatch: 'none', dataflow: 'none' };
+            entry.status[statusKey] = statusValue;
+        }
+
+        if (note !== undefined) {
+            entry.note = note;
+        }
+
+        entry.header = headerText;
+        reviewData[hash].pocNotes[headerHash] = entry;
+
+        const pocNotesSection = buildPocNotesSection(reviewData[hash].pocNotes);
+        reviewData[hash].memo = mergeMemoWithPocNotes(reviewData[hash].memo || '', pocNotesSection);
+
+        const success = await saveReviewData(reviewData);
+        if (success) {
+            res.json({ success: true, memo: reviewData[hash].memo, entry: reviewData[hash].pocNotes[headerHash] });
+        } else {
+            res.status(500).json({ error: 'Failed to save review data' });
+        }
+    } catch (error) {
+        console.error('Error updating POC review:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -1531,7 +2060,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
             parentDirs = await fs.readdir(DATA_DIR);
         } catch (err) {
             if (err.code === 'ENOENT') {
-                return res.json({
+                const empty = {
                     totalDetectedLibs: 0,
                     uniqueLibs: 0,
                     sitesWithDetections: 0,
@@ -1540,7 +2069,9 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                     detectionMethods: {},
                     versions: {},
                     accuracyStats: { accurate: 0, inaccurate: 0 }
-                });
+                };
+                await updateGlobalStatFile('lib-detection-stats', empty);
+                return res.json(empty);
             }
             throw err;
         }
@@ -1646,7 +2177,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
 
         const avgLibsPerSite = sitesWithDetections > 0 ? (totalDetectedLibs / sitesWithDetections).toFixed(2) : 0;
 
-        res.json({
+        const result = {
             totalDetectedLibs,
             uniqueLibs: Object.keys(libCounts).length,
             sitesWithDetections,
@@ -1658,7 +2189,9 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                 accurate: accurateCount,
                 inaccurate: inaccurateCount
             }
-        });
+        };
+        await updateGlobalStatFile('lib-detection-stats', result);
+        res.json(result);
     } catch (error) {
         console.error('Error fetching library detection stats:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -1755,14 +2288,16 @@ app.get('/api/tag-stats', async (req, res) => {
             ? (totalTags / sitesWithTags).toFixed(2)
             : 0;
 
-        res.json({
+        const result = {
             totalTags,
             uniqueTags: Object.keys(globalTagCounts).length,
             sitesWithTags,
             avgTagsPerSite,
             tagCounts: globalTagCounts,
             topTags
-        });
+        };
+        await updateGlobalStatFile('tag-stats', result);
+        res.json(result);
     } catch (error) {
         console.error('Error fetching tag stats:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -1776,7 +2311,7 @@ app.get('/api/vuln-stats', async (req, res) => {
             parentDirs = await fs.readdir(DATA_DIR);
         } catch (err) {
             if (err.code === 'ENOENT') {
-                return res.json({
+                const empty = {
                     totalVulnLibs: 0,
                     uniqueLibs: 0,
                     sitesWithVulns: 0,
@@ -1785,7 +2320,9 @@ app.get('/api/vuln-stats', async (req, res) => {
                     vulnTypes: {},
                     versions: {},
                     confidenceScores: {}
-                });
+                };
+                await updateGlobalStatFile('vuln-stats', empty);
+                return res.json(empty);
             }
             throw err;
         }
@@ -1893,7 +2430,7 @@ app.get('/api/vuln-stats', async (req, res) => {
 
         const avgVulnsPerSite = sitesWithVulns > 0 ? (totalVulnLibs / sitesWithVulns).toFixed(2) : 0;
 
-        res.json({
+        const result = {
             totalVulnLibs,
             uniqueLibs: Object.keys(libCounts).length,
             sitesWithVulns,
@@ -1902,7 +2439,9 @@ app.get('/api/vuln-stats', async (req, res) => {
             vulnTypes,
             versions: topVersions,
             confidenceScores
-        });
+        };
+        await updateGlobalStatFile('vuln-stats', result);
+        res.json(result);
     } catch (error) {
         console.error('Error fetching vulnerability stats:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -2052,6 +2591,7 @@ app.get('/api/poc-match-stats', async (req, res) => {
             pocMatchStatsCache[mode] = result;
         }
 
+        await updateGlobalStatFile(`poc-match-stats:${mode}`, result);
         res.json(result);
     } catch (error) {
         console.error('Error fetching POC match stats:', error);
@@ -2087,10 +2627,12 @@ app.get('/api/detected-libs', async (req, res) => {
             parentDirs = await fs.readdir(DATA_DIR);
         } catch (err) {
             if (err.code === 'ENOENT') {
-                return res.json({
+                const empty = {
                     totalDetectedLibs: 0,
                     topLibs: []
-                });
+                };
+                await updateGlobalStatFile('detected-libs', empty);
+                return res.json(empty);
             }
             throw err;
         }
@@ -2178,10 +2720,12 @@ app.get('/api/detected-libs', async (req, res) => {
         // Calculate total detected libs (sum of all counts)
         const totalDetectedLibs = topLibs.reduce((sum, lib) => sum + lib.count, 0);
 
-        res.json({
+        const result = {
             totalDetectedLibs,
             topLibs
-        });
+        };
+        await updateGlobalStatFile('detected-libs', result);
+        res.json(result);
     } catch (error) {
         console.error('Error fetching detected libraries:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -2192,25 +2736,39 @@ app.listen(port, async () => {
     console.log(`JAW4C Read-Only UI listening at http://localhost:${port}`);
     console.log('UI is ready - cache will load in the background');
 
+    const startupStart = process.hrtime.bigint();
+
     // Load ranking data (static, loaded once)
+    const rankingStart = process.hrtime.bigint();
     await loadRankingData();
+    const rankingEnd = process.hrtime.bigint();
+    console.log(`[Startup] loadRankingData: ${Number(rankingEnd - rankingStart) / 1e6} ms`);
 
     // Initialize file cache directory
+    const cacheDirStart = process.hrtime.bigint();
     await ensureCacheDir();
+    const cacheDirEnd = process.hrtime.bigint();
+    console.log(`[Startup] ensureCacheDir: ${Number(cacheDirEnd - cacheDirStart) / 1e6} ms`);
 
     // Initialize site data cache in background (non-blocking)
     // UI will show empty data until cache is ready
     // Use GET /api/cache-status to check when cache is loaded
+    const cacheKickoffStart = process.hrtime.bigint();
     updateCacheInBackground();
+    const cacheKickoffEnd = process.hrtime.bigint();
+    console.log(`[Startup] updateCacheInBackground kickoff: ${Number(cacheKickoffEnd - cacheKickoffStart) / 1e6} ms`);
+
+    const startupEnd = process.hrtime.bigint();
+    console.log(`[Startup] total: ${Number(startupEnd - startupStart) / 1e6} ms`);
 });
 
 // Periodic cache refresh (every 1 hour)
-setInterval(() => {
-    if (!isUpdatingCache) {
-        console.log('[Cache] Hourly cache refresh triggered');
-        updateCacheInBackground();
-    }
-}, 60 * 60 * 1000); // 1 hour = 3600000 ms
+// setInterval(() => {
+//     if (!isUpdatingCache) {
+//         console.log('[Cache] Hourly cache refresh triggered');
+//         updateCacheInBackground();
+//     }
+// }, 60 * 60 * 1000); // 1 hour = 3600000 ms
 
 // Periodic file cache statistics logging (every 30 seconds)
 setInterval(() => {

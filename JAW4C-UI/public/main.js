@@ -74,6 +74,15 @@ function toggleJsFiles(hash) {
 // Store current file data for toggling
 const fileCache = {};
 
+// POC flow review state
+const flowEntriesCache = {};
+const pocStatusCounts = {
+    vulnerableFunc: { true: 0, false: 0 },
+    pocMatch: { true: 0, false: 0 },
+    dataflow: { true: 0, false: 0 }
+};
+window.pocStatusCounts = pocStatusCounts;
+
 // Chunked file loading for large files
 async function loadFileChunked(hash, file) {
     const contentEl = document.getElementById(`content-${hash}`);
@@ -211,6 +220,11 @@ async function loadFile(hash, file) {
             console.log(`File ${file} is large (${(fileInfo.size / 1024 / 1024).toFixed(2)} MB), using chunked loading`);
             await loadFileChunked(hash, file);
             toggleBtn.style.display = 'none';
+            if (file === 'sink.flows.out') {
+                await initFlowReviewUI(hash);
+            } else {
+                resetFlowReviewUI(hash);
+            }
             return;
         }
 
@@ -228,6 +242,11 @@ async function loadFile(hash, file) {
             console.log(`File ${file} requires streaming (${(data.size / 1024 / 1024).toFixed(2)} MB)`);
             await loadFileChunked(hash, file);
             toggleBtn.style.display = 'none';
+            if (file === 'sink.flows.out') {
+                await initFlowReviewUI(hash);
+            } else {
+                resetFlowReviewUI(hash);
+            }
             return;
         }
 
@@ -261,10 +280,297 @@ async function loadFile(hash, file) {
         } else {
             toggleBtn.style.display = 'none';
         }
+
+        if (file === 'sink.flows.out') {
+            await initFlowReviewUI(hash);
+        } else {
+            resetFlowReviewUI(hash);
+        }
     } catch (error) {
         codeEl.textContent = `Error loading file: ${error.message || error}`;
         toggleBtn.style.display = 'none';
     }
+}
+
+function resetFlowReviewUI(hash) {
+    const container = document.getElementById(`file-container-${hash}`);
+    const sidebar = document.getElementById(`flow-sidebar-${hash}`);
+    if (!container || !sidebar) return;
+    container.classList.remove('flow-split');
+    sidebar.style.display = 'none';
+    sidebar.innerHTML = '';
+    delete flowEntriesCache[hash];
+}
+
+function scrollToFlowLine(hash, line) {
+    const contentEl = document.getElementById(`content-${hash}`);
+    const codeEl = document.getElementById(`code-${hash}`);
+    if (!contentEl || !codeEl) return;
+    const lineNumberSpan = contentEl.querySelector(`.line-numbers-rows > span:nth-child(${line})`);
+    if (lineNumberSpan) {
+        contentEl.scrollTop = Math.max(0, lineNumberSpan.offsetTop);
+        contentEl.scrollLeft = 0;
+        return;
+    }
+    const style = getComputedStyle(codeEl);
+    let lineHeight = parseFloat(style.lineHeight);
+    if (!lineHeight || Number.isNaN(lineHeight)) {
+        const fontSize = parseFloat(style.fontSize) || 11;
+        lineHeight = fontSize * 1.4;
+    }
+    contentEl.scrollTop = Math.max(0, (line - 1) * lineHeight);
+    contentEl.scrollLeft = 0;
+}
+
+function scrollToFlowEntry(hash, headerHash, fallbackLine) {
+    const contentEl = document.getElementById(`content-${hash}`);
+    const codeEl = document.getElementById(`code-${hash}`);
+    if (!contentEl || !codeEl) return;
+    const cache = flowEntriesCache[hash];
+    const entry = cache?.entries?.find(item => item.headerHash === headerHash);
+    const headerText = entry?.headerText;
+    let targetLine = fallbackLine;
+
+    if (headerText) {
+        const contentText = codeEl.textContent || '';
+        const idx = contentText.indexOf(headerText);
+        if (idx >= 0) {
+            targetLine = contentText.slice(0, idx).split('\n').length;
+        }
+    }
+
+    requestAnimationFrame(() => {
+        scrollToFlowLine(hash, targetLine);
+    });
+}
+
+function applyStatusButtonState(button, state) {
+    button.dataset.state = state;
+    button.classList.remove('state-none', 'state-true', 'state-false');
+    button.classList.add(`state-${state}`);
+}
+
+function cycleStatusState(state) {
+    if (state === 'none') return 'true';
+    if (state === 'true') return 'false';
+    return 'none';
+}
+
+function recomputePocStatusCounts(entries) {
+    pocStatusCounts.vulnerableFunc.true = 0;
+    pocStatusCounts.vulnerableFunc.false = 0;
+    pocStatusCounts.pocMatch.true = 0;
+    pocStatusCounts.pocMatch.false = 0;
+    pocStatusCounts.dataflow.true = 0;
+    pocStatusCounts.dataflow.false = 0;
+
+    entries.forEach(entry => {
+        const status = entry.status || {};
+        ['vulnerableFunc', 'pocMatch', 'dataflow'].forEach(key => {
+            if (status[key] === 'true') {
+                pocStatusCounts[key].true += 1;
+            } else if (status[key] === 'false') {
+                pocStatusCounts[key].false += 1;
+            }
+        });
+    });
+    updateGlobalPocStatusSummary();
+}
+
+async function initFlowReviewUI(hash) {
+    const container = document.getElementById(`file-container-${hash}`);
+    const sidebar = document.getElementById(`flow-sidebar-${hash}`);
+    if (!container || !sidebar) return;
+
+    container.classList.add('flow-split');
+    sidebar.style.display = 'block';
+    sidebar.innerHTML = '<div class="flow-sidebar-loading">Loading POC matches...</div>';
+
+    try {
+        const response = await fetch(`/api/flow-entries?hash=${encodeURIComponent(hash)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const entries = data.entries || [];
+        const uniqueTags = Array.from(new Set(entries.flatMap(entry => entry.tags || []))).sort();
+        flowEntriesCache[hash] = { entries, selectedTags: new Set(), uniqueTags };
+        recomputePocStatusCounts(entries);
+
+        if (entries.length === 0) {
+            sidebar.innerHTML = '<div class="flow-sidebar-empty">No POC matches found.</div>';
+            return;
+        }
+
+        renderFlowSidebar(hash);
+    } catch (error) {
+        sidebar.innerHTML = `<div class="flow-sidebar-empty">Failed to load POC matches.</div>`;
+        console.error('Flow entries load error:', error);
+    }
+}
+
+function renderFlowSidebar(hash) {
+    const sidebar = document.getElementById(`flow-sidebar-${hash}`);
+    const cache = flowEntriesCache[hash];
+    if (!sidebar || !cache) return;
+
+    const { entries, selectedTags, uniqueTags } = cache;
+    const activeTags = new Set(selectedTags);
+    const filtered = activeTags.size === 0
+        ? entries
+        : entries.filter(entry => entry.tags && entry.tags.some(tag => activeTags.has(tag)));
+
+    const filterHTML = `
+        <div class="flow-filter">
+            <div class="flow-filter-header">
+                <span>Filter by tag</span>
+                <button type="button" class="flow-filter-clear">Clear</button>
+            </div>
+            <div class="flow-filter-tags">
+                ${uniqueTags.map(tag => `
+                    <label class="flow-filter-tag">
+                        <input type="checkbox" value="${escapeHtml(tag)}" ${activeTags.has(tag) ? 'checked' : ''}>
+                        <span>${escapeHtml(tag)}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    const entriesHTML = filtered.length === 0
+        ? '<div class="flow-sidebar-empty">No entries match the selected tags.</div>'
+        : filtered.map(entry => `
+            <div class="flow-entry" data-header-hash="${entry.headerHash}">
+                <button class="flow-entry-title" type="button" data-header-hash="${entry.headerHash}" data-line="${entry.line}">
+                    ${escapeHtml(entry.title)}
+                </button>
+                <div class="flow-entry-meta">
+                    <span>Line ${entry.line}</span>
+                    ${entry.location ? `<span>Loc ${escapeHtml(entry.location)}</span>` : ''}
+                    ${entry.tags && entry.tags.length ? `<span>${escapeHtml(entry.tags.join(', '))}</span>` : ''}
+                </div>
+                <div class="flow-entry-actions">
+                    <button class="flow-toggle state-none" data-key="vulnerableFunc" type="button">Vulnerable func</button>
+                    <button class="flow-toggle state-none" data-key="pocMatch" type="button">POC match</button>
+                    <button class="flow-toggle state-none" data-key="dataflow" type="button">Dataflow</button>
+                </div>
+                <textarea class="flow-note" placeholder="Add note...">${escapeHtml(entry.note || '')}</textarea>
+            </div>
+        `).join('');
+
+    sidebar.innerHTML = filterHTML + entriesHTML;
+
+    const clearBtn = sidebar.querySelector('.flow-filter-clear');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            cache.selectedTags.clear();
+            renderFlowSidebar(hash);
+        });
+    }
+
+    sidebar.querySelectorAll('.flow-filter-tag input').forEach(input => {
+        input.addEventListener('change', () => {
+            if (input.checked) {
+                cache.selectedTags.add(input.value);
+            } else {
+                cache.selectedTags.delete(input.value);
+            }
+            renderFlowSidebar(hash);
+        });
+    });
+
+    filtered.forEach(entry => {
+        const entryEl = sidebar.querySelector(`.flow-entry[data-header-hash="${entry.headerHash}"]`);
+        if (!entryEl) return;
+
+        const titleBtn = entryEl.querySelector('.flow-entry-title');
+        if (titleBtn) {
+            titleBtn.addEventListener('click', () => {
+                scrollToFlowEntry(hash, entry.headerHash, entry.line);
+            });
+        }
+
+        const status = entry.status || {};
+        entryEl.querySelectorAll('.flow-toggle').forEach(button => {
+            const key = button.dataset.key;
+            const state = status[key] || 'none';
+            applyStatusButtonState(button, state);
+
+            button.addEventListener('click', async () => {
+                const nextState = cycleStatusState(button.dataset.state || 'none');
+                applyStatusButtonState(button, nextState);
+                entry.status = entry.status || {};
+                entry.status[key] = nextState;
+                recomputePocStatusCounts(entries);
+
+                await updatePocReview(hash, entry, { statusKey: key, statusValue: nextState });
+            });
+        });
+
+        const noteEl = entryEl.querySelector('.flow-note');
+        noteEl.addEventListener('blur', async () => {
+            const noteValue = noteEl.value;
+            entry.note = noteValue;
+            await updatePocReview(hash, entry, { note: noteValue });
+        });
+    });
+}
+
+async function updatePocReview(hash, entry, updates) {
+    try {
+        const payload = {
+            hash,
+            headerHash: entry.headerHash,
+            headerText: entry.headerText,
+            ...updates
+        };
+        const response = await fetch('/api/update-poc-review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.memo !== undefined) {
+            const memoEl = document.getElementById(`memo-${hash}`);
+            if (memoEl) {
+                memoEl.value = result.memo;
+                const siteItem = memoEl.closest('.site-item');
+                if (siteItem) {
+                    siteItem.dataset.hasNotes = result.memo && result.memo.trim() ? 'true' : 'false';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating POC review:', error);
+    }
+}
+
+function formatRateLine(trueCount, falseCount) {
+    const total = trueCount + falseCount;
+    if (total === 0) {
+        return 'TP: 0 (0%) | FP: 0 (0%)';
+    }
+    const tpRate = Math.round((trueCount / total) * 100);
+    const fpRate = Math.round((falseCount / total) * 100);
+    return `TP: ${trueCount} (${tpRate}%) | FP: ${falseCount} (${fpRate}%)`;
+}
+
+function updateGlobalPocStatusSummary() {
+    const mappings = [
+        { key: 'vulnerableFunc', id: 'poc-status-vuln-func' },
+        { key: 'pocMatch', id: 'poc-status-poc-match' },
+        { key: 'dataflow', id: 'poc-status-dataflow' }
+    ];
+
+    mappings.forEach(({ key, id }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const counts = pocStatusCounts[key];
+        el.textContent = formatRateLine(counts.true, counts.false);
+    });
 }
 
 async function toggleView(hash) {
@@ -1579,7 +1885,7 @@ function createSiteItemHTML(site) {
                     </label>
                     <div class="memo-section">
                         <label>Notes:</label>
-                        <textarea class="memo-input" placeholder="Add notes..." onblur="updateReview('${site.hash}', 'memo', this.value)">${escapeHtml(site.memo || '')}</textarea>
+                        <textarea class="memo-input" id="memo-${site.hash}" placeholder="Add notes..." onblur="updateReview('${site.hash}', 'memo', this.value)">${escapeHtml(site.memo || '')}</textarea>
                     </div>
                 </div>
                 ${jsFilesHTML}
@@ -1596,7 +1902,10 @@ function createSiteItemHTML(site) {
                             <button class="toggle-view-btn" id="toggle-${site.hash}" onclick="toggleView('${site.hash}')" style="display: none;">Switch to Raw View</button>
                         </div>
                     </div>
-                    <pre class="file-content line-numbers" id="content-${site.hash}"><code class="language-javascript" id="code-${site.hash}"></code></pre>
+                    <div class="file-content-container" id="file-container-${site.hash}">
+                        <div class="flow-sidebar" id="flow-sidebar-${site.hash}" style="display: none;"></div>
+                        <pre class="file-content line-numbers" id="content-${site.hash}"><code class="language-javascript" id="code-${site.hash}"></code></pre>
+                    </div>
                 </div>
             </div>
         </div>
