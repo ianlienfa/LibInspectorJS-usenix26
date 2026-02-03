@@ -1261,18 +1261,12 @@ async function openVulnLibModal() {
     document.getElementById('avg-vulns-per-site').textContent = '...';
 
     try {
-        // Fetch both vulnerability stats and detected libraries in parallel
-        const [vulnResponse, detectedLibsResponse] = await Promise.all([
-            fetch('/api/vuln-stats'),
-            fetch('/api/detected-libs')
-        ]);
-
-        if (!vulnResponse.ok || !detectedLibsResponse.ok) {
+        const vulnResponse = await fetch('/api/vuln-stats');
+        if (!vulnResponse.ok) {
             throw new Error('HTTP error while fetching stats');
         }
 
         const stats = await vulnResponse.json();
-        const detectedLibsData = await detectedLibsResponse.json();
 
         // Update stats boxes
         document.getElementById('total-vuln-libs').textContent = stats.totalVulnLibs;
@@ -1290,8 +1284,6 @@ async function openVulnLibModal() {
         createTopLibsChart(stats.topLibs);
         createVulnTypesChart(stats.vulnTypes);
         createVersionsChart(stats.versions);
-        createLibrariesRanking(detectedLibsData.topLibs);
-
     } catch (error) {
         console.error('Error loading vulnerability stats:', error);
         alert('Failed to load vulnerability statistics. Please try again.');
@@ -1734,36 +1726,6 @@ async function refreshStats() {
         refreshBtn.disabled = false;
         refreshBtn.innerHTML = originalText;
     }
-}
-
-function createLibrariesRanking(libraries) {
-    const container = document.getElementById('top-libraries-ranking');
-
-    if (!libraries || libraries.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No libraries detected</p>';
-        return;
-    }
-
-    let html = '<div class="libraries-ranking-list">';
-
-    libraries.forEach((lib, index) => {
-        const rank = index + 1;
-        const medalClass = rank <= 3 ? 'top-three' : '';
-        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
-
-        html += `
-            <div class="ranking-item ${medalClass}">
-                <div class="rank-number">${medal || rank}</div>
-                <div class="lib-info">
-                    <div class="lib-name">${lib.name}</div>
-                </div>
-                <div class="lib-count">${lib.count}</div>
-            </div>
-        `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
 }
 
 // ===== Pagination-based Site Loading =====

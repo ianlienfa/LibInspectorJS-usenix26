@@ -449,6 +449,7 @@ async function readFlowEntriesCache(compositeHash, flowFilePath) {
         const cachePath = getFlowEntriesCachePath(compositeHash);
         const valid = await isCacheValid(flowFilePath, cachePath);
         if (!valid) return null;
+        console.log("[FlowEntries] cache hit, reading from ", cachePath);
         const raw = await fs.readFile(cachePath, 'utf8');
         return JSON.parse(raw);
     } catch (e) {
@@ -1928,12 +1929,17 @@ app.get('/api/flow-entries', async (req, res) => {
 
     const flowFilePath = path.join(DATA_DIR, hash, 'sink.flows.out');
     try {
+        const start = Date.now();
         let entries = await readFlowEntriesCache(hash, flowFilePath);
+        let cacheHit = true;
         if (!entries) {
+            cacheHit = false;
             const content = await cachedReadFile(flowFilePath, 'utf8');
             entries = parseFlowEntries(content);
             await writeFlowEntriesCache(hash, flowFilePath, entries);
         }
+        const duration = Date.now() - start;
+        console.log(`[FlowEntries] ${cacheHit ? 'cache' : 'parsed'} ${hash} (${entries.length} entries, ${duration}ms)`);
 
         const reviewData = await loadReviewData();
         const siteReview = reviewData[hash] || { reviewed: false, vulnerable: false, memo: '', pocNotes: {} };
@@ -2204,10 +2210,12 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                     const libData = JSON.parse(libContent);
                     let siteHasDetections = false;
 
+                    const allowedMethods = new Set(['DEBUN', 'PTV-Original']);
+
                     // Parse lib.detection.json structure
                     for (const [url, methods] of Object.entries(libData)) {
                         for (const [method, detections] of Object.entries(methods)) {
-                            if (method === 'detection' || !detections.detection) continue;
+                            if (!allowedMethods.has(method) || !detections.detection) continue;
 
                             const detectionList = detections.detection;
                             if (Array.isArray(detectionList) && detectionList.length > 0) {
@@ -2250,16 +2258,16 @@ app.get('/api/lib-detection-stats', async (req, res) => {
             }
         }
 
-        // Get top 15 libraries
+        // Get top 30 libraries
         const topLibs = Object.entries(libCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 15)
+            .slice(0, 30)
             .map(([name, count]) => ({ name, count }));
 
-        // Get top 15 versions
+        // Get top 30 versions
         const topVersions = Object.entries(versions)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 15)
+            .slice(0, 30)
             .map(([name, count]) => ({ name, count }));
 
         const avgLibsPerSite = sitesWithDetections > 0 ? (totalDetectedLibs / sitesWithDetections).toFixed(2) : 0;
@@ -2503,16 +2511,16 @@ app.get('/api/vuln-stats', async (req, res) => {
             }
         }
 
-        // Get top 20 libraries
+        // Get top 30 libraries
         const topLibs = Object.entries(libCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 20)
+            .slice(0, 30)
             .map(([name, count]) => ({ name, count }));
 
-        // Get top 10 versions
+        // Get top 30 versions
         const topVersions = Object.entries(versions)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 10)
+            .slice(0, 30)
             .map(([name, count]) => ({ name, count }));
 
         const avgVulnsPerSite = sitesWithVulns > 0 ? (totalVulnLibs / sitesWithVulns).toFixed(2) : 0;
@@ -2756,7 +2764,7 @@ app.get('/api/detected-libs', async (req, res) => {
                 const libDetectionFile = path.join(sitePath, 'lib.detection.json');
                 try {
                     const libDetectionContent = await cachedReadFile(libDetectionFile, 'utf8');
-
+                    if(!libDetectionContent) continue;
                     try {
                         const detectionData = JSON.parse(libDetectionContent);
 
@@ -2767,8 +2775,9 @@ app.get('/api/detected-libs', async (req, res) => {
                             // Create a set to track unique libraries detected in this file
                             const uniqueLibsInFile = new Set();
 
-                            // Check each detector: DEBUN, PTV-Original, PTV
-                            const detectors = ['DEBUN', 'PTV-Original', 'PTV'];
+                            // Union of DEBUN and PTV only (exclude PTV-Bundler/PTV-Original)
+                            const detectors = ['DEBUN', 'PTV-Original'];
+                            console.log(`[Detected Libs] Processing URL: ${urlKey} with detectors: ${detectors.join(', ')}`);
 
                             detectors.forEach(detector => {
                                 if (urlData[detector] && urlData[detector].detection && Array.isArray(urlData[detector].detection)) {
@@ -2798,10 +2807,10 @@ app.get('/api/detected-libs', async (req, res) => {
             }
         }
 
-        // Get top 20 libraries
+        // Get top 30 libraries
         const topLibs = Object.entries(libCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 100)
+            .slice(0, 30)
             .map(([name, count]) => ({ name, count }));
 
         // Calculate total detected libs (sum of all counts)
