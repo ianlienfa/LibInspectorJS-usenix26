@@ -134,6 +134,7 @@ const dirStatCache = new Map();
 const dirReaddirCache = new Map();
 const INDEX_CACHE_DIR = path.join(CACHE_DIR, 'index');
 const indexStats = { hits: 0, misses: 0 };
+let bucketSiteCounts = {};
 
 // --- File System Cache Layer ---
 // Cache statistics for monitoring
@@ -288,6 +289,13 @@ function getSitePathFromCompositeHash(compositeHash) {
     if (parts.length < 2) return null;
     const [parentDir, hash] = parts;
     return path.join(DATA_DIR, parentDir, hash);
+}
+
+function getBucketNameFromRank(rank) {
+    if (rank === null) return 'Unranked';
+    const bucketStart = Math.floor((rank - 1) / 1000) * 1000 + 1;
+    const bucketEnd = bucketStart + 999;
+    return `${bucketStart}-${bucketEnd}`;
 }
 
 async function readSiteDirIndex(compositeHash, sitePath) {
@@ -451,7 +459,13 @@ async function readFlowEntriesCache(compositeHash, flowFilePath) {
         if (!valid) return null;
         console.log("[FlowEntries] cache hit, reading from ", cachePath);
         const raw = await fs.readFile(cachePath, 'utf8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+        const hasHeaders = parsed.every(entry => entry && entry.headerHash && entry.headerText);
+        if (!hasHeaders) {
+            return null;
+        }
+        return parsed;
     } catch (e) {
         return null;
     }
@@ -490,6 +504,12 @@ function parseFlowEntries(rawContent) {
     const entries = [];
     let current = null;
 
+    const extractLibname = (vulnInfo) => {
+        if (!vulnInfo) return '';
+        const match = vulnInfo.match(/"libname"\s*:\s*"([^"]+)"/);
+        return match ? match[1] : '';
+    };
+
     const finalizeEntry = () => {
         if (!current) return;
         const headerLines = [];
@@ -503,6 +523,10 @@ function parseFlowEntries(rawContent) {
         if (current.topExpression) headerLines.push(`[*] Top Expression: ${current.topExpression}`);
         const headerText = headerLines.join('\n');
         const headerHash = hashHeaderText(headerText);
+        const libname = extractLibname(current.vulnInfo);
+        const displayTitle = current.func
+            ? `${libname ? `${libname} | ` : ''}${current.func}`
+            : (current.vulnInfo || (current.tags[0] || 'POC match'));
 
         entries.push({
             headerHash,
@@ -516,7 +540,7 @@ function parseFlowEntries(rawContent) {
             func: current.func || '',
             template: current.template || '',
             topExpression: current.topExpression || '',
-            title: current.func || current.vulnInfo || (current.tags[0] || 'POC match')
+            title: displayTitle
         });
         current = null;
     };
@@ -862,6 +886,16 @@ function formatVulnTable(text) {
 
 // --- Review Data Management ---
 
+let saveReviewQueue = Promise.resolve();
+
+async function ensureReviewDir() {
+    try {
+        await fs.mkdir(path.dirname(REVIEW_FILE), { recursive: true });
+    } catch (e) {
+        // Non-fatal; save will surface errors if dir isn't writable
+    }
+}
+
 async function loadReviewData() {
     try {
         const content = await fs.readFile(REVIEW_FILE, 'utf8');
@@ -880,8 +914,23 @@ async function loadReviewData() {
             console.error('❌ ERROR: Failed to parse review.json. File may be corrupted.');
             console.error('Parse error:', parseError);
             console.error('File content:', content.substring(0, 500));
-            // Return empty object but DO NOT overwrite the corrupted file
-            // This allows manual recovery of the file
+            // Attempt recovery from most recent backup
+            try {
+                const backupDir = path.dirname(REVIEW_FILE);
+                const files = await fs.readdir(backupDir);
+                const backups = files
+                    .filter(f => f.startsWith('review.json.backup.'))
+                    .map(f => ({ name: f, path: path.join(backupDir, f), time: parseInt(f.split('.').pop()) }))
+                    .sort((a, b) => b.time - a.time);
+                if (backups.length > 0) {
+                    const backupContent = await fs.readFile(backups[0].path, 'utf8');
+                    const recovered = JSON.parse(backupContent);
+                    console.warn(`⚠️ Recovered review.json from backup: ${backups[0].name}`);
+                    return recovered;
+                }
+            } catch (recoveryError) {
+                console.error('❌ Recovery from backup failed:', recoveryError.message);
+            }
             return {};
         }
     } catch (error) {
@@ -897,7 +946,8 @@ async function loadReviewData() {
 }
 
 async function saveReviewData(reviewData) {
-    try {
+    saveReviewQueue = saveReviewQueue.then(async () => {
+        await ensureReviewDir();
         // CRITICAL SAFEGUARD: Never save empty data if existing file has data
         let existingData = {};
         try {
@@ -947,7 +997,7 @@ async function saveReviewData(reviewData) {
         }
 
         // Use atomic write: write to temp file first, then rename
-        const tempFile = `${REVIEW_FILE}.tmp`;
+        const tempFile = `${REVIEW_FILE}.tmp.${process.pid}.${Date.now()}`;
         const jsonContent = JSON.stringify(reviewData, null, 2);
 
         // Validate JSON before writing
@@ -962,10 +1012,12 @@ async function saveReviewData(reviewData) {
 
         console.log('✅ Successfully saved review data with', Object.keys(reviewData).length, 'entries');
         return true;
-    } catch (error) {
+    }).catch((error) => {
         console.error('Error saving review data:', error);
         return false;
-    }
+    });
+
+    return saveReviewQueue;
 }
 
 // --- Data Fetching and Processing ---
@@ -1248,6 +1300,21 @@ async function getSiteData() {
                             tagCounts[tag] = (tagCounts[tag] || 0) + 1;
                         });
 
+                        // Extract libname from Vuln Info line
+                        let libName = '';
+                        const vulnIndex = entry.indexOf('[*] Vuln Info:');
+                        if (vulnIndex !== -1) {
+                            let vulnLine = entry.slice(vulnIndex + 13);
+                            const vulnEnd = vulnLine.indexOf('\n');
+                            if (vulnEnd !== -1) {
+                                vulnLine = vulnLine.slice(0, vulnEnd);
+                            }
+                            const libMatch = vulnLine.match(/"libname"\s*:\s*"([^"]+)"/);
+                            if (libMatch) {
+                                libName = libMatch[1];
+                            }
+                        }
+
                         // Extract POC function from [*] Function: LIBOBJ.xxx() line
                         let funcName = '';
                         const funcIndex = entry.indexOf('[*] Function:');
@@ -1260,7 +1327,8 @@ async function getSiteData() {
                             funcName = funcLine.trim();
                             // Normalize: strip parameters (...) but keep LIBOBJ.method
                             funcName = funcName.replace(/\([^)]*\)$/, '');
-                            pocFunctions[funcName] = (pocFunctions[funcName] || 0) + 1;
+                            const funcKey = libName ? `${libName} | ${funcName}` : funcName;
+                            pocFunctions[funcKey] = (pocFunctions[funcKey] || 0) + 1;
                         }
 
                         // Extract navigation URL and file path once per entry
@@ -1304,7 +1372,8 @@ async function getSiteData() {
                         if (hasFlow) {
                             flowPocCount++;
                             if (funcName) {
-                                flowPocFunctions[funcName] = (flowPocFunctions[funcName] || 0) + 1;
+                                const funcKey = libName ? `${libName} | ${funcName}` : funcName;
+                                flowPocFunctions[funcKey] = (flowPocFunctions[funcKey] || 0) + 1;
                             }
                             if (navUrl) {
                                 flowPocSourceUrls[navUrl] = (flowPocSourceUrls[navUrl] || 0) + 1;
@@ -1466,6 +1535,13 @@ async function getSiteData() {
 
     // Filter out localhost domains for global statistics
     const nonLocalHostSites = allSitesData.filter(s => !s.domain.toLowerCase().includes('localhost'));
+
+    // Build bucket site counts for global reuse
+    bucketSiteCounts = {};
+    for (const site of nonLocalHostSites) {
+        const bucketName = getBucketNameFromRank(site.rank ?? getRankingForUrl(site.originalUrl));
+        bucketSiteCounts[bucketName] = (bucketSiteCounts[bucketName] || 0) + 1;
+    }
 
     const globalStats = {
         sites: nonLocalHostSites.length,
@@ -2014,6 +2090,14 @@ app.post('/api/update-poc-review', async (req, res) => {
     }
 
     try {
+        console.log('[POCReview] update request', {
+            hash,
+            headerHash,
+            hasHeaderText: Boolean(headerText),
+            statusKey: statusKey || null,
+            statusValue: statusValue || null,
+            noteLength: note ? String(note).length : 0
+        });
         const reviewData = await loadReviewData();
 
         if (!reviewData[hash]) {
@@ -2053,6 +2137,21 @@ app.post('/api/update-poc-review', async (req, res) => {
         }
     } catch (error) {
         console.error('Error updating POC review:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/poc-status-summary', async (req, res) => {
+    try {
+        const stats = await readStatCache();
+        if (stats && stats.pocStatusSummary) {
+            return res.json(stats.pocStatusSummary);
+        }
+        const reviewData = await loadReviewData();
+        const summary = computePocStatusSummary(reviewData);
+        res.json(summary);
+    } catch (error) {
+        console.error('Error fetching POC status summary:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -2176,6 +2275,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
         let accurateCount = 0;
         let inaccurateCount = 0;
         let sitesWithDetections = 0;
+        const bucketLibCounts = {};
 
         for (const parentDir of parentDirs) {
             const parentPath = path.join(DATA_DIR, parentDir);
@@ -2190,6 +2290,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
 
                 // Check domain and skip localhost
                 let siteDomain = '';
+                let bucketName = 'Unranked';
                 const urlFile = path.join(sitePath, 'url.out');
                 try {
                     const urlContent = await cachedReadFile(urlFile, 'utf8');
@@ -2198,6 +2299,12 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                     siteDomain = formatted.domain;
                     if (siteDomain.toLowerCase().includes('localhost')) {
                         continue; // Skip localhost domains
+                    }
+                    const rank = getRankingForUrl(rawUrl);
+                    bucketName = getBucketNameFromRank(rank);
+                    // Ensure bucket initialized even if site has no detections
+                    if (bucketLibCounts[bucketName] === undefined) {
+                        bucketLibCounts[bucketName] = 0;
                     }
                 } catch (e) {
                     // If can't read url.out, skip this site
@@ -2209,6 +2316,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                     const libContent = await cachedReadFile(libDetectionFile, 'utf8');
                     const libData = JSON.parse(libContent);
                     let siteHasDetections = false;
+                    let siteLibCount = 0;
 
                     const allowedMethods = new Set(['DEBUN', 'PTV-Original']);
 
@@ -2230,6 +2338,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                                     if (!lib || !lib.libname) return;
 
                                     totalDetectedLibs++;
+                                    siteLibCount++;
                                     const libname = lib.libname;
                                     const version = lib.version || 'unknown';
 
@@ -2252,6 +2361,8 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                     }
 
                     if (siteHasDetections) sitesWithDetections++;
+
+                    bucketLibCounts[bucketName] = (bucketLibCounts[bucketName] || 0) + siteLibCount;
                 } catch (e) {
                     // File not found or error reading
                 }
@@ -2272,6 +2383,28 @@ app.get('/api/lib-detection-stats', async (req, res) => {
 
         const avgLibsPerSite = sitesWithDetections > 0 ? (totalDetectedLibs / sitesWithDetections).toFixed(2) : 0;
 
+        const bucketNames = new Set([
+            ...Object.keys(bucketSiteCounts || {}),
+            ...Object.keys(bucketLibCounts || {})
+        ]);
+        const sortedBuckets = Array.from(bucketNames).sort((a, b) => {
+            if (a === 'Unranked') return 1;
+            if (b === 'Unranked') return -1;
+            const aStart = parseInt(a.split('-')[0], 10);
+            const bStart = parseInt(b.split('-')[0], 10);
+            return aStart - bStart;
+        });
+        const libUsageByRanking = sortedBuckets.map(bucket => {
+            const totalLibs = bucketLibCounts[bucket] || 0;
+            const siteCount = bucketSiteCounts[bucket] || 0;
+            return {
+                bucket,
+                totalLibs,
+                siteCount,
+                avgLibsPerSite: siteCount > 0 ? (totalLibs / siteCount) : 0
+            };
+        });
+
         const result = {
             totalDetectedLibs,
             uniqueLibs: Object.keys(libCounts).length,
@@ -2280,6 +2413,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
             topLibs,
             detectionMethods,
             versions: topVersions,
+            libUsageByRanking,
             accuracyStats: {
                 accurate: accurateCount,
                 inaccurate: inaccurateCount
@@ -2572,21 +2706,13 @@ app.get('/api/poc-match-stats', async (req, res) => {
         let totalPocMatchesIncludingNonReach = 0;
         let sitesWithPocMatches = 0;
         const functionCounts = {};
-        const bucketData = {}; // bucket -> { pocCount, functions: {}, urls: {}, files: {} }
+        const bucketData = {}; // bucket -> { pocCount, siteCount, functions: {}, urls: {}, files: {} }
 
         const mergeCounts = (target, source) => {
             if (!source) return;
             for (const [key, count] of Object.entries(source)) {
                 target[key] = (target[key] || 0) + count;
             }
-        };
-
-        // Helper to get bucket name from rank
-        const getBucketName = (rank) => {
-            if (rank === null) return 'Unranked';
-            const bucketStart = Math.floor((rank - 1) / 1000) * 1000 + 1;
-            const bucketEnd = bucketStart + 999;
-            return `${bucketStart}-${bucketEnd}`;
         };
 
         // Debug: log ranking data status and first few lookups
@@ -2610,11 +2736,17 @@ app.get('/api/poc-match-stats', async (req, res) => {
                 debugCount++;
             }
 
-            const bucketName = getBucketName(rank);
+            const bucketName = getBucketNameFromRank(rank);
 
             // Initialize bucket if needed
             if (!bucketData[bucketName]) {
-                bucketData[bucketName] = { pocCount: 0, functions: {}, urls: {}, files: {} };
+                bucketData[bucketName] = {
+                    pocCount: 0,
+                    siteCount: bucketSiteCounts[bucketName] || 0,
+                    functions: {},
+                    urls: {},
+                    files: {}
+                };
             }
 
             // Use cached flow data
@@ -2648,11 +2780,29 @@ app.get('/api/poc-match-stats', async (req, res) => {
             .slice(0, limit)
             .map(([name, count]) => ({ name, count }));
 
+        const splitFunctionKey = (key) => {
+            if (!key) return { library: '', name: '' };
+            const parts = key.split(' | ');
+            if (parts.length > 1) {
+                return { library: parts[0], name: parts.slice(1).join(' | ') };
+            }
+            return { library: '', name: key };
+        };
+
+        const functionsToArray = (map) => Object.entries(map || {})
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, count]) => {
+                const { library, name } = splitFunctionKey(key);
+                return { library, name, count };
+            });
+
         const rankingBuckets = Object.entries(bucketData)
             .map(([bucket, data]) => ({
                 bucket,
                 pocCount: data.pocCount,
-                functions: data.functions,
+                siteCount: data.siteCount,
+                avgPocPerSite: data.siteCount > 0 ? (data.pocCount / data.siteCount) : 0,
+                functions: functionsToArray(data.functions),
                 topUrls: topEntries(data.urls, 12),
                 topFiles: topEntries(data.files, 12),
                 uniqueUrls: Object.keys(data.urls).length,
@@ -2672,7 +2822,10 @@ app.get('/api/poc-match-stats', async (req, res) => {
             .sort((a, b) => b[1] - a[1]);
         const topPocFunctions = allFunctionEntries
             .slice(0, 15)
-            .map(([name, count]) => ({ name, count }));
+            .map(([key, count]) => {
+                const { library, name } = splitFunctionKey(key);
+                return { library, name, count };
+            });
 
         const result = {
             totalPocMatchesIncludingNonReach,

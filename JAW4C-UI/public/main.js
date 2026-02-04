@@ -76,6 +76,7 @@ const fileCache = {};
 
 // POC flow review state
 const flowEntriesCache = {};
+const pocReviewInFlight = new Set();
 const pocStatusCounts = {
     vulnerableFunc: { true: 0, false: 0 },
     pocMatch: { true: 0, false: 0 },
@@ -403,10 +404,89 @@ async function initFlowReviewUI(hash) {
         }
 
         renderFlowSidebar(hash);
+        bindFlowSidebarHandlers(hash);
     } catch (error) {
         sidebar.innerHTML = `<div class="flow-sidebar-empty">Failed to load POC matches.</div>`;
         console.error('Flow entries load error:', error);
     }
+}
+
+function bindFlowSidebarHandlers(hash) {
+    const sidebar = document.getElementById(`flow-sidebar-${hash}`);
+    const cache = flowEntriesCache[hash];
+    if (!sidebar || !cache) return;
+    if (sidebar.dataset.bound === 'true') return;
+    sidebar.dataset.bound = 'true';
+
+    sidebar.addEventListener('click', async (event) => {
+        const clearBtn = event.target.closest('.flow-filter-clear');
+        if (clearBtn) {
+            cache.selectedTags.clear();
+            renderFlowSidebar(hash);
+            return;
+        }
+
+        const titleBtn = event.target.closest('.flow-entry-title');
+        if (titleBtn) {
+            const entryEl = titleBtn.closest('.flow-entry');
+            const headerHash = entryEl?.dataset.headerHash;
+            const entry = cache.entries.find(item => item.headerHash === headerHash);
+            if (entry) {
+                scrollToFlowEntry(hash, entry.headerHash, entry.line);
+            }
+            return;
+        }
+
+        const statusBtn = event.target.closest('.flow-toggle');
+        if (statusBtn) {
+            const entryEl = statusBtn.closest('.flow-entry');
+            const headerHash = entryEl?.dataset.headerHash;
+            const entry = cache.entries.find(item => item.headerHash === headerHash);
+            if (!entry) return;
+
+            const key = statusBtn.dataset.key;
+            const nextState = cycleStatusState(statusBtn.dataset.state || 'none');
+            applyStatusButtonState(statusBtn, nextState);
+            entry.status = entry.status || {};
+            entry.status[key] = nextState;
+            recomputePocStatusCounts(cache.entries);
+            await updatePocReview(hash, entry, { statusKey: key, statusValue: nextState });
+        }
+    });
+
+    sidebar.addEventListener('change', (event) => {
+        const input = event.target;
+        if (!input || !input.matches('.flow-filter-tag input')) return;
+        if (input.checked) {
+            cache.selectedTags.add(input.value);
+        } else {
+            cache.selectedTags.delete(input.value);
+        }
+        renderFlowSidebar(hash);
+    });
+
+    sidebar.addEventListener('focusin', (event) => {
+        const noteEl = event.target;
+        if (!noteEl || !noteEl.classList.contains('flow-note')) return;
+        noteEl.dataset.lastValue = noteEl.value;
+    });
+
+    sidebar.addEventListener('focusout', async (event) => {
+        const noteEl = event.target;
+        if (!noteEl || !noteEl.classList.contains('flow-note')) return;
+        const noteValue = noteEl.value;
+        const lastValue = noteEl.dataset.lastValue || '';
+        if (noteValue === lastValue) {
+            return;
+        }
+        noteEl.dataset.lastValue = noteValue;
+        const entryEl = noteEl.closest('.flow-entry');
+        const headerHash = entryEl?.dataset.headerHash;
+        const entry = cache.entries.find(item => item.headerHash === headerHash);
+        if (!entry) return;
+        entry.note = noteValue;
+        await updatePocReview(hash, entry, { note: noteValue });
+    });
 }
 
 function renderFlowSidebar(hash) {
@@ -460,63 +540,28 @@ function renderFlowSidebar(hash) {
 
     sidebar.innerHTML = filterHTML + entriesHTML;
 
-    const clearBtn = sidebar.querySelector('.flow-filter-clear');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            cache.selectedTags.clear();
-            renderFlowSidebar(hash);
-        });
-    }
-
-    sidebar.querySelectorAll('.flow-filter-tag input').forEach(input => {
-        input.addEventListener('change', () => {
-            if (input.checked) {
-                cache.selectedTags.add(input.value);
-            } else {
-                cache.selectedTags.delete(input.value);
-            }
-            renderFlowSidebar(hash);
-        });
-    });
-
     filtered.forEach(entry => {
         const entryEl = sidebar.querySelector(`.flow-entry[data-header-hash="${entry.headerHash}"]`);
         if (!entryEl) return;
-
-        const titleBtn = entryEl.querySelector('.flow-entry-title');
-        if (titleBtn) {
-            titleBtn.addEventListener('click', () => {
-                scrollToFlowEntry(hash, entry.headerHash, entry.line);
-            });
-        }
 
         const status = entry.status || {};
         entryEl.querySelectorAll('.flow-toggle').forEach(button => {
             const key = button.dataset.key;
             const state = status[key] || 'none';
             applyStatusButtonState(button, state);
-
-            button.addEventListener('click', async () => {
-                const nextState = cycleStatusState(button.dataset.state || 'none');
-                applyStatusButtonState(button, nextState);
-                entry.status = entry.status || {};
-                entry.status[key] = nextState;
-                recomputePocStatusCounts(entries);
-
-                await updatePocReview(hash, entry, { statusKey: key, statusValue: nextState });
-            });
-        });
-
-        const noteEl = entryEl.querySelector('.flow-note');
-        noteEl.addEventListener('blur', async () => {
-            const noteValue = noteEl.value;
-            entry.note = noteValue;
-            await updatePocReview(hash, entry, { note: noteValue });
         });
     });
 }
 
 async function updatePocReview(hash, entry, updates) {
+    const statusKey = updates.statusKey || '';
+    const statusValue = updates.statusValue || '';
+    const noteValue = updates.note !== undefined ? String(updates.note) : '';
+    const dedupeKey = `${hash}|${entry.headerHash}|${statusKey}|${statusValue}|${noteValue}`;
+    if (pocReviewInFlight.has(dedupeKey)) {
+        return;
+    }
+    pocReviewInFlight.add(dedupeKey);
     try {
         const payload = {
             hash,
@@ -545,6 +590,8 @@ async function updatePocReview(hash, entry, updates) {
         }
     } catch (error) {
         console.error('Error updating POC review:', error);
+    } finally {
+        pocReviewInFlight.delete(dedupeKey);
     }
 }
 
@@ -1054,6 +1101,7 @@ async function openLibDetectionModal() {
         createDetectionMethodChart(stats.detectionMethods);
         createDetectedVersionsChart(stats.versions);
         createAccuracyChart(stats.accuracyStats);
+        createLibUsageByRankingChart(stats.libUsageByRanking || []);
 
         // Fetch and display tag statistics
         const tagResponse = await fetch('/api/tag-stats');
@@ -1210,6 +1258,61 @@ function createAccuracyChart(accuracyStats) {
             plugins: {
                 legend: {
                     position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createLibUsageByRankingChart(buckets) {
+    const ctx = document.getElementById('lib-usage-ranking-chart').getContext('2d');
+    const labels = buckets.map(b => b.bucket);
+    const values = buckets.map(b => b.avgLibsPerSite ?? 0);
+
+    libDetectionCharts.libUsageByRanking = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Avg Libraries per Site',
+                data: values,
+                backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            const bucket = buckets[index];
+                            if (!bucket) return '';
+                            let result = `\nSites: ${bucket.siteCount ?? 0}`;
+                            result += `\nTotal libs: ${bucket.totalLibs ?? 0}`;
+                            result += `\nAvg libs/site: ${(bucket.avgLibsPerSite ?? 0).toFixed(2)}`;
+                            return result;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Avg Libraries per Site'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Site Ranking Bucket'
+                    }
                 }
             }
         }
@@ -1471,7 +1574,7 @@ function createPocByRankingChart(rankingBuckets) {
             labels: rankingBuckets.map(b => b.bucket),
             datasets: [{
                 label: 'POC Matches',
-                data: rankingBuckets.map(b => b.pocCount),
+                data: rankingBuckets.map(b => b.avgPocPerSite ?? 0),
                 backgroundColor: 'rgba(147, 51, 234, 0.7)',
                 borderColor: 'rgba(147, 51, 234, 1)',
                 borderWidth: 1
@@ -1491,18 +1594,20 @@ function createPocByRankingChart(rankingBuckets) {
                             const bucket = rankingBuckets[index];
                             if (!bucket || !bucket.functions) return '';
 
-                            const functions = Object.entries(bucket.functions)
-                                .sort((a, b) => b[1] - a[1])
+                            const functions = (bucket.functions || [])
                                 .slice(0, 5);
 
                             if (functions.length === 0) return '';
 
-                            let result = '\nTop Functions:';
-                            functions.forEach(([name, count]) => {
-                                result += `\n  ${name}: ${count}`;
+                            let result = `\nSites: ${bucket.siteCount ?? 0}`;
+                            result += `\nAvg POC/site: ${(bucket.avgPocPerSite ?? 0).toFixed(2)}`;
+                            result += '\nTop Functions:';
+                            functions.forEach((entry) => {
+                                const label = entry.library ? `${entry.library} | ${entry.name}` : entry.name;
+                                result += `\n  ${label}: ${entry.count}`;
                             });
 
-                            const totalFunctions = Object.keys(bucket.functions).length;
+                            const totalFunctions = (bucket.functions || []).length;
                             if (totalFunctions > 5) {
                                 result += `\n  ... and ${totalFunctions - 5} more`;
                             }
@@ -1528,7 +1633,7 @@ function createPocByRankingChart(rankingBuckets) {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'POC Matches'
+                        text: 'Avg POC Matches per Site'
                     }
                 },
                 x: {
@@ -1548,7 +1653,7 @@ function createTopPocFunctionsChart(topPocFunctions) {
     pocMatchesCharts.topFunctions = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: topPocFunctions.map(f => f.name),
+            labels: topPocFunctions.map(f => f.library ? `${f.library} | ${f.name}` : f.name),
             datasets: [{
                 label: 'Occurrences',
                 data: topPocFunctions.map(f => f.count),
@@ -2150,6 +2255,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load first page
     loadPage(1);
+
+    // Load POC status summary from review/stat cache
+    fetch('/api/poc-status-summary')
+        .then(response => response.ok ? response.json() : null)
+        .then(summary => {
+            if (!summary || !summary.counts) return;
+            ['vulnerableFunc', 'pocMatch', 'dataflow'].forEach(key => {
+                if (summary.counts[key]) {
+                    pocStatusCounts[key].true = summary.counts[key].true || 0;
+                    pocStatusCounts[key].false = summary.counts[key].false || 0;
+                }
+            });
+            updateGlobalPocStatusSummary();
+        })
+        .catch(error => console.error('Error loading POC status summary:', error));
 
     // Default range mode
     switchRangeMode('time');
