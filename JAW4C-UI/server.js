@@ -180,9 +180,12 @@ async function computeVulnPocLocationMismatchSites() {
 async function getVulnPocLocationMismatchCache() {
     if (vulnPocLocationMismatchCache) return vulnPocLocationMismatchCache;
     if (vulnPocLocationMismatchPromise) return vulnPocLocationMismatchPromise;
-    vulnPocLocationMismatchPromise = computeVulnPocLocationMismatchSites().then(result => {
+    vulnPocLocationMismatchPromise = computeVulnPocLocationMismatchSites().then(async result => {
         vulnPocLocationMismatchCache = result;
         vulnPocLocationMismatchPromise = null;
+        await updateGlobalStatFile('vuln-poc-location-mismatch', {
+            count: result.sites.length
+        });
         return result;
     }).catch(err => {
         vulnPocLocationMismatchPromise = null;
@@ -2058,7 +2061,17 @@ app.get('/api/search', async (req, res) => {
 
         const data = await getCachedSiteData();
         const allSites = data.sites;
-        let sites = allSites;
+        const reviewData = await loadReviewData();
+        let sites = allSites.map(site => {
+            const review = reviewData[site.hash];
+            if (!review) return site;
+            return {
+                ...site,
+                reviewed: review.reviewed ?? site.reviewed,
+                vulnerable: review.vulnerable ?? site.vulnerable,
+                memo: review.memo ?? site.memo
+            };
+        });
 
         // Filter by file content search hashes (takes precedence over text search)
         if (hashes) {
@@ -2102,7 +2115,12 @@ app.get('/api/search', async (req, res) => {
             sites = sites.filter(site => site.vulnerable);
         }
         if (hasNotes === 'true') {
-            sites = sites.filter(site => site.memo && site.memo.trim());
+            sites = sites.filter(site => {
+                if (site.memo && site.memo.trim()) return true;
+                const review = reviewData[site.hash];
+                const notes = review?.pocNotes || {};
+                return Object.values(notes).some(entry => entry?.note && String(entry.note).trim());
+            });
         }
         if (vulnPocLocationMismatch === 'true') {
             const mismatch = await getVulnPocLocationMismatchCache();
