@@ -15,6 +15,7 @@ services:
       - ./public:/app/public:ro
       - ./views:/app/views:ro
       - ./tranco_NN23W.csv:/app/tranco_NN23W.csv:ro
+      - ./lib_mapping.json:/app/lib_mapping.json:ro
       - ./entrypoint.sh:/app/entrypoint.sh:ro
     restart: unless-stopped
     environment:
