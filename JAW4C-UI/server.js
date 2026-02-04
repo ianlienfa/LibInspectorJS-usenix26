@@ -18,6 +18,7 @@ const DATA_DIR = path.join(JAW4C_DIR, 'JAW4C-JAW', 'data');
 const CACHE_DIR = path.join(APP_DIR, 'site-cache');
 const REVIEW_FILE = path.join(DATA_DIR, 'review', 'review.json');
 const TRANCO_FILE = path.join(APP_DIR, 'tranco_NN23W.csv');
+const LIB_MAPPING_FILE = path.join(APP_DIR, 'lib_mapping.json');
 const SITE_STABLED = true;
 const STAT_FILE = path.join(CACHE_DIR, 'stat.json');
 
@@ -34,6 +35,35 @@ function clearPocMatchStatsCache() {
 
 // --- Domain Ranking Data (loaded once at startup) ---
 let domainRankMap = new Map(); // Map domain -> rank for fast lookup
+let libMappingCache = null;
+let libMappingLoadPromise = null;
+
+async function loadLibMapping() {
+    if (libMappingCache) return libMappingCache;
+    if (libMappingLoadPromise) return libMappingLoadPromise;
+    libMappingLoadPromise = (async () => {
+        try {
+            const raw = await fs.readFile(LIB_MAPPING_FILE, 'utf8');
+            const parsed = JSON.parse(raw);
+            const normalized = {};
+            Object.entries(parsed || {}).forEach(([key, aliases]) => {
+                const normKey = String(key || '').trim().toLowerCase();
+                if (!normKey) return;
+                const aliasList = Array.isArray(aliases) ? aliases : [];
+                normalized[normKey] = aliasList.map(a => String(a || '').trim()).filter(Boolean);
+            });
+            libMappingCache = normalized;
+            return libMappingCache;
+        } catch (error) {
+            console.warn('[LibMapping] Failed to load lib_mapping.json:', error.message);
+            libMappingCache = {};
+            return libMappingCache;
+        } finally {
+            libMappingLoadPromise = null;
+        }
+    })();
+    return libMappingLoadPromise;
+}
 
 // Load Tranco CSV and build domain-to-rank map
 async function loadRankingData() {
@@ -503,6 +533,8 @@ function parseFlowEntries(rawContent) {
     const lines = rawContent.split(/\r?\n/);
     const entries = [];
     let current = null;
+    let readingVulnInfoBlock = false;
+    let vulnInfoBlock = null;
 
     const extractLibname = (vulnInfo) => {
         if (!vulnInfo) return '';
@@ -562,6 +594,8 @@ function parseFlowEntries(rawContent) {
                 template: '',
                 topExpression: ''
             };
+            readingVulnInfoBlock = false;
+            vulnInfoBlock = null;
             continue;
         }
 
@@ -570,6 +604,29 @@ function parseFlowEntries(rawContent) {
         if (line.startsWith('----------------------------------------------------') || line.startsWith('====================================================')) {
             finalizeEntry();
             continue;
+        }
+
+        if (line.startsWith('[*] Vulnerability Information:')) {
+            readingVulnInfoBlock = true;
+            vulnInfoBlock = {};
+            continue;
+        }
+
+        if (readingVulnInfoBlock) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('[*]')) {
+                readingVulnInfoBlock = false;
+            } else if (trimmed.startsWith('-')) {
+                const parts = trimmed.replace(/^-/, '').split(':');
+                const key = parts.shift()?.trim();
+                const value = parts.join(':').trim();
+                if (key) {
+                    vulnInfoBlock[key] = value;
+                }
+                continue;
+            } else {
+                readingVulnInfoBlock = false;
+            }
         }
 
         if (line.startsWith('[*] Vuln Info:')) {
@@ -587,10 +644,68 @@ function parseFlowEntries(rawContent) {
         } else if (line.startsWith('[*] Top Expression:')) {
             current.topExpression = line.replace('[*] Top Expression:', '').trim();
         }
+
+        if (!readingVulnInfoBlock && vulnInfoBlock && Object.keys(vulnInfoBlock).length > 0) {
+            current.vulnInfo = JSON.stringify({
+                mod: vulnInfoBlock.mod === 'True',
+                libname: vulnInfoBlock.libname || '',
+                location: vulnInfoBlock.location || '',
+                poc_str: vulnInfoBlock.poc_str || '',
+                jq: vulnInfoBlock.jq === 'True'
+            });
+            vulnInfoBlock = null;
+        }
     }
 
     finalizeEntry();
     return entries;
+}
+
+function extractLibnameFromVulnInfo(vulnInfo) {
+    if (!vulnInfo) return '';
+    const match = vulnInfo.match(/"libname"\s*:\s*"([^"]+)"/);
+    return match ? match[1] : '';
+}
+
+function normalizeToken(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function normalizePocFunctionName(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const match = raw.match(/LIBOBJ(?:\.[A-Za-z0-9_$]+|\([^)]*\)\.[A-Za-z0-9_$]+)?/);
+    const base = match ? match[0] : raw;
+    return base.replace(/\([^)]*\)$/, '');
+}
+
+function buildVulnPocFunctionMap(vulnContent) {
+    const map = new Map(); // funcName -> libname
+    if (!vulnContent || !vulnContent.trim()) return map;
+    vulnContent.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        try {
+            const vulnData = JSON.parse(trimmed);
+            const urlKey = Object.keys(vulnData)[0];
+            const libs = vulnData[urlKey] || [];
+            libs.forEach(lib => {
+                const libname = String(lib.libname || '').trim();
+                if (!libname || !Array.isArray(lib.vuln)) return;
+                lib.vuln.forEach(v => {
+                    const poc = v && v.poc ? String(v.poc) : '';
+                    const funcName = normalizePocFunctionName(poc);
+                    if (!funcName) return;
+                    if (!map.has(funcName)) {
+                        map.set(funcName, libname);
+                    }
+                });
+            });
+        } catch (e) {
+            // ignore malformed lines
+        }
+    });
+    return map;
 }
 
 function buildPocNotesSection(pocNotes) {
@@ -1233,6 +1348,9 @@ async function getSiteData() {
             }
             timings.url = Date.now() - urlStart;
 
+            const vulnContent = fileContents.get(`${compositeHash}:vuln`);
+            const vulnPocFunctionMap = buildVulnPocFunctionMap(vulnContent);
+
             // Process flows
             const flowsStart = Date.now();
             let hasFlows = false;
@@ -1263,6 +1381,28 @@ async function getSiteData() {
                     Object.assign(flowPocFunctions, cachedSummary.flowPocFunctions || {});
                     Object.assign(flowPocSourceUrls, cachedSummary.flowPocSourceUrls || {});
                     Object.assign(flowPocSourceFiles, cachedSummary.flowPocSourceFiles || {});
+                    if (vulnPocFunctionMap.size > 0) {
+                        const remapFunctions = (map) => {
+                            const next = {};
+                            Object.entries(map || {}).forEach(([key, count]) => {
+                                if (key.includes(' | ')) {
+                                    next[key] = (next[key] || 0) + count;
+                                    return;
+                                }
+                                const funcName = normalizePocFunctionName(key);
+                                const libname = vulnPocFunctionMap.get(funcName);
+                                const nextKey = libname ? `${libname} | ${funcName || key}` : key;
+                                next[nextKey] = (next[nextKey] || 0) + count;
+                            });
+                            return next;
+                        };
+                        const remappedPoc = remapFunctions(pocFunctions);
+                        const remappedFlowPoc = remapFunctions(flowPocFunctions);
+                        Object.keys(pocFunctions).forEach(k => delete pocFunctions[k]);
+                        Object.keys(flowPocFunctions).forEach(k => delete flowPocFunctions[k]);
+                        Object.assign(pocFunctions, remappedPoc);
+                        Object.assign(flowPocFunctions, remappedFlowPoc);
+                    }
                     timings.flows = Date.now() - flowsStart;
                 }
 
@@ -1327,6 +1467,12 @@ async function getSiteData() {
                             funcName = funcLine.trim();
                             // Normalize: strip parameters (...) but keep LIBOBJ.method
                             funcName = funcName.replace(/\([^)]*\)$/, '');
+                            if (!libName) {
+                                const mappedLib = vulnPocFunctionMap.get(funcName);
+                                if (mappedLib) {
+                                    libName = mappedLib;
+                                }
+                            }
                             const funcKey = libName ? `${libName} | ${funcName}` : funcName;
                             pocFunctions[funcKey] = (pocFunctions[funcKey] || 0) + 1;
                         }
@@ -1406,6 +1552,20 @@ async function getSiteData() {
                         flowPocSourceUrls,
                         flowPocSourceFiles
                     });
+                } else if (vulnPocFunctionMap.size > 0) {
+                    await writeFlowSummaryCache(compositeHash, flowFilePath, {
+                        hasFlows,
+                        pocMatches,
+                        allFlowsCount,
+                        tagCounts,
+                        pocFunctions,
+                        pocSourceUrls,
+                        pocSourceFiles,
+                        flowPocCount,
+                        flowPocFunctions,
+                        flowPocSourceUrls,
+                        flowPocSourceFiles
+                    });
                 }
 
                 if (!cachedEntries) {
@@ -1419,7 +1579,6 @@ async function getSiteData() {
             const vulnStart = Date.now();
             let vulnerableLibs = 0;
             let hasValidVulnData = false;
-            const vulnContent = fileContents.get(`${compositeHash}:vuln`);
             if (vulnContent && vulnContent.trim()) {
                 try {
                     vulnContent.split('\n').forEach(line => {
@@ -2529,6 +2688,118 @@ app.get('/api/tag-stats', async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error fetching tag stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/vuln-poc-location-mismatch', async (req, res) => {
+    try {
+        const libMapping = await loadLibMapping();
+        const { sites } = await getCachedSiteData();
+        if (!sites || sites.length === 0) {
+            return res.json({ sites: [], count: 0 });
+        }
+
+        const results = [];
+        for (const site of sites) {
+            const compositeHash = site.hash;
+            if (!compositeHash || !site.originalUrl) continue;
+            if (site.domain && site.domain.toLowerCase().includes('localhost')) continue;
+            if (!site.files || !site.files.includes('vuln.out') || !site.files.includes('sink.flows.out')) {
+                continue;
+            }
+
+            const sitePath = getSitePathFromCompositeHash(compositeHash);
+            if (!sitePath) continue;
+
+            const flowFilePath = path.join(sitePath, 'sink.flows.out');
+            let flowEntries = await readFlowEntriesCache(compositeHash, flowFilePath);
+            if (!flowEntries) {
+                try {
+                    const flowContent = await cachedReadFile(flowFilePath, 'utf8');
+                    flowEntries = parseFlowEntries(flowContent);
+                    await writeFlowEntriesCache(compositeHash, flowFilePath, flowEntries);
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            const vulnFilePath = path.join(sitePath, 'vuln.out');
+            let vulnContent = '';
+            try {
+                vulnContent = await cachedReadFile(vulnFilePath, 'utf8');
+            } catch (e) {
+                continue;
+            }
+
+            const libLocations = new Map();
+            vulnContent.split('\n').forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                try {
+                    const vulnData = JSON.parse(trimmed);
+                    const urlKey = Object.keys(vulnData)[0];
+                    const libs = vulnData[urlKey] || [];
+                    libs.forEach(lib => {
+                        const libname = normalizeToken(lib.libname);
+                        const location = String(lib.location || '').trim();
+                        if (!libname || !location) return;
+                        if (!libLocations.has(libname)) {
+                            libLocations.set(libname, new Set());
+                        }
+                        libLocations.get(libname).add(location);
+                    });
+                } catch (e) {
+                    // ignore malformed lines
+                }
+            });
+
+            if (libLocations.size === 0 || !flowEntries || flowEntries.length === 0) {
+                continue;
+            }
+
+            const mismatches = [];
+            flowEntries.forEach(entry => {
+                const libname = normalizeToken(extractLibnameFromVulnInfo(entry.vulnInfo));
+                if (!libname) return;
+                const locations = libLocations.get(libname);
+                if (!locations || locations.size === 0) return;
+
+                const funcName = entry.func || '';
+                const funcNorm = normalizeToken(funcName);
+                const aliases = (libMapping[libname] || []).map(a => normalizeToken(a));
+                const libNorm = normalizeToken(libname);
+
+                locations.forEach(location => {
+                    const locNorm = normalizeToken(location);
+                    if (!locNorm) return;
+                    const matchesMapping = aliases.includes(locNorm) || libNorm === locNorm;
+                    const matchesFunction = funcNorm === locNorm || (funcNorm && funcNorm.includes(locNorm));
+                    if (!matchesMapping && !matchesFunction) {
+                        mismatches.push({
+                            libname,
+                            location,
+                            function: funcName || '',
+                            headerHash: entry.headerHash,
+                            tags: entry.tags || []
+                        });
+                    }
+                });
+            });
+
+            if (mismatches.length > 0) {
+                results.push({
+                    hash: compositeHash,
+                    url: site.originalUrl,
+                    domain: site.domain,
+                    mismatches
+                });
+            }
+        }
+
+        res.json({ sites: results, count: results.length });
+    } catch (error) {
+        console.error('Error fetching vuln/POC location mismatches:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
