@@ -2279,6 +2279,24 @@ header h1 {
     color: #e2e8f0;
 }
 
+.flow-toggle.state-origin {
+    background-color: rgba(148, 163, 184, 0.2);
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #e2e8f0;
+}
+
+.flow-toggle.state-cdn {
+    background-color: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.8);
+    color: #bae6fd;
+}
+
+.flow-toggle.state-bundle {
+    background-color: rgba(251, 146, 60, 0.2);
+    border-color: rgba(251, 146, 60, 0.8);
+    color: #fed7aa;
+}
+
 .flow-note {
     width: 100%;
     min-height: 60px;

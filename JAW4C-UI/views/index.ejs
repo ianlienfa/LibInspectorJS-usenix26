@@ -53,6 +53,10 @@
                 <h4>Dataflow</h4>
                 <p id="poc-status-dataflow">TP: 0 (0%) | FP: 0 (0%)</p>
             </div>
+            <div class="poc-status-card">
+                <h4>Origin</h4>
+                <p id="poc-status-origin">cdn: 0 (0%) | bundle: 0 (0%)</p>
+            </div>
         </section>
 
         <!-- Filter Controls -->
@@ -132,6 +136,10 @@
                     <label class="filter-checkbox">
                         <input type="checkbox" id="filter-vulnerable" onchange="reloadWithFilters()">
                         <span>Marked Vulnerable</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-vuln-poc-mismatch" onchange="reloadWithFilters()">
+                        <span>Vuln/POC Location Mismatch</span>
                     </label>
                     
                     <label class="filter-checkbox">

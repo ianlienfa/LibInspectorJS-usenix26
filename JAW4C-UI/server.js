@@ -37,6 +37,8 @@ function clearPocMatchStatsCache() {
 let domainRankMap = new Map(); // Map domain -> rank for fast lookup
 let libMappingCache = null;
 let libMappingLoadPromise = null;
+let vulnPocLocationMismatchCache = null;
+let vulnPocLocationMismatchPromise = null;
 
 async function loadLibMapping() {
     if (libMappingCache) return libMappingCache;
@@ -63,6 +65,130 @@ async function loadLibMapping() {
         }
     })();
     return libMappingLoadPromise;
+}
+
+async function computeVulnPocLocationMismatchSites() {
+    const libMapping = await loadLibMapping();
+    const { sites } = await getCachedSiteData();
+    if (!sites || sites.length === 0) {
+        return { sites: [], siteSet: new Set() };
+    }
+
+    const results = [];
+    const siteSet = new Set();
+
+    for (const site of sites) {
+        const compositeHash = site.hash;
+        if (!compositeHash || !site.originalUrl) continue;
+        if (site.domain && site.domain.toLowerCase().includes('localhost')) continue;
+        if (!site.files || !site.files.includes('vuln.out') || !site.files.includes('sink.flows.out')) {
+            continue;
+        }
+
+        const sitePath = getSitePathFromCompositeHash(compositeHash);
+        if (!sitePath) continue;
+
+        const flowFilePath = path.join(sitePath, 'sink.flows.out');
+        let flowEntries = await readFlowEntriesCache(compositeHash, flowFilePath);
+        if (!flowEntries) {
+            try {
+                const flowContent = await cachedReadFile(flowFilePath, 'utf8');
+                flowEntries = parseFlowEntries(flowContent);
+                await writeFlowEntriesCache(compositeHash, flowFilePath, flowEntries);
+            } catch (e) {
+                continue;
+            }
+        }
+
+        const vulnFilePath = path.join(sitePath, 'vuln.out');
+        let vulnContent = '';
+        try {
+            vulnContent = await cachedReadFile(vulnFilePath, 'utf8');
+        } catch (e) {
+            continue;
+        }
+
+        const libLocations = new Map();
+        vulnContent.split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            try {
+                const vulnData = JSON.parse(trimmed);
+                const urlKey = Object.keys(vulnData)[0];
+                const libs = vulnData[urlKey] || [];
+                libs.forEach(lib => {
+                    const libname = normalizeToken(lib.libname);
+                    const location = String(lib.location || '').trim();
+                    if (!libname || !location) return;
+                    if (!libLocations.has(libname)) {
+                        libLocations.set(libname, new Set());
+                    }
+                    libLocations.get(libname).add(location);
+                });
+            } catch (e) {
+                // ignore malformed lines
+            }
+        });
+
+        if (libLocations.size === 0 || !flowEntries || flowEntries.length === 0) {
+            continue;
+        }
+
+        const mismatches = [];
+        flowEntries.forEach(entry => {
+            const libname = normalizeToken(extractLibnameFromVulnInfo(entry.vulnInfo));
+            if (!libname) return;
+            const locations = libLocations.get(libname);
+            if (!locations || locations.size === 0) return;
+
+            const funcName = entry.func || '';
+            const funcNorm = normalizeToken(funcName);
+            const aliases = (libMapping[libname] || []).map(a => normalizeToken(a));
+            const libNorm = normalizeToken(libname);
+
+            locations.forEach(location => {
+                const locNorm = normalizeToken(location);
+                if (!locNorm) return;
+                const matchesMapping = aliases.includes(locNorm) || libNorm === locNorm;
+                const matchesFunction = funcNorm === locNorm || (funcNorm && funcNorm.includes(locNorm));
+                if (!matchesMapping && !matchesFunction) {
+                    mismatches.push({
+                        libname,
+                        location,
+                        function: funcName || '',
+                        headerHash: entry.headerHash,
+                        tags: entry.tags || []
+                    });
+                }
+            });
+        });
+
+        if (mismatches.length > 0) {
+            results.push({
+                hash: compositeHash,
+                url: site.originalUrl,
+                domain: site.domain,
+                mismatches
+            });
+            siteSet.add(compositeHash);
+        }
+    }
+
+    return { sites: results, siteSet };
+}
+
+async function getVulnPocLocationMismatchCache() {
+    if (vulnPocLocationMismatchCache) return vulnPocLocationMismatchCache;
+    if (vulnPocLocationMismatchPromise) return vulnPocLocationMismatchPromise;
+    vulnPocLocationMismatchPromise = computeVulnPocLocationMismatchSites().then(result => {
+        vulnPocLocationMismatchCache = result;
+        vulnPocLocationMismatchPromise = null;
+        return result;
+    }).catch(err => {
+        vulnPocLocationMismatchPromise = null;
+        throw err;
+    });
+    return vulnPocLocationMismatchPromise;
 }
 
 // Load Tranco CSV and build domain-to-rank map
@@ -218,7 +344,8 @@ function computePocStatusSummary(reviewData) {
     const counts = {
         vulnerableFunc: { true: 0, false: 0 },
         pocMatch: { true: 0, false: 0 },
-        dataflow: { true: 0, false: 0 }
+        dataflow: { true: 0, false: 0 },
+        origin: { cdn: 0, bundle: 0 }
     };
 
     Object.values(reviewData || {}).forEach(site => {
@@ -226,14 +353,29 @@ function computePocStatusSummary(reviewData) {
         Object.values(notes).forEach(entry => {
             const status = entry.status || {};
             Object.keys(counts).forEach(key => {
+                if (key === 'origin') return;
                 if (status[key] === 'true') counts[key].true += 1;
                 else if (status[key] === 'false') counts[key].false += 1;
             });
+            if (status.origin === 'cdn') counts.origin.cdn += 1;
+            else if (status.origin === 'bundle') counts.origin.bundle += 1;
         });
     });
 
     const rates = {};
     Object.keys(counts).forEach(key => {
+        if (key === 'origin') {
+            const cdn = counts.origin.cdn;
+            const bundle = counts.origin.bundle;
+            const total = cdn + bundle;
+            rates.origin = {
+                cdn,
+                bundle,
+                cdnRate: total ? cdn / total : 0,
+                bundleRate: total ? bundle / total : 0
+            };
+            return;
+        }
         const t = counts[key].true;
         const f = counts[key].false;
         const total = t + f;
@@ -1731,6 +1873,7 @@ async function updateCacheInBackground() {
         const data = await getSiteData();
         siteDataCache = data;
         cacheTimestamp = Date.now();
+        vulnPocLocationMismatchCache = null;
         const duration = Date.now() - startTime;
         console.log(`[Cache] ✅ Cache ready! ${data.sites.length} sites loaded in ${(duration / 1000).toFixed(2)}s`);
         await writeGlobalStatSnapshot(data.globalStats, data.sites.length);
@@ -1887,6 +2030,7 @@ app.get('/api/search', async (req, res) => {
             unreviewed,
             vulnerable,
             hasNotes,
+            vulnPocLocationMismatch,
             // Time range parameters (milliseconds)
             timeStart,
             timeEnd,
@@ -1952,6 +2096,10 @@ app.get('/api/search', async (req, res) => {
         }
         if (hasNotes === 'true') {
             sites = sites.filter(site => site.memo && site.memo.trim());
+        }
+        if (vulnPocLocationMismatch === 'true') {
+            const mismatch = await getVulnPocLocationMismatchCache();
+            sites = sites.filter(site => mismatch.siteSet.has(site.hash));
         }
 
         // Resolve hash range to a time range (server-side)
@@ -2182,14 +2330,14 @@ app.get('/api/flow-entries', async (req, res) => {
 
         const enriched = entries.map(entry => {
             const noteEntry = pocNotes[entry.headerHash] || {};
+            const status = noteEntry.status || {};
+            if (!status.origin) {
+                status.origin = 'origin';
+            }
             return {
                 ...entry,
                 note: noteEntry.note || '',
-                status: noteEntry.status || {
-                    vulnerableFunc: 'none',
-                    pocMatch: 'none',
-                    dataflow: 'none'
-                }
+                status: status
             };
         });
 
@@ -2240,11 +2388,16 @@ app.post('/api/update-poc-review', async (req, res) => {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const allowedStatusKeys = ['vulnerableFunc', 'pocMatch', 'dataflow'];
-    if (statusKey && !allowedStatusKeys.includes(statusKey)) {
+    const allowedStatusValues = {
+        vulnerableFunc: ['none', 'true', 'false'],
+        pocMatch: ['none', 'true', 'false'],
+        dataflow: ['none', 'true', 'false'],
+        origin: ['origin', 'cdn', 'bundle']
+    };
+    if (statusKey && !Object.prototype.hasOwnProperty.call(allowedStatusValues, statusKey)) {
         return res.status(400).json({ error: 'Invalid status key' });
     }
-    if (statusValue && !['none', 'true', 'false'].includes(statusValue)) {
+    if (statusKey && statusValue && !allowedStatusValues[statusKey].includes(statusValue)) {
         return res.status(400).json({ error: 'Invalid status value' });
     }
 
@@ -2268,12 +2421,15 @@ app.post('/api/update-poc-review', async (req, res) => {
 
         const entry = reviewData[hash].pocNotes[headerHash] || {
             header: headerText,
-            status: { vulnerableFunc: 'none', pocMatch: 'none', dataflow: 'none' },
+            status: { vulnerableFunc: 'none', pocMatch: 'none', dataflow: 'none', origin: 'origin' },
             note: ''
         };
 
         if (statusKey && statusValue) {
-            entry.status = entry.status || { vulnerableFunc: 'none', pocMatch: 'none', dataflow: 'none' };
+            entry.status = entry.status || { vulnerableFunc: 'none', pocMatch: 'none', dataflow: 'none', origin: 'origin' };
+            if (!entry.status.origin) {
+                entry.status.origin = 'origin';
+            }
             entry.status[statusKey] = statusValue;
         }
 
@@ -2694,110 +2850,8 @@ app.get('/api/tag-stats', async (req, res) => {
 
 app.get('/api/vuln-poc-location-mismatch', async (req, res) => {
     try {
-        const libMapping = await loadLibMapping();
-        const { sites } = await getCachedSiteData();
-        if (!sites || sites.length === 0) {
-            return res.json({ sites: [], count: 0 });
-        }
-
-        const results = [];
-        for (const site of sites) {
-            const compositeHash = site.hash;
-            if (!compositeHash || !site.originalUrl) continue;
-            if (site.domain && site.domain.toLowerCase().includes('localhost')) continue;
-            if (!site.files || !site.files.includes('vuln.out') || !site.files.includes('sink.flows.out')) {
-                continue;
-            }
-
-            const sitePath = getSitePathFromCompositeHash(compositeHash);
-            if (!sitePath) continue;
-
-            const flowFilePath = path.join(sitePath, 'sink.flows.out');
-            let flowEntries = await readFlowEntriesCache(compositeHash, flowFilePath);
-            if (!flowEntries) {
-                try {
-                    const flowContent = await cachedReadFile(flowFilePath, 'utf8');
-                    flowEntries = parseFlowEntries(flowContent);
-                    await writeFlowEntriesCache(compositeHash, flowFilePath, flowEntries);
-                } catch (e) {
-                    continue;
-                }
-            }
-
-            const vulnFilePath = path.join(sitePath, 'vuln.out');
-            let vulnContent = '';
-            try {
-                vulnContent = await cachedReadFile(vulnFilePath, 'utf8');
-            } catch (e) {
-                continue;
-            }
-
-            const libLocations = new Map();
-            vulnContent.split('\n').forEach(line => {
-                const trimmed = line.trim();
-                if (!trimmed) return;
-                try {
-                    const vulnData = JSON.parse(trimmed);
-                    const urlKey = Object.keys(vulnData)[0];
-                    const libs = vulnData[urlKey] || [];
-                    libs.forEach(lib => {
-                        const libname = normalizeToken(lib.libname);
-                        const location = String(lib.location || '').trim();
-                        if (!libname || !location) return;
-                        if (!libLocations.has(libname)) {
-                            libLocations.set(libname, new Set());
-                        }
-                        libLocations.get(libname).add(location);
-                    });
-                } catch (e) {
-                    // ignore malformed lines
-                }
-            });
-
-            if (libLocations.size === 0 || !flowEntries || flowEntries.length === 0) {
-                continue;
-            }
-
-            const mismatches = [];
-            flowEntries.forEach(entry => {
-                const libname = normalizeToken(extractLibnameFromVulnInfo(entry.vulnInfo));
-                if (!libname) return;
-                const locations = libLocations.get(libname);
-                if (!locations || locations.size === 0) return;
-
-                const funcName = entry.func || '';
-                const funcNorm = normalizeToken(funcName);
-                const aliases = (libMapping[libname] || []).map(a => normalizeToken(a));
-                const libNorm = normalizeToken(libname);
-
-                locations.forEach(location => {
-                    const locNorm = normalizeToken(location);
-                    if (!locNorm) return;
-                    const matchesMapping = aliases.includes(locNorm) || libNorm === locNorm;
-                    const matchesFunction = funcNorm === locNorm || (funcNorm && funcNorm.includes(locNorm));
-                    if (!matchesMapping && !matchesFunction) {
-                        mismatches.push({
-                            libname,
-                            location,
-                            function: funcName || '',
-                            headerHash: entry.headerHash,
-                            tags: entry.tags || []
-                        });
-                    }
-                });
-            });
-
-            if (mismatches.length > 0) {
-                results.push({
-                    hash: compositeHash,
-                    url: site.originalUrl,
-                    domain: site.domain,
-                    mismatches
-                });
-            }
-        }
-
-        res.json({ sites: results, count: results.length });
+        const result = await getVulnPocLocationMismatchCache();
+        res.json({ sites: result.sites, count: result.sites.length });
     } catch (error) {
         console.error('Error fetching vuln/POC location mismatches:', error);
         res.status(500).json({ error: 'Internal server error' });

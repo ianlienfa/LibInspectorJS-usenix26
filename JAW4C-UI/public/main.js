@@ -80,7 +80,8 @@ const pocReviewInFlight = new Set();
 const pocStatusCounts = {
     vulnerableFunc: { true: 0, false: 0 },
     pocMatch: { true: 0, false: 0 },
-    dataflow: { true: 0, false: 0 }
+    dataflow: { true: 0, false: 0 },
+    origin: { cdn: 0, bundle: 0 }
 };
 window.pocStatusCounts = pocStatusCounts;
 
@@ -347,14 +348,24 @@ function scrollToFlowEntry(hash, headerHash, fallbackLine) {
 
 function applyStatusButtonState(button, state) {
     button.dataset.state = state;
-    button.classList.remove('state-none', 'state-true', 'state-false');
+    button.classList.remove('state-none', 'state-true', 'state-false', 'state-origin', 'state-cdn', 'state-bundle');
     button.classList.add(`state-${state}`);
+    if (button.dataset.key === 'origin') {
+        const label = state === 'cdn' ? 'CDN' : state === 'bundle' ? 'Bundle' : 'Origin';
+        button.textContent = label;
+    }
 }
 
 function cycleStatusState(state) {
     if (state === 'none') return 'true';
     if (state === 'true') return 'false';
     return 'none';
+}
+
+function cycleOriginState(state) {
+    if (state === 'origin') return 'cdn';
+    if (state === 'cdn') return 'bundle';
+    return 'origin';
 }
 
 function recomputePocStatusCounts(entries) {
@@ -364,6 +375,8 @@ function recomputePocStatusCounts(entries) {
     pocStatusCounts.pocMatch.false = 0;
     pocStatusCounts.dataflow.true = 0;
     pocStatusCounts.dataflow.false = 0;
+    pocStatusCounts.origin.cdn = 0;
+    pocStatusCounts.origin.bundle = 0;
 
     entries.forEach(entry => {
         const status = entry.status || {};
@@ -374,6 +387,11 @@ function recomputePocStatusCounts(entries) {
                 pocStatusCounts[key].false += 1;
             }
         });
+        if (status.origin === 'cdn') {
+            pocStatusCounts.origin.cdn += 1;
+        } else if (status.origin === 'bundle') {
+            pocStatusCounts.origin.bundle += 1;
+        }
     });
     updateGlobalPocStatusSummary();
 }
@@ -445,7 +463,9 @@ function bindFlowSidebarHandlers(hash) {
             if (!entry) return;
 
             const key = statusBtn.dataset.key;
-            const nextState = cycleStatusState(statusBtn.dataset.state || 'none');
+            const nextState = key === 'origin'
+                ? cycleOriginState(statusBtn.dataset.state || 'origin')
+                : cycleStatusState(statusBtn.dataset.state || 'none');
             applyStatusButtonState(statusBtn, nextState);
             entry.status = entry.status || {};
             entry.status[key] = nextState;
@@ -533,6 +553,7 @@ function renderFlowSidebar(hash) {
                     <button class="flow-toggle state-none" data-key="vulnerableFunc" type="button">Vulnerable func</button>
                     <button class="flow-toggle state-none" data-key="pocMatch" type="button">POC match</button>
                     <button class="flow-toggle state-none" data-key="dataflow" type="button">Dataflow</button>
+                    <button class="flow-toggle state-origin" data-key="origin" type="button">Origin</button>
                 </div>
                 <textarea class="flow-note" placeholder="Add note...">${escapeHtml(entry.note || '')}</textarea>
             </div>
@@ -544,13 +565,13 @@ function renderFlowSidebar(hash) {
         const entryEl = sidebar.querySelector(`.flow-entry[data-header-hash="${entry.headerHash}"]`);
         if (!entryEl) return;
 
-        const status = entry.status || {};
-        entryEl.querySelectorAll('.flow-toggle').forEach(button => {
-            const key = button.dataset.key;
-            const state = status[key] || 'none';
-            applyStatusButtonState(button, state);
+            const status = entry.status || {};
+            entryEl.querySelectorAll('.flow-toggle').forEach(button => {
+                const key = button.dataset.key;
+                const state = key === 'origin' ? (status.origin || 'origin') : (status[key] || 'none');
+                applyStatusButtonState(button, state);
+            });
         });
-    });
 }
 
 async function updatePocReview(hash, entry, updates) {
@@ -618,6 +639,16 @@ function updateGlobalPocStatusSummary() {
         const counts = pocStatusCounts[key];
         el.textContent = formatRateLine(counts.true, counts.false);
     });
+
+    const originEl = document.getElementById('poc-status-origin');
+    if (originEl) {
+        const cdn = pocStatusCounts.origin.cdn;
+        const bundle = pocStatusCounts.origin.bundle;
+        const total = cdn + bundle;
+        const cdnRate = total ? Math.round((cdn / total) * 100) : 0;
+        const bundleRate = total ? Math.round((bundle / total) * 100) : 0;
+        originEl.textContent = `cdn: ${cdn} (${cdnRate}%) | bundle: ${bundle} (${bundleRate}%)`;
+    }
 }
 
 async function toggleView(hash) {
@@ -806,6 +837,7 @@ function clearSelections() {
     document.getElementById('filter-unreviewed').checked = false;
     document.getElementById('filter-vulnerable').checked = false;
     document.getElementById('filter-has-notes').checked = false;
+    document.getElementById('filter-vuln-poc-mismatch').checked = false;
     document.getElementById('search-input').value = '';
     document.getElementById('time-start').value = '';
     document.getElementById('time-end').value = '';
@@ -2029,6 +2061,9 @@ function buildQueryParams() {
     if (document.getElementById('filter-has-notes')?.checked) {
         params.set('hasNotes', 'true');
     }
+    if (document.getElementById('filter-vuln-poc-mismatch')?.checked) {
+        params.set('vulnPocLocationMismatch', 'true');
+    }
 
     if (currentRangeMode === 'hash') {
         const hashStart = document.getElementById('hash-start')?.value?.trim();
@@ -2267,6 +2302,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     pocStatusCounts[key].false = summary.counts[key].false || 0;
                 }
             });
+            if (summary.counts.origin) {
+                pocStatusCounts.origin.cdn = summary.counts.origin.cdn || 0;
+                pocStatusCounts.origin.bundle = summary.counts.origin.bundle || 0;
+            }
             updateGlobalPocStatusSummary();
         })
         .catch(error => console.error('Error loading POC status summary:', error));
