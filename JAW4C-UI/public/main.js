@@ -270,6 +270,9 @@ async function loadFile(hash, file) {
         if (data.type === 'html' && data.hasTableView) {
             // For HTML table views, use innerHTML
             codeEl.innerHTML = data.content;
+            if (file === 'vuln.out') {
+                initVulnMismatchFilter(hash);
+            }
         } else {
             // For code files, display as text
             codeEl.textContent = data.content;
@@ -302,6 +305,54 @@ function resetFlowReviewUI(hash) {
     sidebar.style.display = 'none';
     sidebar.innerHTML = '';
     delete flowEntriesCache[hash];
+}
+
+async function initVulnMismatchFilter(hash) {
+    const contentEl = document.getElementById(`content-${hash}`);
+    if (!contentEl) return;
+    const toggle = contentEl.querySelector('.vuln-mismatch-toggle');
+    if (!toggle || toggle.dataset.bound === 'true') return;
+    toggle.dataset.bound = 'true';
+
+    const globalMismatchFilter = document.getElementById('filter-vuln-poc-mismatch');
+    if (globalMismatchFilter?.checked) {
+        toggle.checked = true;
+    }
+
+    let mismatchSet = null;
+    const loadMismatchSet = async () => {
+        if (mismatchSet) return mismatchSet;
+        try {
+            const response = await fetch(`/api/vuln-poc-location-mismatch?hash=${encodeURIComponent(hash)}`);
+            if (!response.ok) return new Set();
+            const data = await response.json();
+            const mismatches = data?.site?.mismatches || [];
+            mismatchSet = new Set(
+                mismatches.map(m => `${String(m.libname || '').toLowerCase()}|${String(m.location || '').toLowerCase()}`)
+            );
+        } catch (e) {
+            mismatchSet = new Set();
+        }
+        return mismatchSet;
+    };
+
+    const applyFilter = async () => {
+        const blocks = contentEl.querySelectorAll('.vuln-lib-block');
+        if (!toggle.checked) {
+            blocks.forEach(block => { block.style.display = ''; });
+            return;
+        }
+        const set = await loadMismatchSet();
+        blocks.forEach(block => {
+            const lib = String(block.dataset.libname || '').toLowerCase();
+            const loc = String(block.dataset.location || '').toLowerCase();
+            const key = `${lib}|${loc}`;
+            block.style.display = set.has(key) ? '' : 'none';
+        });
+    };
+
+    toggle.addEventListener('change', applyFilter);
+    applyFilter();
 }
 
 function scrollToFlowLine(hash, line) {

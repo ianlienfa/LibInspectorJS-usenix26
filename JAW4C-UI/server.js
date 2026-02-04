@@ -1069,6 +1069,11 @@ function formatLibDetectionTable(data) {
 
 function formatVulnTable(text) {
     let html = '<div class="table-view">';
+    html += '<div class="vuln-filter-bar">';
+    html += '<label class="vuln-filter-toggle">';
+    html += '<input type="checkbox" class="vuln-mismatch-toggle"> Mismatch only';
+    html += '</label>';
+    html += '</div>';
 
     try {
         const lines = text.trim().split('\n');
@@ -1090,6 +1095,7 @@ function formatVulnTable(text) {
                             const location = lib.location || 'N/A';
                             const vulns = lib.vuln || [];
 
+                            html += `<div class="vuln-lib-block" data-libname="${escapeHtml(libname)}" data-location="${escapeHtml(location)}">`;
                             html += `<h5>Library: ${escapeHtml(libname)} v${escapeHtml(version)} (Location: ${escapeHtml(location)})</h5>`;
 
                             if (vulns.length > 0) {
@@ -1120,6 +1126,7 @@ function formatVulnTable(text) {
                             } else {
                                 html += '<p class="no-vulnerabilities">No vulnerabilities found for this library</p>';
                             }
+                            html += '</div>';
                         });
                     } else {
                         html += '<p class="no-vulnerabilities">No vulnerabilities found</p>';
@@ -2851,6 +2858,11 @@ app.get('/api/tag-stats', async (req, res) => {
 app.get('/api/vuln-poc-location-mismatch', async (req, res) => {
     try {
         const result = await getVulnPocLocationMismatchCache();
+        const { hash } = req.query;
+        if (hash) {
+            const site = result.sites.find(entry => entry.hash === hash);
+            return res.json({ site: site || null });
+        }
         res.json({ sites: result.sites, count: result.sites.length });
     } catch (error) {
         console.error('Error fetching vuln/POC location mismatches:', error);
