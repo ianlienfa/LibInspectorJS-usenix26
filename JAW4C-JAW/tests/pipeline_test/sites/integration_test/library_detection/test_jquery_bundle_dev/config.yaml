@@ -2,7 +2,7 @@ testbed:
   site: http://localhost:3000/integration_test/library_detection/test_jquery_bundle_dev
   archive:
     enable: false
-    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
+    mappinglist: /home/xxxx/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
   from_row: 11
   to_row: end
 crawler:
@@ -12,8 +12,8 @@ crawler:
   overwrite: true
   domain_health_check: false
   puppeteer:
-    disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
-    load-extension: /home/ian/JAW4C/JAW4C-PTV
+    disable-extensions-except: /home/xxxx/JAW4C/JAW4C-PTV
+    load-extension: /home/xxxx/JAW4C/JAW4C-PTV
     proxy-server: 127.0.0.1:8002
     ignore-certificate-errors: true
     disk-cache-dir: /dev/null
@@ -22,7 +22,7 @@ crawler:
     name: firefox
     headless: true
     foxhound: true
-    foxhoundpath: /home/ian/project-foxhound/obj-tf-release/dist/bin/foxhound
+    foxhoundpath: /home/xxxx/project-foxhound/obj-tf-release/dist/bin/foxhound
   lib_detection:
     enable: true
     detection_timeout: 60

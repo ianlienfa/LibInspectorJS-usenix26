@@ -20,7 +20,7 @@ if not os.path.exists(LOG_FOLDER):
     os.makedirs(LOG_FOLDER)
     logger.info(f"Folder '{LOG_FOLDER}' created successfully.")
 
-service = Service(executable_path="/Users/ian/Downloads/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/chromedriver")
+service = Service(executable_path="/Users/xxxx/Downloads/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/chromedriver")
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--disable-dev-shm-usage")

@@ -7,10 +7,10 @@ testbed:
   # sitelist: /input/tranco_Z2QWG_unique.csv
   archive: 
     enable: true
-    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_jan5_rank0_18100_norep_0/name_mapping.json
-    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
-    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
-    # mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
+    # mappinglist: /home/xxxx/JAW4C/JAW4C-WebArchive/archive/archive_2026_jan5_rank0_18100_norep_0/name_mapping.json
+    mappinglist: /home/xxxx/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json    
+    # mappinglist: /home/xxxx/JAW4C/JAW4C-WebArchive/archive/archive-dec24/name_mapping.json
+    # mappinglist: /home/xxxx/JAW4C/JAW4C-WebArchive/archive/archive_2026_0101_run2/name_mapping.json
   # Option A: Continuous range (from_row to to_row)
   from_row: 2544  #2936 the debugging site
   to_row: 2544 # 2936 # row number or 'end'
@@ -19,7 +19,7 @@ testbed:
   # Specify a list of specific row indices to process
   # row_indices: [2981, 2960, 2952, 2944, 2936, 2935, 2928, 2898]
 
-  # site_list: /home/ian/JAW4C/JAW4C-JAW/vuln_urls.json
+  # site_list: /home/xxxx/JAW4C/JAW4C-JAW/vuln_urls.json
 
 
 # 2. crawler configuration
@@ -36,8 +36,8 @@ crawler:
   domain_health_check: false
   # puppeteer additional args
   puppeteer:    
-    disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
-    load-extension: /home/ian/JAW4C/JAW4C-PTV
+    disable-extensions-except: /home/xxxx/JAW4C/JAW4C-PTV
+    load-extension: /home/xxxx/JAW4C/JAW4C-PTV
     proxy-server: 127.0.0.1:8002
     ignore-certificate-errors: true
     disk-cache-dir: /dev/null
@@ -55,7 +55,7 @@ crawler:
     headless: true
     # use foxhound if firefox is enabled (default is true)
     foxhound: true
-    foxhoundpath: /home/ian/project-foxhound/obj-tf-release/dist/bin/foxhound
+    foxhoundpath: /home/xxxx/project-foxhound/obj-tf-release/dist/bin/foxhound
     
   lib_detection:
     enable: true

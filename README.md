@@ -67,4 +67,5 @@ docker exec artifact-logic-1 sh -c "cd tests/pipeline_test && python3 test_run.p
 
 # Anonymous Submission notes
 Since this paper uses publicly available tools, including 
-JAW(https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/SoheilKhodayari/JAW&ved=2ahUKEwiZvvTemMOSAxXwFVkFHZ8sPKgQFnoECB0QAQ&usg=AOvVaw3xduNS2xjJY2tBwfcttOwb), PTV(https://github.com/aaronxyliu/PTV), DEBUN(https://github.com/ku-plrg/debun-ase25). There are some segment in code that includes copyright notices. We have added comments enclosing those parts to avoid any issues with anonymous submission.
+JAW(https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/SoheilKhodayari/JAW&ved=2ahUKEwiZvvTemMOSAxXwFVkFHZ8sPKgQFnoECB0QAQ&usg=AOvVaw3xduNS2xjJY2tBwfcttOwb), PTV(https://github.com/aaronxyliu/PTV), DEBUN(https://github.com/ku-plrg/debun-ase25). 
+There are some segment in code that includes copyright notices. We've anoymized those parts for the purpose of review process but would restore them once the whole process is done.

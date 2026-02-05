@@ -119,7 +119,7 @@ node get_range_helper.js --verify static_query/test_initial_decl_cfg/0.js testOb
 
 ### Step 1: Create test JavaScript file
 ```bash
-cd /home/ian/JAW4C/JAW4C-JAW/tests/pipeline_test/sites/unit_test
+cd /home/xxxx/JAW4C/JAW4C-JAW/tests/pipeline_test/sites/unit_test
 cat > static_query/test_example/0.js << 'EOF'
 var testObj = 3;
 var temp = testObj + 3;

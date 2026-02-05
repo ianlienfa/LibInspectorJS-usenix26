@@ -8,10 +8,10 @@ const { tree } = require('d3');
 const { forEach } = require('lodash');
 const { start } = require('repl');
 
-const detectorLibraryPath = '//home/ian/JAW4C/JAW4C-PTV/data/libraries.json';
-const libDataPath = '/Users/ian/cmu/Cylab-JSBundle/PTdetector-feature-gen/static/libs_data';
-const PTVExtensionPath = '/Users/ian/cmu/Cylab-JSBundle/Bundle-PTV'
-const PTVOriginalExtensionPath = '~/cmu/Cylab-JSBundle/PTV';
+// const detectorLibraryPath = '//home/xxxx/JAW4C/JAW4C-PTV/data/libraries.json';
+// const libDataPath = '/Users/xxxx/yyyy/zzzz-JSBundle/PTdetector-feature-gen/static/libs_data';
+// const PTVExtensionPath = '/Users/xxxx/yyyy/zzzz-JSBundle/Bundle-PTV'
+// const PTVOriginalExtensionPath = '~/yyyy/zzzz-JSBundle/PTV';
 const app_py_base_url = "http://127.0.0.1:6548/test"
 
 

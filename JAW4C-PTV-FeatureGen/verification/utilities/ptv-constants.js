@@ -1,9 +1,9 @@
-const PTdetectorExtensionPath = '~/cmu/Cylab-JSBundle/PTdetector';
+const PTdetectorExtensionPath = '~/yyyy/zzzz-JSBundle/PTdetector';
 const PTdetectorExtensionId = 'mgmamlecpkakbphhnfciemcofnmdaakg';
-const PTVExtensionPath = '~/cmu/Cylab-JSBundle/Bundle-PTV';
-const PTVOriginalExtensionPath = '~/cmu/Cylab-JSBundle/PTV';
+const PTVExtensionPath = '~/yyyy/zzzz-JSBundle/Bundle-PTV';
+const PTVOriginalExtensionPath = '~/yyyy/zzzz-JSBundle/PTV';
 const ProxyServerPath = '127.0.0.1:8002';
-const JAWPath = "/Users/ian/cmu/Cylab-JSBundle/JAW"
+const JAWPath = "/Users/xxxx/yyyy/zzzz-JSBundle/JAW"
 
 const PTVPuppeteerLaunchConfig = {
   headless: true, // Extensions won't work in headless mode

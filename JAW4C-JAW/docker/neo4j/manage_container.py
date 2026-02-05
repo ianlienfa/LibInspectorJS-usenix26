@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-	Copyright (C) 2021  Soheil Khodayari, CISPA
+	Copyright (C) 2021  SSSSSSSSSSSSS, CCCC
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
@@ -124,7 +124,6 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 		volume_home: Docker volume home directory (default: VOLUME_HOME)
 
 	Note: For unit tests, data_import_path should be the full path to the test directory
-		  (e.g., /home/ian/JAW4C/JAW4C-JAW/tests/pipeline_test/sites/unit_test/static_query/test_name)
 	"""
 	if not os.path.exists(volume_home):
 		os.makedirs(volume_home)

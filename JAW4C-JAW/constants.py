@@ -1,6 +1,6 @@
 
 """
-	Copyright (C) 2020  Soheil Khodayari, CISPA
+	Copyright (C) 2020  SSSSSSSSSSSSS, CCCC
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
@@ -96,9 +96,9 @@ CURRENT_PLATFORM = PLATFORMS["MAC_OS_X"]
 # 	NEO4J_CONF = "/etc/neo4j/neo4j.conf"
 # 	NEO4J_DB_PATH = "/var/lib/neo4j/data/databases"
 
-NEO4J_HOME = "/Users/ian/cmu/Cylab-JSBundle/neo4j-community-4.4.44"
-NEO4J_CONF = "/Users/ian/cmu/Cylab-JSBundle/neo4j-community-4.4.44/conf/neo4j.conf"
-NEO4J_DB_PATH = "/Users/ian/cmu/Cylab-JSBundle/neo4j-community-4.4.44/data/databases"
+NEO4J_HOME = "/Users/xxxx/yyyy/zzzz-JSBundle/neo4j-community-4.4.44"
+NEO4J_CONF = "/Users/xxxx/yyyy/zzzz-JSBundle/neo4j-community-4.4.44/conf/neo4j.conf"
+NEO4J_DB_PATH = "/Users/xxxx/yyyy/zzzz-JSBundle/neo4j-community-4.4.44/data/databases"
 
 
 # ------------------------------------------------------------------------------------------ #

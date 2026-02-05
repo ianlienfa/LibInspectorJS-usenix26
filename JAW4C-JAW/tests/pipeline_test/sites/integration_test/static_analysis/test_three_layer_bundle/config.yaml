@@ -1,7 +1,7 @@
 testbed:
   archive:
     enable: true
-    mappinglist: /home/ian/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
+    mappinglist: /home/xxxx/JAW4C/JAW4C-WebArchive/archive/archive-70/name_mapping.json
   from_row: 2302
   to_row: end
   site: http://localhost:3000/integration_test/static_analysis/test_three_layer_bundle
@@ -12,8 +12,8 @@ crawler:
   overwrite: true
   domain_health_check: false
   puppeteer:
-    disable-extensions-except: /home/ian/JAW4C/JAW4C-PTV
-    load-extension: /home/ian/JAW4C/JAW4C-PTV
+    disable-extensions-except: /home/xxxx/JAW4C/JAW4C-PTV
+    load-extension: /home/xxxx/JAW4C/JAW4C-PTV
     ignore-certificate-errors: true
     disk-cache-dir: /dev/null
     disk-cache-size: 1
@@ -23,7 +23,7 @@ crawler:
     name: firefox
     headless: true
     foxhound: true
-    foxhoundpath: /home/ian/project-foxhound/obj-tf-release/dist/bin/foxhound
+    foxhoundpath: /home/xxxx/project-foxhound/obj-tf-release/dist/bin/foxhound
   lib_detection:
     enable: false
     detection_timeout: 60

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-	Copyright (C) 2020  Soheil Khodayari, CISPA
+	Copyright (C) 2020  SSSSSSSSSSSSS, CCCC
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
@@ -3023,11 +3023,11 @@ def processPayloadStringAndRelationships(tx, vuln_info, top_statement_node):
 
 
 # 		# path to store the general template file for WIN.LOC dependencies of all URLs			
-# 		general_template_output_path = utilityModule.get_directory_without_last_part("/home/ian/BundlerResearch/JAW4C-JAW/data/test_program".rstrip('/'))
+# 		general_template_output_path = utilityModule.get_directory_without_last_part("/home/xxxx/BundlerResearch/JAW4C-JAW/data/test_program".rstrip('/'))
 # 		general_template_output_pathname = os.path.join(general_template_output_path, "sinks.flows.out")
 
 # 		# path to store all templates of the current URL
-# 		template_output_pathname = os.path.join("/home/ian/BundlerResearch/JAW4C-JAW/data/test_program", "sink.flows.out")
+# 		template_output_pathname = os.path.join("/home/xxxx/BundlerResearch/JAW4C-JAW/data/test_program", "sink.flows.out")
 # 		with open(general_template_output_pathname, 'a+') as gt_fd:
 # 			with open(template_output_pathname, "w+") as fd:
 # 				timestamp = _get_current_timestamp()

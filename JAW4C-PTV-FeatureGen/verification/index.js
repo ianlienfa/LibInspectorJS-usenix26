@@ -302,8 +302,8 @@ const PTVOriginal = async (url, PTVPuppeteerLaunchConfig, crawlJs=true) => {
 };
 
 
-async function archive_detection(start=0, end = undefined, mapping_path="/Users/ian/cmu/Cylab-JSBundle/jalangi2/archive-70/name_mapping.json"){
-  // mapping_path = "/Users/ian/cmu/Cylab-JSBundle/jalangi2/archive-70/name_mapping.json"
+async function archive_detection(start=0, end = undefined, mapping_path="/Users/xxxx/yyyy/zzzz-JSBundle/jalangi2/archive-70/name_mapping.json"){
+  // mapping_path = "/Users/xxxx/yyyy/zzzz-JSBundle/jalangi2/archive-70/name_mapping.json"
   const mapping = JSON.parse(fs.readFileSync(mapping_path))
   for(i = start; i < ((end) ? end : Object.keys(mapping).length); i++){
     logger.debug(`Archive Id: ${i}`)

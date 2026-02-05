@@ -13,11 +13,11 @@ const {PTV, PTVOriginal} = require('../index.js');
 done
 */
 
-const detectorLibraryPath = '/Users/ian/cmu/Cylab-JSBundle/Bundle-PTV/data/libraries.json';
-const libDataPath = '/Users/ian/cmu/Cylab-JSBundle/PTdetector-feature-gen/static/libs_data';
+const detectorLibraryPath = '/Users/xxxx/yyyy/zzzz-JSBundle/Bundle-PTV/data/libraries.json';
+const libDataPath = '/Users/xxxx/yyyy/zzzz-JSBundle/PTdetector-feature-gen/static/libs_data';
 const versionDataPath = '../logs/versions';
-const PTVExtensionPath = '/Users/ian/cmu/Cylab-JSBundle/Bundle-PTV'
-const PTVOriginalExtensionPath = '~/cmu/Cylab-JSBundle/PTV';
+const PTVExtensionPath = '/Users/xxxx/yyyy/zzzz-JSBundle/Bundle-PTV'
+const PTVOriginalExtensionPath = '~/yyyy/zzzz-JSBundle/PTV';
 
 // THREAD-SAFE REPLACEMENT: Multiple server URLs instead of single URL
 const app_py_base_urls = [
