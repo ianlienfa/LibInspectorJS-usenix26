@@ -11,7 +11,7 @@ import json
 connection = MySQLdb.connect(
   host= 'us-east.connect.psdb.cloud',
   user='yain51suytl8vm1cm4b2',
-  passwd= 'pscale_pw_pEiVDtydTJqIpuJ68NRKenF0ncp6jjYipJkfxFDIHDN',
+  passwd= 'YOURPASSWORD',
   db= 'js-lib-detect-trees',
   ssl_mode = "VERIFY_IDENTITY",
   ssl      = {

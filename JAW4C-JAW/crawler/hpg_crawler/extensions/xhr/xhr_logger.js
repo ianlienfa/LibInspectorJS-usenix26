@@ -65,7 +65,7 @@ function createDataElement(details, exchange_token){
 /* @USAGE: capture formData or posted xhr calls*/
 /* @ExampleFormat: these are key:values sent as formData to the server
  * includeBlocks: (2) ["LEGACY_CHAT_BLOCKS", "USER_TO_USER"]
- * key: ["AIzaSyD7InnYR3VKdb4j2rMUEbTCIr2VyEazl6k"]
+ * key: ["YOURKEY"]
  * personExpansion: ["ID_AND_NAME_ONLY"]
  * requestMask.includeField.paths: (2) ["person.metadata", "person.name"]
  */

@@ -8,12 +8,12 @@ import json
 import time
 
 # Github API rate limit: 5000/hr
-GITHUB_TOKEN = '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'
+GITHUB_TOKEN = '<YOUR GITHUB_TOKEN>'
 
 connection = MySQLdb.connect(
   host= 'us-east.connect.psdb.cloud',
   user='yain51suytl8vm1cm4b2',
-  passwd= 'pscale_pw_pEiVDtydTJqIpuJ68NRKenF0ncp6jjYipJkfxFDIHDN',
+  passwd= 'YOURPASSWORD',
   db= 'js-lib-detect-trees',
   ssl_mode = "VERIFY_IDENTITY",
   ssl      = {

@@ -9,12 +9,12 @@ import time
 
 # Github API rate limit: 5000/hr
 # Token generation: https://github.com/settings/tokens
-GITHUB_TOKEN = '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'
+GITHUB_TOKEN = 'YOURGITHUBTOKEN'
 
 connection = MySQLdb.connect(
   host= 'us-east.connect.psdb.cloud',
   user='yain51suytl8vm1cm4b2',
-  passwd= 'pscale_pw_pEiVDtydTJqIpuJ68NRKenF0ncp6jjYipJkfxFDIHDN',
+  passwd= 'YOURPASSWORD',
   db= 'js-lib-detect-trees',
   ssl_mode = "VERIFY_IDENTITY",
   ssl      = {
