@@ -419,14 +419,8 @@ def get_base_and_data_paths():
 		shell=True,
 		text=True
 	).strip()
-	data_path = subprocess.check_output(
-		"docker inspect $HOSTNAME --format '{{range .Mounts}}{{if eq .Destination \"/JAW4C/JAW4C-JAW/data\"}}{{.Source}}{{end}}{{end}}'",
-		shell=True,
-		text=True
-	).strip()
-
+	data_path = base_path + '/JAW4C/JAW4C-JAW/data'
 	return base_path, data_path
-
 #### Tests
 
 def _test_import():

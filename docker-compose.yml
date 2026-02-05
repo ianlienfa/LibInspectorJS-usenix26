@@ -7,15 +7,15 @@ networks:
 services:
   logic:
     build: .
-    image: jaw-logic
+    image: jaw-logic-artifact
     # container_name: jaw4c-logic    
     volumes:
       # Mount data to nms
-      - /home/enyenl/JAW4C:/JAW4C
-      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
-      - /home/enyenl/nms/jan27-jaw4c-analysis/10_all:/JAW4C/JAW4C-JAW/data
+      - ./:/JAW4C
+      #- /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
+      - ./JAW4C/JAW4C-JAW/data:/JAW4C/JAW4C-JAW/data
       # Foxhound
-      - /home/enyenl/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
+      # - /home/enyenl/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
       # Docker socket for Docker-in-Docker (DinD)
       - /var/run/docker.sock:/var/run/docker.sock
       # node_modules (anonymous volumes for faster rebuilds)
@@ -50,7 +50,7 @@ services:
     #   HTTP_PROXY: http://proxy:8002
     #   HTTPS_PROXY: http://proxy:8002
     environment:
-      - WORKER_NAME=worker4
+      - WORKER_NAME=artifact
     networks:
       - jaw-network
     depends_on:
@@ -63,8 +63,9 @@ services:
         reservations:
           memory: 6g
     command: >
-      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_10_nodejs2_4.yaml"
-# sh -c "while [ 1 ]; do echo '' > /dev/null; done"
+      sh -c "while [ 1 ]; do echo '' > /dev/null; done"      
+
+# sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_10_nodejs2_4.yaml"
 # sh -c "python3 -m run_pipeline --conf=config_docker_01_onr_1.yaml"
 # sh -c "cd tests/pipeline_test && python3 test_run.py --action analysis --test integration_test/static_analysis/test_jq_CVE-2020-7656 --config=/JAW4C/JAW4C-JAW/config_docker.yaml"
 

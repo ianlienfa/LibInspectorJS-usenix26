@@ -1,15 +1,31 @@
-# Setup this directory
+# You Import, They Exploit: Measuring JavaScript Library Exploitability on the Web
 
-1. Setup different modules respectively
-    ```
-    cd JAW4C-JAW && ./install.sh    
-    ```
+This artifact evaluates LibInspectorJS, a scalable pipeline that measures the vulnerable library functions and exploitability on the web. 
+
+
+# Overview
+
+JavaScript libraries such as jQuery and Lodash are a core
+component of the modern web development stack. However,
+prior work has shown that websites frequently rely on out-
+dated libraries, many of which contain publicly known vul-
+nerabilities. LibInspectorJS is a end-to-end pipeline that: (i) detects
+vulnerable libraries, including in bundled code, by lifting
+and analyzing them for identifying features; (ii) pinpoints
+exploitable functions using a new tag-tainting algorithm to
+match non-standard sinks; and (iii) evaluates exploitability
+through automated data-flow analysis from user-controlled in-
+puts.
+
 
 # Running the full pipeline (including setting up DB/archive)
 ```
-source ./env.sh -d
+docker compose -p 'artifact' up --build
 ```
-This should be executed in the JAW4C-JAW directory, it will set up the python environment and the required docker services 
+This should be executed in the JAW4C directory, it will set up the python environment and the required docker services 
+
+Once the docker services are up, you can control the pipeline execution by exec into the logic container
+
 ```
 python3 -m run_pipeline --conf=config.yaml
 ```
