@@ -2754,6 +2754,7 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                     const libData = JSON.parse(libContent);
                     let siteHasDetections = false;
                     let siteLibCount = 0;
+                    const siteSeenLibs = new Set(); // Track unique libs per site
 
                     const allowedMethods = new Set(['DEBUN', 'PTV-Original']);
 
@@ -2774,9 +2775,13 @@ app.get('/api/lib-detection-stats', async (req, res) => {
                                 flatDetections.forEach(lib => {
                                     if (!lib || !lib.libname) return;
 
-                                    totalDetectedLibs++;
-                                    siteLibCount++;
                                     const libname = lib.libname;
+                                    // Only count each library once per site
+                                    if (!siteSeenLibs.has(libname)) {
+                                        siteSeenLibs.add(libname);
+                                        totalDetectedLibs++;
+                                        siteLibCount++;
+                                    }
                                     const version = lib.version || 'unknown';
 
                                     // Count libraries
@@ -3063,16 +3068,27 @@ app.get('/api/vuln-stats', async (req, res) => {
                                 const urlKey = Object.keys(vulnData)[0];
                                 const libraries = vulnData[urlKey];
 
+                                libSet = new Set();
+                                libversionSet = new Set();
+
                                 if (Array.isArray(libraries) && libraries.length > 0) {
                                     siteHasVulns = true;
                                     libraries.forEach(lib => {
-                                        totalVulnLibs++;
                                         const libname = lib.libname || 'unknown';
-                                        const version = lib.version || 'unknown';
-
-                                        // Count libraries
-                                        libCounts[libname] = (libCounts[libname] || 0) + 1;
-
+                                        const version = lib.version || 'unknown';                                        
+                                        if(libversionSet.has(`${libname}@@${version}`)){
+                                            console.log(`Skipping duplicate vuln lib ${libname} v${version} for site ${hash}`);
+                                            return;
+                                        }
+                                        if(!libSet.has(libname)){
+                                            libSet.add(libname);
+                                            // Count libraries
+                                            libCounts[libname] = (libCounts[libname] || 0) + 1;
+                                            totalVulnLibs++;  
+                                        }
+                                        libversionSet.add(`${libname}@@${version}`);
+                                        libSet.add(libname);                                        
+                                                                              
                                         // Count versions
                                         const libVersion = `${libname} v${version}`;
                                         versions[libVersion] = (versions[libVersion] || 0) + 1;
