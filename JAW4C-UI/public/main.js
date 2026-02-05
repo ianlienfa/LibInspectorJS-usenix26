@@ -1981,6 +1981,15 @@ function createSiteItemHTML(site) {
         </p>
     ` : '';
 
+    const flowVulnTypesHTML = Object.keys(site.flowVulnTypes || {}).length > 0 ? `
+        <p><strong>Flow Vuln Types:</strong>
+            ${Object.entries(site.flowVulnTypes)
+                .sort((a, b) => b[1] - a[1])
+                .map(([type, count]) => `${escapeHtml(type)}: ${count}`)
+                .join(', ')}
+        </p>
+    ` : '';
+
     return `
         <div class="site-item"
              data-modified-time="${site.modifiedTime}"
@@ -2024,6 +2033,7 @@ function createSiteItemHTML(site) {
                 <p><strong>URL:</strong> <a href="${escapeHtml(site.originalUrl)}" target="_blank">${escapeHtml(site.originalUrl)}</a></p>
                 <p><strong>Hash:</strong> ${escapeHtml(site.hash)}</p>
                 ${tagCountsHTML}
+                ${flowVulnTypesHTML}
                 <div class="review-section">
                     <label class="review-checkbox">
                         <input type="checkbox" ${reviewCheckbox} onchange="updateReview('${site.hash}', 'reviewed', this.checked)">

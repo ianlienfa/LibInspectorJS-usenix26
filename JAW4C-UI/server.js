@@ -824,6 +824,61 @@ function normalizePocFunctionName(value) {
     return base.replace(/\([^)]*\)$/, '');
 }
 
+function buildVulnPocTypeMap(vulnContent) {
+    const map = new Map(); // poc string -> Set(types)
+    if (!vulnContent || !vulnContent.trim()) return map;
+    vulnContent.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        try {
+            const vulnData = JSON.parse(trimmed);
+            const urlKey = Object.keys(vulnData)[0];
+            const libs = vulnData[urlKey] || [];
+            libs.forEach(lib => {
+                if (!Array.isArray(lib.vuln)) return;
+                lib.vuln.forEach(v => {
+                    const poc = v && v.poc ? String(v.poc).trim() : '';
+                    const vulnType = v && v.vulnerability_type ? String(v.vulnerability_type).trim() : '';
+                    if (!poc || !vulnType) return;
+                    if (!map.has(poc)) map.set(poc, new Set());
+                    map.get(poc).add(vulnType);
+                });
+            });
+        } catch (e) {
+            // ignore malformed lines
+        }
+    });
+    return map;
+}
+
+function extractPocStrFromVulnInfo(vulnInfo) {
+    if (!vulnInfo) return '';
+    try {
+        const parsed = JSON.parse(vulnInfo);
+        if (parsed && parsed.poc_str) return String(parsed.poc_str).trim();
+    } catch (e) {
+        // ignore JSON parse
+    }
+    const match = String(vulnInfo).match(/poc_str\"\s*:\s*\"([^\"]+)\"/);
+    return match ? match[1].trim() : '';
+}
+
+function computeFlowVulnTypesFromEntries(entries, vulnPocTypeMap) {
+    const types = {};
+    if (!entries || entries.length === 0 || !vulnPocTypeMap || vulnPocTypeMap.size === 0) return types;
+    const seen = new Set();
+    entries.forEach(entry => {
+        const pocStr = extractPocStrFromVulnInfo(entry.vulnInfo);
+        if (!pocStr || !vulnPocTypeMap.has(pocStr)) return;
+        if (seen.has(pocStr)) return;
+        seen.add(pocStr);
+        vulnPocTypeMap.get(pocStr).forEach(type => {
+            types[type] = (types[type] || 0) + 1;
+        });
+    });
+    return types;
+}
+
 function buildVulnPocFunctionMap(vulnContent) {
     const map = new Map(); // funcName -> libname
     if (!vulnContent || !vulnContent.trim()) return map;
@@ -1502,6 +1557,7 @@ async function getSiteData() {
 
             const vulnContent = fileContents.get(`${compositeHash}:vuln`);
             const vulnPocFunctionMap = buildVulnPocFunctionMap(vulnContent);
+            const vulnPocTypeMap = buildVulnPocTypeMap(vulnContent);
 
             // Process flows
             const flowsStart = Date.now();
@@ -1516,6 +1572,8 @@ async function getSiteData() {
             const flowPocFunctions = {};
             const flowPocSourceUrls = {};
             const flowPocSourceFiles = {};
+            const flowVulnTypes = {};
+            const flowVulnPocSeen = new Set();
             const flowsContent = fileContents.get(`${compositeHash}:flows`);
             if (flowsContent) {
                 const flowFilePath = path.join(sitePath, 'sink.flows.out');
@@ -1533,6 +1591,11 @@ async function getSiteData() {
                     Object.assign(flowPocFunctions, cachedSummary.flowPocFunctions || {});
                     Object.assign(flowPocSourceUrls, cachedSummary.flowPocSourceUrls || {});
                     Object.assign(flowPocSourceFiles, cachedSummary.flowPocSourceFiles || {});
+                    if (vulnPocTypeMap.size > 0 && cachedEntries) {
+                        Object.assign(flowVulnTypes, computeFlowVulnTypesFromEntries(cachedEntries, vulnPocTypeMap));
+                    } else {
+                        Object.assign(flowVulnTypes, cachedSummary.flowVulnTypes || {});
+                    }
                     if (vulnPocFunctionMap.size > 0) {
                         const remapFunctions = (map) => {
                             const next = {};
@@ -1555,6 +1618,22 @@ async function getSiteData() {
                         Object.assign(pocFunctions, remappedPoc);
                         Object.assign(flowPocFunctions, remappedFlowPoc);
                     }
+                    if (vulnPocTypeMap.size > 0 && cachedEntries) {
+                        await writeFlowSummaryCache(compositeHash, flowFilePath, {
+                            hasFlows,
+                            pocMatches,
+                            allFlowsCount,
+                            tagCounts,
+                            pocFunctions,
+                            pocSourceUrls,
+                            pocSourceFiles,
+                            flowPocCount,
+                            flowPocFunctions,
+                            flowPocSourceUrls,
+                            flowPocSourceFiles,
+                            flowVulnTypes
+                        });
+                    }
                     timings.flows = Date.now() - flowsStart;
                 }
 
@@ -1563,6 +1642,7 @@ async function getSiteData() {
                 } else if (!cachedSummary) {
                 // Split flows by the separator pattern and filter out NON-REACH flows
                 const flowEntries = flowsContent.split(/(?=\[\*\] Tags:)/);
+                let parsedEntries = null;
 
                 // Count tags from all flow entries
                 flowEntries.forEach(entry => {
@@ -1604,6 +1684,15 @@ async function getSiteData() {
                             const libMatch = vulnLine.match(/"libname"\s*:\s*"([^"]+)"/);
                             if (libMatch) {
                                 libName = libMatch[1];
+                            }
+                            const pocStr = vulnPocTypeMap.size > 0 ? extractPocStrFromVulnInfo(vulnLine) : '';
+                            if (pocStr && vulnPocTypeMap.has(pocStr)) {
+                                if (!flowVulnPocSeen.has(pocStr)) {
+                                    flowVulnPocSeen.add(pocStr);
+                                    vulnPocTypeMap.get(pocStr).forEach(type => {
+                                        flowVulnTypes[type] = (flowVulnTypes[type] || 0) + 1;
+                                    });
+                                }
                             }
                         }
 
@@ -1690,6 +1779,11 @@ async function getSiteData() {
                 }
                 }
 
+                if (vulnPocTypeMap.size > 0 && Object.keys(flowVulnTypes).length === 0) {
+                    parsedEntries = parseFlowEntries(flowsContent);
+                    Object.assign(flowVulnTypes, computeFlowVulnTypesFromEntries(parsedEntries, vulnPocTypeMap));
+                }
+
                 if (!cachedSummary) {
                     await writeFlowSummaryCache(compositeHash, flowFilePath, {
                         hasFlows,
@@ -1702,7 +1796,8 @@ async function getSiteData() {
                         flowPocCount,
                         flowPocFunctions,
                         flowPocSourceUrls,
-                        flowPocSourceFiles
+                        flowPocSourceFiles,
+                        flowVulnTypes
                     });
                 } else if (vulnPocFunctionMap.size > 0) {
                     await writeFlowSummaryCache(compositeHash, flowFilePath, {
@@ -1716,13 +1811,14 @@ async function getSiteData() {
                         flowPocCount,
                         flowPocFunctions,
                         flowPocSourceUrls,
-                        flowPocSourceFiles
+                        flowPocSourceFiles,
+                        flowVulnTypes
                     });
                 }
 
                 if (!cachedEntries) {
-                    const parsedEntries = parseFlowEntries(flowsContent);
-                    await writeFlowEntriesCache(compositeHash, flowFilePath, parsedEntries);
+                    const entriesToWrite = parsedEntries || parseFlowEntries(flowsContent);
+                    await writeFlowEntriesCache(compositeHash, flowFilePath, entriesToWrite);
                 }
             }
             timings.flows = Date.now() - flowsStart;
@@ -1822,6 +1918,7 @@ async function getSiteData() {
                 flowPocFunctions,
                 flowPocSourceUrls,
                 flowPocSourceFiles,
+                flowVulnTypes,
                 vulnerableLibs,
                 files: availableFiles,
                 jsFiles: jsFiles,
@@ -2917,6 +3014,16 @@ app.get('/api/vuln-stats', async (req, res) => {
         const versions = {};
         const confidenceScores = { '0-25': 0, '26-50': 0, '51-75': 0, '76-100': 0 };
         let sitesWithVulns = 0;
+        const useFlowTypesFromCache = siteDataCache && Array.isArray(siteDataCache.sites) && siteDataCache.sites.length > 0;
+
+        if (useFlowTypesFromCache) {
+            siteDataCache.sites.forEach(site => {
+                const types = site.flowVulnTypes || {};
+                Object.entries(types).forEach(([type, count]) => {
+                    vulnTypes[type] = (vulnTypes[type] || 0) + count;
+                });
+            });
+        }
 
         for (const parentDir of parentDirs) {
             const parentPath = path.join(DATA_DIR, parentDir);
@@ -2949,7 +3056,6 @@ app.get('/api/vuln-stats', async (req, res) => {
                 try {
                     const vulnContent = await cachedReadFile(vulnFile, 'utf8');
                     let siteHasVulns = false;
-
                     vulnContent.split('\n').forEach(line => {
                         if (line.trim()) {
                             try {
@@ -2974,9 +3080,6 @@ app.get('/api/vuln-stats', async (req, res) => {
                                         // Process vulnerabilities
                                         if (lib.vuln && Array.isArray(lib.vuln)) {
                                             lib.vuln.forEach(vuln => {
-                                                const vulnType = vuln.vulnerability_type || 'unknown';
-                                                vulnTypes[vulnType] = (vulnTypes[vulnType] || 0) + 1;
-
                                                 const confidence = vuln.confidence_score || 0;
                                                 const confidencePercent = Math.round(confidence * 100);
                                                 if (confidencePercent <= 25) confidenceScores['0-25']++;
