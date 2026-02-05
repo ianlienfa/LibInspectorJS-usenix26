@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""
+""" IGNORE ----------  COPYRIGHT STRINGS FROM JAW ----------
 	Copyright (C) 2022  Soheil Khodayari, CISPA
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -21,8 +21,8 @@
 	Running:
 	------------
 	$ python3 -m exports.collect_keys_from_headers --sitelist=$(pwd)/input/sitelist_crawled.csv outputs=$(pwd)/outputs/headers.out
-
-"""
+	IGNORE ----------  COPYRIGHT STRINGS FROM JAW -----
+""" 
 
 import os, sys
 import json

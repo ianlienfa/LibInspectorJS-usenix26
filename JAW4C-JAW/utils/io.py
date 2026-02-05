@@ -179,6 +179,9 @@ def decompress_graph(webpage_folder_path, node_file=constantsModule.NODE_INPUT_F
 	cmd1="pigz -d %s"%(os.path.join(webpage_folder_path, node_file))
 	cmd2="pigz -d %s"%(os.path.join(webpage_folder_path, edge_file))
 	
+	logger.debug('Decompressing graph files in %s'%(webpage_folder_path))
+	logger.debug(cmd1)
+	logger.debug(cmd2)
 	bash_command(cmd1)
 	bash_command(cmd2)
 

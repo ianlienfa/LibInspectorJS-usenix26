@@ -46,7 +46,7 @@ from utils.utility import Tee
 import hpg_neo4j.db_utility as neo4jDatabaseUtilityModule
 import hpg_neo4j.query_utility as neo4jQueryUtilityModule
 from hpg_neo4j.query_utility import get_ast_parent, get_ast_topmost, getChildsOf, get_node_by_id, getAdvancedCodeExpression, getCodeOf, getTopMostProgramPath, getTopMostProgramPathById
-import analyses.cs_csrf.semantic_types as CSRFSemanticTypes
+import analyses.cve_vuln.semantic_types as CSRFSemanticTypes
 import analyses.general.data_flow as DF
 
 
@@ -2953,7 +2953,7 @@ def processPayloadStringAndRelationships(tx, vuln_info, top_statement_node):
 						MATCH (top_node { Id: '%s' })-[:AST_parentOf*0..10]->(n_t {Type: '%s'}),
 						(n_t)-[:AST_parentOf { RelationType: '%s' }]->(payload_node)  RETURN collect(distinct payload_node) AS resultset
 						"""%(component['Id'], parentType, parentChildRelationship)
-					print(f"processPayloadStringAndRelationships query: {query}")
+					# print(f"processPayloadStringAndRelationships query: {query}")
 					results = tx.run(query)
 					
 					for item in results: 

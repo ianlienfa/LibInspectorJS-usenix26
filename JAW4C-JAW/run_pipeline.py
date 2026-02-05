@@ -37,25 +37,21 @@ import traceback
 import debugpy
 import shutil
 
+# Suppress neo4j Session.__del__ exceptions during garbage collection
+# These occur when the connection is closed before all sessions are cleaned up
+_original_unraisablehook = sys.unraisablehook
+def _suppress_neo4j_session_del(unraisable):
+    if unraisable.exc_type.__name__ == 'ServiceUnavailable' and 'Session.__del__' in str(unraisable.object):
+        return  # Suppress this specific exception
+    _original_unraisablehook(unraisable)
+sys.unraisablehook = _suppress_neo4j_session_del
+
 import utils.io as IOModule
 from utils.logging import logger as LOGGER, LogFormatter
 import utils.utility as utilityModule
 from utils.utility import TimeoutManager
 import constants as constantsModule
 import signal
-import analyses.domclobbering.domc_neo4j_traversals as DOMCTraversalsModule
-import analyses.domclobbering.static_analysis_api as domc_sast_model_construction_api
-
-import analyses.cs_csrf.cs_csrf_neo4j_traversals as CSRFTraversalsModule
-import analyses.cs_csrf.static_analysis_api as csrf_sast_model_construction_api
-
-import analyses.request_hijacking.static_analysis_api as rh_sast_model_construction_api
-import analyses.request_hijacking.static_analysis_py_api as request_hijacking_neo4j_analysis_api
-import analyses.request_hijacking.verification_api as request_hijacking_verification_api
-
-import analyses.open_redirect.static_analysis_api as or_sast_model_construction_api
-import analyses.open_redirect.static_analysis_py_api as or_neo4j_analysis_api
-
 import analyses.cve_vuln.cve_vuln_neo4j_traversals as CVETraversalsModule
 import analyses.cve_vuln.static_analysis_api as cve_stat_model_construction_api
 import analyses.cve_vuln.lib_detection_api as lib_detection_api
@@ -635,34 +631,6 @@ def main():
 	if "memory" in config["crawler"]:
 		crawler_node_memory = config["crawler"]["memory"]
 		
-	# crawling config
-	# # if config["testbed"]["archive"]["enable"]:
-	# # 	crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --additionalargs={6} --seedurl=SEED_URL".format(
-	# # 		config["crawler"]["maxurls"],
-	# # 		config["crawler"]["browser"]["name"],
-	# # 		config["crawler"]["browser"]["headless"],
-	# # 		config["crawler"]["overwrite"],
-	# # 		config["crawler"]["browser"]["foxhound"], # should_use_foxhound
-	# # 		crawler_node_memory,
-	# # 		parse_additional_args_to_posix_style(config["crawler"]["puppeteer"])
-	# # 	)
-	# # else:
-	# # 	crawling_command = "node --max-old-space-size={5} DRIVER_ENTRY --maxurls={0} --browser={1} --headless={2} --overwrite={3} --foxhound={4} --seedurl=SEED_URL".format(
-	# # 		config["crawler"]["maxurls"],
-	# # 		config["crawler"]["browser"]["name"],
-	# # 		config["crawler"]["browser"]["headless"],
-	# # 		config["crawler"]["overwrite"],
-	# # 		config["crawler"]["browser"]["foxhound"], # should_use_foxhound
-	# # 		crawler_node_memory
-	# # 	)		
-		
-	# browser_name = config["crawler"]["browser"]["name"]
-	# if browser_name == 'chrome':
-	# 	crawler_js_program = 'crawler.js'
-	# else:
-	# 	crawler_js_program = 'crawler-taint.js'
-	# 	crawling_command += f' --foxhoundpath={config["crawler"]["browser"]["foxhoundpath"]}'
-
 	# node_crawler_driver_program = os.path.join(crawler_command_cwd, crawler_js_program)
 	# crawling_command = crawling_command.replace("DRIVER_ENTRY", node_crawler_driver_program)
 	crawling_timeout = int(config["crawler"]["sitetimeout"])

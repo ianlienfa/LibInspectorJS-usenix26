@@ -1579,6 +1579,7 @@ async function getSiteData() {
                 const flowFilePath = path.join(sitePath, 'sink.flows.out');
                 const cachedSummary = await readFlowSummaryCache(compositeHash, flowFilePath);
                 const cachedEntries = await readFlowEntriesCache(compositeHash, flowFilePath);
+                let parsedEntries = null;
                 if (cachedSummary) {
                     hasFlows = cachedSummary.hasFlows || false;
                     pocMatches = cachedSummary.pocMatches || 0;

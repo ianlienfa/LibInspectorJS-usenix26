@@ -225,8 +225,6 @@ def exec_fn_within_transaction(fn, *args, conn=constantsModule.NEO4J_CONN_STRING
 
 
 
-
-
 def wait_for_neo4j_bolt_connection(timeout=60, conn=constantsModule.NEO4J_CONN_HTTP_STRING):
 	"""
 	wait until neo4j access bolt/http connections

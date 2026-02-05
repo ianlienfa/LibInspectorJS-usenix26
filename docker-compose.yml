@@ -8,14 +8,10 @@ services:
   logic:
     build: .
     image: jaw-logic-artifact
-    # container_name: jaw4c-logic    
     volumes:
       # Mount data to nms
       - ./:/JAW4C
-      #- /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0/name_mapping.json:/JAW4C/JAW4C-WebArchive/archive/name_mapping.json:ro
-      - ./JAW4C/JAW4C-JAW/data:/JAW4C/JAW4C-JAW/data
-      # Foxhound
-      # - /home/enyenl/nms/foxhound:/JAW4C/JAW4C-JAW/crawler/foxhound:ro
+      # - ./JAW4C-JAW/data:/JAW4C/JAW4C-JAW/data
       # Docker socket for Docker-in-Docker (DinD)
       - /var/run/docker.sock:/var/run/docker.sock
       # node_modules (anonymous volumes for faster rebuilds)
@@ -44,11 +40,6 @@ services:
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_no_vuln_version/node_modules
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match_dev/node_modules
       - /JAW4C/JAW4C-JAW/tests/pipeline_test/sites/integration_test/vuln_db_query/test_vuln_match/node_modules
-      #- /JAW4C/JAW4C-JAW/tests/pipeline_test
-    # neo4j requests shouldn't go through proxy but all of the others should to use web archive
-    # environment:
-    #   HTTP_PROXY: http://proxy:8002
-    #   HTTPS_PROXY: http://proxy:8002
     environment:
       - WORKER_NAME=artifact
     networks:
@@ -63,36 +54,13 @@ services:
         reservations:
           memory: 6g
     command: >
-      sh -c "while [ 1 ]; do echo '' > /dev/null; done"      
-
-# sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker_10_nodejs2_4.yaml"
-# sh -c "python3 -m run_pipeline --conf=config_docker_01_onr_1.yaml"
+      sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker.yaml"      
+            
+# sh -c "while [ 1 ]; do echo '' > /dev/null; done"      
 # sh -c "cd tests/pipeline_test && python3 test_run.py --action analysis --test integration_test/static_analysis/test_jq_CVE-2020-7656 --config=/JAW4C/JAW4C-JAW/config_docker.yaml"
-
-  # neo4j:
-  #   image: neo4j:4.4
-  #   container_name: neo4j
-  #   environment:
-  #     NEO4J_AUTH: "neo4j/root"
-  #     NEO4J_apoc_export_file_enabled: "true"
-  #     NEO4J_apoc_import_file_enabled: "true"
-  #     NEO4J_apoc_import_file_use__neo4j__config: "true"
-  #     NEO4JLABS_PLUGINS: '["apoc"]'
-  #     NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
-  #   volumes:
-  #     - ./neo4j/data:/data
-  #     - ./neo4j/logs:/logs
-  #   #   # Only mount import files if needed
-  #   #   - ./import:/var/lib/neo4j/import:ro
-  #   ports:
-  #     - "7474:7474"  # HTTP
-  #     - "7687:7687"  # Bolt
-  #   networks:
-  #     - jaw-network
 
   db:
     build: ./vuln_db_llm
-    # container_name: jaw4c-vulndb
     networks:
       - jaw-network
     environment:
@@ -100,7 +68,7 @@ services:
       POSTGRES_PASSWORD: vulndb_pwd
       POSTGRES_DB: vulndb_annotated
     volumes:
-      - ./vuln_db_llm/pgdata/worker4:/var/lib/postgresql/data
+      - ./vuln_db_llm/pgdata:/var/lib/postgresql/data
       - ./vuln_db_llm/advisories_exploits.sql:/docker-entrypoint-initdb.d/advisories_exploits.sql:ro
     deploy:
           resources:
@@ -109,16 +77,13 @@ services:
     restart: unless-stopped
   proxy:
     build: ./JAW4C-WebArchive
-    # container_name: jaw4c-webarchive
     networks:
       - jaw-network
     volumes:
-      - /home/enyenl/nms/enyenl_archive_0/archive_2026_jan12_distribution_1_0:/proxy/archive_2026_jan12_distribution_1_0:ro
-    # ports:
-    #   - "8002:8002"
+      - ./JAW4C-WebArchive/archive:/proxy/archive:ro
     environment:
       - PROXY_VOLUME_PATH=/proxy
-      - PROXY_ARCHIVE=archive_2026_jan12_distribution_1_0
+      - PROXY_ARCHIVE=archive
     deploy:
           resources:
             limits:

@@ -496,7 +496,7 @@ def get_function_call_values_of_function_definitions(tx, function_def_node):
 	query = """
 	MATCH (param)<-[:AST_parentOf {RelationType: 'params'}]-(functionDef { Id: '%s' })<-[r:CG_parentOf]-(caller {Type: 'CallExpression'})-[:AST_parentOf {RelationType: 'arguments'}]-> (arg) RETURN collect(distinct param) as params, caller, collect(distinct arg) AS args, collect(distinct r.Arguments) as arguments
 	"""%(function_def_node['Id'])
-	print("get_function_call_values_of_function_definitions query", query)
+	# print("get_function_call_values_of_function_definitions query", query)
 
 	results = tx.run(query)
 	for each_binding in results:

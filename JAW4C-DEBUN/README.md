@@ -11,36 +11,11 @@ Modern web applications extensively use JavaScript bundlers that transform and b
 
 ## Requirements
 
-- Docker (recommended)
-- Node.js 18+ (for local installation)
-- 4GB+ RAM
-- 2GB+ disk space
+- x86-64 Linux ( Tested on Ubuntu 20.04.3 LTS )
+- Docker 
+- 8GB+ RAM
+- 20GB+ disk space
 
-## Getting Started
-
-### Quick Start with Docker
-
-```bash
-# Build the Docker image
-docker build -t debun .
-
-# Run the container
-docker run -it --rm debun:latest /bin/bash
-```
-
-### Local Installation
-
-```bash
-# Install dependencies
-npm install
-
-# Make the script executable
-chmod +x debun.sh
-chmod +x download-files.sh
-
-# Download files
-./download-files.sh
-```
 
 ## Artifact Structure
 

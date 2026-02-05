@@ -551,7 +551,10 @@ def main():
     if args.server_only:
         host_server(args.test, args.port)
     else:        
-        success = run_test(args.test, args.action, args.port, args.config, args.skip_setup, args.keep_alive)
+        try:
+            success = run_test(args.test, args.action, args.port, args.config, args.skip_setup, args.keep_alive)
+        except Exception as e:
+            print(f"Error running test: {e}")            
         sys.exit(0 if success else 1)
 
 

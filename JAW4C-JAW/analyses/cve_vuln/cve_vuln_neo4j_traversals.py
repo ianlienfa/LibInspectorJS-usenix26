@@ -136,6 +136,7 @@ def build_hpg(container_name, webpage):
 			IOModule.decompress_graph(webpage, node_file=f"{constantsModule.NODE_INPUT_FILE_NAME}.gz", edge_file=f"{constantsModule.RELS_INPUT_FILE_NAME}.gz")
 
 		# import
+		# breakpoint()
 		if not (os.path.exists(nodes_file) and os.path.exists(rels_file)):
 			logger.error('The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...')
 			raise RuntimeError("The HPG nodes.csv / rels.csv files do not exist in the provided folder, skipping...")
@@ -313,7 +314,7 @@ def analyze_hpg(seed_url, container_name, vuln_list, container_transaction_timeo
 								out = neo4jDatabaseUtilityModule.exec_fn_within_transaction(CVETraversalsModule.run_traversals,
 										vuln_info, navigation_url, webpage, nodeid_to_matches, processed_pattern, call_sites_cache, call_values_cache,
 										code_matching_cutoff, call_count_limit,
-										conn_timeout=container_transaction_timeout, conn=constantsModule.NEO4J_CONN_STRING)
+										conn_timeout=container_transaction_timeout, conn=constantsModule.NEO4J_CONN_STRING)								
 						except Exception as e:
 							logger.error(traceback.format_exc())
 							logger.error(f"Error executing query, {e}, moving to the next vulnerability...")							

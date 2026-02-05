@@ -9,116 +9,62 @@ JavaScript libraries such as jQuery and Lodash are a core
 component of the modern web development stack. However,
 prior work has shown that websites frequently rely on out-
 dated libraries, many of which contain publicly known vul-
-nerabilities. LibInspectorJS is a end-to-end pipeline that: (i) detects
-vulnerable libraries, including in bundled code, by lifting
-and analyzing them for identifying features; (ii) pinpoints
-exploitable functions using a new tag-tainting algorithm to
-match non-standard sinks; and (iii) evaluates exploitability
-through automated data-flow analysis from user-controlled in-
-puts.
+nerabilities. LibInspectorJS is a end-to-end pipeline that:
+
+1. Detects vulnerable libraries, including in bundled code, by lifting and analyzing them for identifying features
+2. Pinpoints exploitable functions using a new tag-tainting algorithm to match non-standard sinks
+3. Evaluates exploitability
+through automated data-flow analysis from user-controlled inputs.
 
 
 # Running the full pipeline (including setting up DB/archive)
+### Setting up docker image and running the full pipeline
 ```
 docker compose -p 'artifact' up --build
 ```
 This should be executed in the JAW4C directory, it will set up the python environment and the required docker services 
 
-Once the docker services are up, you can control the pipeline execution by exec into the logic container
+The default configuration will analyze the archived websites in `JAW4C/JAW4C-WebArchive/archive`, with the indexing file located at `JAW4C/JAW4C-WebArchive/archive/name_mapping.json`
+After the analysis, you should be able to see the analysis results in `JAW4C-JAW/data` directory
 
+# Inspecting the outcome with UI 
+We provide a simple web-based UI to inspect the analysis results, to run the UI, run the following command in another terminal:
 ```
-python3 -m run_pipeline --conf=config.yaml
+docker compose -f JAW4C-UI/docker-compose.yml up --build
 ```
-For simple testing
-```
-python3 -m analyses.example.example_analysis --input=<path to the testing script> -S ""
-```
+Navigate to localhost:3001 in your web browser to access the UI.
 
-# Changing configurations
-The pipeline configuration is in JAW4C-JAW/config.yaml
+![The UI will be something like this](IMG/entry.png)
 
-# Manual setup
+The stats for each site can be shown by clicking on the site entry:
+![Site View](IMG/site.png)
 
-### Web archive setup
-- generating the right url to interact with the archive- use the `create_start_crawl_url` function in README.md
-    ```
-    cd JAW4C-WebArchive/ && docker build -t mitmproxy . && docker run -it --rm -p 8001:8001 -p 8002:8002 -p 8314:8314 -p 8315:8315 -p 8316:8316 --entrypoint=bash -v "$(pwd)/archive/archive-70":/proxy/archive-70  mitmproxy
-    ```
-    Then in the container:
-    ```
-    mkdir -p proxy_logs
-    echo "Launching proxy instance 8002"
-    mitmdump \
-    --listen-host=0.0.0.0 \
-    --listen-port=8002 \
-    --set confdir=./conf \
-    --set flow-detail=0 \
-    --set anticache=true \
-    --set anticomp=true \
-    -s "./scripts/proxy.py" \
-    --set useCache=true \
-    --set onlyUseCache=false \
-    --set useBabel=true \
-    --set jalangiArgs="--inlineIID --inlineSource --analysis /proxy/analysis/primitive-symbolic-execution.js" \
-    --set warcPath="/proxy/archive-dec24" \
-    --set replayNearest=true \
-    --set replay=true \
-    --set archive=false \
-    --set append=false \
-    > "proxy_logs/out" 2> "proxy_logs/err"
-    ```
-    ```
-    # Example testing command 
-    curl -v --proxy http://localhost:8002 http://240.240.240.240/?target=https%3A%2F%2Fwww.google.com&type=soak
-    ```
-    - If you see http response code 301, then the archive is working correctly
+Click on lib.detection.json/vuln.out/sink.flows.out to see the detailed analysis results:
 
-### Vuln-DB setup
-Build db instance
+### Library Detection Results
+![Library Detection Results](IMG/lib-detect.png)
+
+### Vulnerability Query Results
+![Vulnerability Query Results](IMG/vuln.png)
+
+### POC Matching and Data Flows
+![POC Matching and Data Flows](IMG/flows.png)
+
+# Manually inspecting the pipeline
+If you want to manually inspect the pipeline, you can replace the command field of the 'logic' service in docker-compose.yml with a keep-alive command such as:
 ```
-docker compose up --build
+sh -c "while [ 1 ]; do echo '' > /dev/null; done"
 ```
-Interacting with Vuln-DB
+Then you can exec into the container:
 ```
-docker exec -it vulndb psql -U vulndb -d vulndb
+# This runs the full pipeline
+docker exec artifact-logic-1 sh -c "python3 -m run_pipeline --conf=/JAW4C/JAW4C-JAW/config_docker.yaml"
 ```
-If you want to connect via psql, the config is:
 ```
-host=localhost
-database=vulndb
-username=vulndb
-password=vulndb_pwd
-port=543
+# This runs a test my spawning a small web server and crawling against it
+docker exec artifact-logic-1 sh -c "cd tests/pipeline_test && python3 test_run.py --action analysis --test integration_test/static_analysis/test_jq_CVE-2020-7656 --config=/JAW4C/JAW4C-JAW/config_docker.yaml"
 ```
 
-# Verification step
-The ground truth collection is saved in groundtruth.json in each webpage's folder
-
-# Commonly seen problems
-- 'Failed to launch the browser process!': remember to source env.sh
-- Archive stuck at:
-    ```* Host localhost:8002 was resolved.
-    * IPv6: ::1
-    * IPv4: 127.0.0.1
-    *   Trying [::1]:8002...
-    * Connected to localhost (::1) port 8002
-    > GET http://240.240.240.240/?target=https%3A%2F%2Fwww.us.jll.com%2Fen%2Fsolutions%2Frelocation-project-management%3Fhighlight%3Doccupier-services&type=soak HTTP/1.1
-    > Host: 240.240.240.240
-    > User-Agent: curl/8.5.0
-    > Accept: */*
-    ```
-    -> Check the correctness of url
-- no permission to database data
-    - add current user to group 7474 (the group number that is used to create docker database)
-    - if there's no group 7474, create one
-    ```
-- neo4j connection problem
-    - could be previous container didn't stop gracefully and therefore some lock is helded by the operating system, the proper way to fix this is to remove the /var/lib/neo4j/data/databases/store_lock (now implemented into create_container)
-
-    ```
-
-# Docker testing
-- When testing pipeline using docker_keep_alive option, manually clean up the instances with
-```
-docker ps -a | grep 'arm64v8/neo4j:4.4' | cut -f 1 -d ' ' | while read id; do python3 -c "import docker.neo4j.manage_container as c; c.stop_neo4j_container('${id}')" && docker rm $id done
-```
+# Anonymous Submission notes
+Since this paper uses publicly available tools, including 
+JAW(https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/SoheilKhodayari/JAW&ved=2ahUKEwiZvvTemMOSAxXwFVkFHZ8sPKgQFnoECB0QAQ&usg=AOvVaw3xduNS2xjJY2tBwfcttOwb), PTV(https://github.com/aaronxyliu/PTV), DEBUN(https://github.com/ku-plrg/debun-ase25). There are some segment in code that includes copyright notices. We have added comments enclosing those parts to avoid any issues with anonymous submission.
