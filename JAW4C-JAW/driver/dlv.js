@@ -65,7 +65,7 @@ const DEBUN = async (dataDir = "") => {
 
     // Call DEBUN from command line
     const { execSync } = require('child_process');
-    const debunCommand = `${debunScriptPath} detect --dir "${scriptsDir}"`;
+    const debunCommand = `sh ${debunScriptPath} detect --dir "${scriptsDir}"`;
 
     logger.info(`Executing: ${debunCommand}`);
 

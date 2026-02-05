@@ -65,7 +65,11 @@ def create_neo4j_container(container_name, weburl_suffix, webapp_name, volume_ho
 		conf_dir = os.path.join(container_data_path, 'conf')
 		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
 			os.makedirs(p)
-			os.chown(p, 7474, 7474)
+			try:
+				os.chown(p, 7474, 7474)
+			except PermissionError:
+				# If chown fails (non-root), make directory world-writable for neo4j container
+				os.chmod(p, 0o777)                                                                                                                                            
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
 		shutil.copytree(PLUGINS_HOME, plugins_dir, dirs_exist_ok=True)  # copy apoc plugin
 
@@ -137,7 +141,11 @@ def create_test_neo4j_container(container_name, weburl_suffix, webapp_name, data
 		conf_dir = os.path.join(container_data_path, 'conf')
 		for p in [container_data_path, data_dir, logs_dir, plugins_dir, conf_dir]:
 			os.makedirs(p)
-			os.chown(p, 7474, 7474)
+			try:
+				os.chown(p, 7474, 7474)
+			except PermissionError:
+				# If chown fails (non-root), make directory world-writable for neo4j container
+				os.chmod(p, 0o777)                                                                                                                                            
 		shutil.copyfile(os.path.join(CONF_HOME, 'neo4j.conf'), os.path.join(conf_dir, 'neo4j.conf'))
 
 	# Reconstruct volume mapping if in container
