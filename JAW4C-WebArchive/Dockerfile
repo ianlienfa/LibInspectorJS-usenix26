@@ -54,4 +54,4 @@ EXPOSE 8315
 EXPOSE 8316
 
 # Entrypoint: mitmdump
-ENTRYPOINT [ "sh", "/proxy/entrypoint.sh" ]
+ENTRYPOINT [ "/proxy/entrypoint.sh" ]

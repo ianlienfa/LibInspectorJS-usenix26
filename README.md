@@ -20,6 +20,10 @@ through automated data-flow analysis from user-controlled inputs.
 # Running the full pipeline (including setting up DB/archive)
 ### Setting up docker image and running the full pipeline
 ```
+curl <the zip link to this artifact> -o JAW4C.zip
+mkdir JAW4C && mv JAW4C.zip JAW4C/ && cd JAW4C && unzip JAW4C.zip && chmod +x ./JAW4C-WebArchive/entrypoint.sh
+```
+```
 docker compose -p 'artifact' up --build
 ```
 This should be executed in the JAW4C directory, it will set up the python environment and the required docker services 
