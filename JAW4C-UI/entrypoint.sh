@@ -46,6 +46,6 @@ while true; do
   wait "$PID" 2>/dev/null || true
 done
 
-# docker compose exec jaw4c-ui-artifact sh -c 'echo debug > /app/.run-mode'
-# docker compose exec jaw4c-ui-artifact sh -c 'echo prod > /app/.run-mode'
-# docker compose exec jaw4c-ui-artifact sh -c 'touch /app/.run-reload'
+# docker exec jaw4c-ui-artifact sh -c 'echo debug > /app/.run-mode'
+# docker exec jaw4c-ui-artifact sh -c 'echo prod > /app/.run-mode'
+# docker exec jaw4c-ui-artifact sh -c 'touch /app/.run-reload'

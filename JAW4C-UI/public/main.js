@@ -267,15 +267,18 @@ async function loadFile(hash, file) {
         currentFileEl.textContent = file;
 
         // Display content
+        const contentEl = document.getElementById(`content-${hash}`);
         if (data.type === 'html' && data.hasTableView) {
             // For HTML table views, use innerHTML
             codeEl.innerHTML = data.content;
+            contentEl?.classList.add('has-table-view');
             if (file === 'vuln.out') {
                 initVulnMismatchFilter(hash);
             }
         } else {
             // For code files, display as text
             codeEl.textContent = data.content;
+            contentEl?.classList.remove('has-table-view');   
         }
 
         // Show/hide toggle button
@@ -722,6 +725,7 @@ async function toggleView(hash) {
 
             // For raw view, display as text
             codeEl.textContent = data.content;
+            contentEl?.classList.remove('has-table-view');
 
             toggleBtn.textContent = 'Switch to Table View';
             cached.currentView = 'raw';
@@ -732,8 +736,10 @@ async function toggleView(hash) {
         // Switch back to formatted view
         if (cached.type === 'html') {
             codeEl.innerHTML = cached.formattedContent;
+            contentEl?.classList.add('has-table-view');                                                                                                          
         } else {
             codeEl.textContent = cached.formattedContent;
+            contentEl?.classList.remove('has-table-view');
         }
         toggleBtn.textContent = 'Switch to Raw View';
         cached.currentView = 'formatted';
