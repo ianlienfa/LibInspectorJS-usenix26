@@ -120,13 +120,13 @@ Vulnerability types distribution:
 # Evaluation logs -- poc match 
 
 POC Matches (All):
-  Total POC matches (including non-reach): 21,012
-  Sites with POC matches: 967
+  Total POC matches (including non-reach): 21,012 
+  Sites with POC matches: 967 
   Average POC matches per site (all sites): 2.01
 
 POC Matches (With Flows):
-  Total POC matches : 2,202
-  Sites with POC matches: 405
+  Total POC matches : 2,202 
+  Sites with POC matches: 405   
   Average POC matches per site (all sites): 0.21
 
 
