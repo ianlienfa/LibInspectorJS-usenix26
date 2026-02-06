@@ -75,6 +75,8 @@ JAW(https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://gi
 There are some segment in code that includes copyright notices. We've anoymized those parts for the purpose of review process but would restore them once the whole process is done.
 
 # Evaluation logs -- Library usages
+The complete dataset we analyzed is over 100GB in size. 
+Because of this, we only include a sample archive file and the evaluation data in this artifact. The full archived data is available upon request
 
 - Total sites analyzed: 10,462
 - Total libraries detected (unique): 31,080
