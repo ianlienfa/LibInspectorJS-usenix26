@@ -74,6 +74,61 @@ Since this paper uses publicly available tools, including
 JAW(https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/SoheilKhodayari/JAW&ved=2ahUKEwiZvvTemMOSAxXwFVkFHZ8sPKgQFnoECB0QAQ&usg=AOvVaw3xduNS2xjJY2tBwfcttOwb), PTV(https://github.com/aaronxyliu/PTV), DEBUN(https://github.com/ku-plrg/debun-ase25). 
 There are some segment in code that includes copyright notices. We've anoymized those parts for the purpose of review process but would restore them once the whole process is done.
 
+# Evaluation logs -- Library usages
+
+Total sites analyzed: 10,462
+Total libraries detected (unique): 31,080
+Libraries (unique) per site (average): 2.97
+
+Top 10 most used libraries:
+ 1. jquery                        : 7,892
+ 2. core-js                       : 5,215
+ 3. react                         : 4,675
+ 4. lodash.js                     : 2,662
+ 5. jqueryui                      : 1,577
+ 6. underscore.js                 : 1,567
+ 7. preact                        : 1,529
+ 8. bootstrap                     : 1,209
+ 9. moment.js                     : 1,154
+10. vue                           : 936
+
+# Evaluation logs -- Vulnerable Library usages
+
+Total sites with vulnerabilities: 3,810
+Total vulnerable libraries detected: 6,562
+  (Note: Takes into account multiple vulnerable versions of the same library on a single site)
+Vulnerable libraries per site (average): 1.72
+
+Top 10 vulnerable libraries:
+ 1. jquery                        : 2,009
+ 2. lodash.js                     : 1,696
+ 3. moment.js                     : 401
+ 4. gsap                          : 231
+ 5. handlebars.js                 : 159
+ 6. require.js                    : 152
+ 7. dompurify                     : 148
+ 8. axios                         : 111
+ 9. bootstrap                     : 82
+10. highlight.js                  : 67
+
+Vulnerability types distribution:
+  xss       : 696
+  redos     : 8
+  pollution : 6
+  sanitization: 5
+
+# Evaluation logs -- poc match 
+
+POC Matches (All):
+  Total POC matches (including non-reach): 21,012
+  Sites with POC matches: 967
+  Average POC matches per site (all sites): 2.01
+
+POC Matches (With Flows):
+  Total POC matches : 2,202
+  Sites with POC matches: 405
+  Average POC matches per site (all sites): 0.21
+
 
 # JAW copyright notice
 -- JAW is a opensource project, we moved the original copyright notice to a separate file in the JAW4C-JAW directory, which is the part of the code that is directly used in the pipeline. The original copyright notice is as follows:
