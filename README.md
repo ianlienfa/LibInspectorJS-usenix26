@@ -77,7 +77,9 @@ There are some segment in code that includes copyright notices. We've anoymized 
 # Evaluation logs -- Library usages
 
 Total sites analyzed: 10,462
+
 Total libraries detected (unique): 31,080
+
 Libraries (unique) per site (average): 2.97
 
 Top 10 most used libraries:
@@ -95,8 +97,10 @@ Top 10 most used libraries:
 # Evaluation logs -- Vulnerable Library usages
 
 Total sites with vulnerabilities: 3,810
+
 Total vulnerable libraries detected: 6,562
   (Note: Takes into account multiple vulnerable versions of the same library on a single site)
+  
 Vulnerable libraries per site (average): 1.72
 
 Top 10 vulnerable libraries:
@@ -120,13 +124,19 @@ Vulnerability types distribution:
 # Evaluation logs -- poc match 
 
 POC Matches (All):
+
   Total POC matches (including non-reach): 21,012 
+  
   Sites with POC matches: 967 
+  
   Average POC matches per site (all sites): 2.01
 
 POC Matches (With Flows):
+
   Total POC matches : 2,202 
+  
   Sites with POC matches: 405   
+  
   Average POC matches per site (all sites): 0.21
 
 
